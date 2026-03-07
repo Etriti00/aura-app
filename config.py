@@ -278,7 +278,7 @@ FONT_MONO = "JetBrains Mono"
 APOLLO_RATE_PER_MINUTE = 50
 APOLLO_RATE_PER_HOUR = 200
 HUNTER_RATE_PER_MINUTE = 15
-HUBSPOT_RATE_PER_MINUTE = 100     # HubSpot private apps allow 100 requests/10s
+HUBSPOT_RATE_PER_MINUTE = 600     # HubSpot private apps allow 100 requests/10s = 600/min
 HUBSPOT_RATE_PER_HOUR = 4000
 API_BACKOFF_STEPS = [5, 15, 60]   # seconds — exponential backoff on 429
 
@@ -458,6 +458,23 @@ SUMMARY_CACHE_TTL_HOURS = 24
 RESPONSE_CACHE_MAX_SIZE = 500
 RESPONSE_CACHE_TTL_HOURS = 1
 
+# Per-task output token budgets (max_tokens for LLM response generation)
+TASK_OUTPUT_TOKENS = {
+    "generate_email":       1500,
+    "write_followup":       1500,
+    "synthesize_research":  2000,
+    "orchestrate_command":  1500,
+    "qualify_lead":         512,
+    "qualify_lead_complex": 768,
+    "enrich_lead":          512,
+    "summarize":            600,
+    "classify_reply":       256,
+    "handle_objection":     1200,
+    "research":             2000,
+    "agent_triage":         512,
+    "_default":             1024,
+}
+
 # Per-task context section selection (only include what the task needs)
 TASK_CONTEXT_SECTIONS = {
     "generate_email":       ["soul", "skill", "memory_today", "case_context", "payload"],
@@ -477,9 +494,9 @@ SUBAGENT_MAX_SUBTASKS = 5
 SUBAGENT_DEFAULT_TIER = "haiku"
 SUBAGENT_DECOMPOSITION_MAP = {
     "generate_email": [
-        {"type": "extract_lead_insights", "tier": "haiku"},
-        {"type": "draft_email",           "tier": "haiku"},
-        {"type": "review_tone",           "tier": "haiku"},
+        {"type": "extract_lead_insights", "tier": "haiku", "max_tokens": 512},
+        {"type": "draft_email",           "tier": "haiku", "max_tokens": 768},
+        {"type": "review_tone",           "tier": "haiku", "max_tokens": 768},
     ],
     "qualify_lead_complex": [
         {"type": "check_website",  "tier": "haiku"},

@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, Signal
 from database.db_manager import DatabaseManager
 from database.schema import Settings
 from core.key_vault import KeyVault
+from config import DEFAULT_TIER3_MODEL
 from utils.logger import get_logger
 
 logger = get_logger("settings_controller")
@@ -79,7 +80,7 @@ class SettingsController(QObject):
             "fleet_enabled": getattr(settings, "agent_system_enabled", False),
             "trends_enabled": getattr(settings, "trends_enabled", True),
             # Chat model
-            "chat_model": settings.chat_model or "anthropic/claude-sonnet-4-5",
+            "chat_model": settings.chat_model or DEFAULT_TIER3_MODEL,
             # OpenRouter
             "openrouter_key": self._mask_key(getattr(settings, "openrouter_key_enc", "")),
             "has_openrouter": bool(getattr(settings, "openrouter_key_enc", "")),

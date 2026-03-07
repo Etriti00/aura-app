@@ -168,7 +168,7 @@ class TokenManager:
 
     def get_or_create_summary(self, source_type: str, source_id: int,
                               source_text: str,
-                              max_summary_tokens: int = 400) -> str:
+                              max_summary_tokens: int = 600) -> str:
         """
         Return a cached summary if source text hasn't changed.
         Otherwise summarize via haiku and store in cached_summaries table.
@@ -218,15 +218,37 @@ class TokenManager:
             max_chars = max_summary_tokens * TOKEN_ESTIMATE_CHARS_PER_TOKEN
             return source_text[:max_chars]
 
-    def summarize_text(self, text: str, max_tokens: int = 400) -> str:
+    def summarize_text(self, text: str, max_tokens: int = 600) -> str:
         """
         Use a cheap LLM call (haiku via router) to summarize text.
-        Falls back to hard truncation if router not available.
+        For long inputs (>4000 chars), chunks the text, summarizes each
+        chunk, then merges. Falls back to hard truncation if router unavailable.
         """
         if not self.router_engine:
             max_chars = max_tokens * TOKEN_ESTIMATE_CHARS_PER_TOKEN
             return text[:max_chars]
 
+        # Chunk long text to avoid overwhelming a single call
+        chunk_size = 4000
+        if len(text) > chunk_size:
+            chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+            chunk_summaries = []
+            per_chunk_tokens = max(200, max_tokens // len(chunks))
+            for chunk in chunks:
+                summary = self._summarize_single(chunk, per_chunk_tokens)
+                if summary:
+                    chunk_summaries.append(summary)
+            if chunk_summaries:
+                merged = "\n".join(chunk_summaries)
+                # If merged summaries are still long, do a final merge pass
+                if len(merged) > chunk_size:
+                    return self._summarize_single(merged, max_tokens)
+                return merged
+
+        return self._summarize_single(text, max_tokens)
+
+    def _summarize_single(self, text: str, max_tokens: int = 600) -> str:
+        """Summarize a single text chunk via router."""
         prompt = (
             "Summarize the following text concisely, preserving key facts, "
             "names, dates, and decisions. Output only the summary, no preamble.\n\n"

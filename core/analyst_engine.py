@@ -7,6 +7,7 @@ import json
 
 from database.db_manager import DatabaseManager
 from database.schema import Campaign, Lead, Skill, Settings
+from config import DEFAULT_TIER3_MODEL
 from utils.logger import get_logger
 
 logger = get_logger("analyst_engine")
@@ -124,7 +125,7 @@ class AnalystEngine:
 
             # Get model from settings
             settings = self.db_manager.get_settings()
-            model = "anthropic/claude-sonnet-4-5"
+            model = DEFAULT_TIER3_MODEL
             if settings and settings.chat_model:
                 model = settings.chat_model
 

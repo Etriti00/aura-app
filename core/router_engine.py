@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any
 from database.db_manager import DatabaseManager
 from database.schema import Settings, ApiUsageLog
 from core.key_vault import KeyVault
-from config import ROUTER_TASK_TIER_MAP, DEFAULT_HAIKU_MODEL
+from config import ROUTER_TASK_TIER_MAP, DEFAULT_HAIKU_MODEL, DEFAULT_TIER3_MODEL
 from utils.logger import get_logger
 
 logger = get_logger("router_engine")
@@ -88,7 +88,7 @@ class RouterEngine:
 
         # Model identifiers — loaded from Settings on first call
         self._haiku_model = DEFAULT_HAIKU_MODEL
-        self._sonnet_model = "anthropic/claude-sonnet-4-5"
+        self._sonnet_model = DEFAULT_TIER3_MODEL
         self._ollama_model = "ollama/llama3"  # local Ollama server
         self._models_loaded = False
 
@@ -245,7 +245,7 @@ class RouterEngine:
             return self._run_local(task_type, prompt, context)
         else:
             model = self._get_model_for_tier(tier)
-            return self._run_llm(model, tier, prompt, context)
+            return self._run_llm(model, tier, prompt, context, task_type=task_type)
 
     def _run_local(self, task_type: str, prompt: str, context: dict) -> dict:
         """Run a local (pure-Python) handler."""
@@ -269,7 +269,8 @@ class RouterEngine:
                 "error": str(e),
             }
 
-    def _run_llm(self, model: str, tier: str, prompt: str, context: dict) -> dict:
+    def _run_llm(self, model: str, tier: str, prompt: str, context: dict,
+                 task_type: str = "") -> dict:
         """Call LiteLLM with the given model."""
         if not model:
             return {
@@ -290,7 +291,10 @@ class RouterEngine:
                 messages.insert(0, {"role": "system", "content": context["system"]})
 
             temperature = context.get("temperature", 0.7)
-            max_tokens = context.get("max_tokens", 1024)
+            # Use task-specific output token budget, then context override, then default
+            from config import TASK_OUTPUT_TOKENS
+            default_budget = TASK_OUTPUT_TOKENS.get(task_type, TASK_OUTPUT_TOKENS["_default"])
+            max_tokens = context.get("max_tokens", default_budget)
 
             response = litellm.completion(
                 model=model,

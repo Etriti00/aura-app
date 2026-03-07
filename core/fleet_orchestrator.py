@@ -90,9 +90,9 @@ class FleetOrchestrator:
                     )
 
                 if not agent:
-                    # Queue the task
+                    # Queue the task (agent_id=0 sentinel — no agent assigned yet)
                     task = AgentTask(
-                        agent_id=1,  # Will be reassigned
+                        agent_id=0,
                         task_type=task_type,
                         task_payload=json.dumps(payload),
                         status="queued",
@@ -404,4 +404,78 @@ class FleetOrchestrator:
                     },
                 }
         except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def dispatch_queued_tasks(self) -> dict:
+        """Retry queued tasks by assigning them to idle agents."""
+        dispatched = 0
+        failed = 0
+        try:
+            with self.db_manager.session_scope() as session:
+                queued = (
+                    session.query(AgentTask)
+                    .filter_by(status="queued")
+                    .order_by(AgentTask.created_at.asc())
+                    .all()
+                )
+                if not queued:
+                    return {"success": True, "dispatched": 0, "remaining": 0}
+
+                task_data = [
+                    {"id": t.id, "task_type": t.task_type,
+                     "payload": t.task_payload}
+                    for t in queued
+                ]
+
+            for td in task_data:
+                try:
+                    payload = json.loads(td["payload"]) if isinstance(td["payload"], str) else td["payload"]
+                except (json.JSONDecodeError, TypeError):
+                    payload = {}
+
+                target_name = TASK_SPECIALTY_MAP.get(td["task_type"])
+
+                with self.db_manager.session_scope() as session:
+                    agent = None
+                    if target_name:
+                        agent = (
+                            session.query(Agent)
+                            .filter_by(name=target_name, status="idle")
+                            .first()
+                        )
+                    if not agent:
+                        agent = (
+                            session.query(Agent)
+                            .filter_by(role="worker", status="idle")
+                            .first()
+                        )
+                    if not agent:
+                        continue  # Still no idle agents — skip
+
+                    agent_id = agent.id
+                    # Remove the queued placeholder
+                    old_task = session.query(AgentTask).filter_by(id=td["id"]).first()
+                    if old_task:
+                        session.delete(old_task)
+
+                # Dispatch via normal path
+                result = self.agent_engine.run_task(agent_id, td["task_type"], payload)
+                if result.get("success"):
+                    dispatched += 1
+                else:
+                    failed += 1
+
+            # Count remaining
+            with self.db_manager.session_scope() as session:
+                remaining = session.query(AgentTask).filter_by(status="queued").count()
+
+            logger.info(f"Queue sweep: dispatched={dispatched}, failed={failed}, remaining={remaining}")
+            return {
+                "success": True,
+                "dispatched": dispatched,
+                "failed": failed,
+                "remaining": remaining,
+            }
+        except Exception as e:
+            logger.error(f"dispatch_queued_tasks failed: {e}")
             return {"success": False, "error": str(e)}

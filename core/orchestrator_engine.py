@@ -10,6 +10,7 @@ from typing import Optional
 
 from database.db_manager import DatabaseManager
 from database.schema import Campaign, Lead, Skill, Settings
+from config import DEFAULT_TIER3_MODEL
 from utils.logger import get_logger
 
 logger = get_logger("orchestrator_engine")
@@ -93,7 +94,7 @@ class OrchestratorEngine:
         """
         try:
             settings = self.db_manager.get_settings()
-            model = "anthropic/claude-sonnet-4-5"
+            model = DEFAULT_TIER3_MODEL
             if settings and settings.chat_model:
                 model = settings.chat_model
 

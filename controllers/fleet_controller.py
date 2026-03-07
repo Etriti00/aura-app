@@ -78,6 +78,10 @@ class FleetController(QObject):
         # Caller agent timer — last-resort voice calling
         self._caller_timer = QTimer(self)
         self._caller_timer.timeout.connect(self._check_stalled_leads)
+
+        # Queued task dispatch timer — retry queued tasks every 60s
+        self._queue_timer = QTimer(self)
+        self._queue_timer.timeout.connect(self._dispatch_queued)
         self.voice_ctrl = None       # injected by main_window
         self.autonomy_ctrl = None    # injected by main_window
         self.voice_engine = None     # injected by main_window
@@ -105,6 +109,8 @@ class FleetController(QObject):
                     self.outreach_ctrl.start_schedule_timer()
                 # Start caller agent timer (voice call last resort)
                 self._caller_timer.start(CALLER_CHECK_INTERVAL_MS)
+                # Start queued task dispatch timer (60s)
+                self._queue_timer.start(60_000)
                 logger.info("Fleet booted — all timers started")
             self.fleet_booted.emit(result)
         except Exception as e:
@@ -119,6 +125,7 @@ class FleetController(QObject):
             self._escalation_timer.stop()
             self._improvement_timer.stop()
             self._caller_timer.stop()
+            self._queue_timer.stop()
             # Stop pipeline automation timers
             if self.reply_ctrl:
                 self.reply_ctrl.stop()
@@ -137,6 +144,19 @@ class FleetController(QObject):
     @property
     def is_running(self) -> bool:
         return self._fleet_running
+
+    # ─── Queue dispatch ────────────────────────────────────────────────
+
+    def _dispatch_queued(self):
+        """Periodically retry queued tasks."""
+        if not self._fleet_running:
+            return
+        try:
+            result = self.fleet.dispatch_queued_tasks()
+            if result.get("dispatched", 0) > 0:
+                logger.info(f"Queue dispatch: {result['dispatched']} tasks dispatched")
+        except Exception as e:
+            logger.debug(f"Queue dispatch error: {e}")
 
     # ─── Status queries ───────────────────────────────────────────────
 

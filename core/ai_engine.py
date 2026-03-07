@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any
 
 from utils.logger import get_logger
 from core.safety_guard import SafetyGuard
+from config import DEFAULT_TIER2_MODEL, DEFAULT_TIER3_MODEL
 
 logger = get_logger("ai_engine")
 
@@ -27,8 +28,8 @@ class AIEngine:
         self.safety = safety_guard or SafetyGuard()
         self._api_keys = {}
         self._models = {
-            "tier2": "gemini/gemini-1.5-flash",
-            "tier3": "anthropic/claude-sonnet-4-5",
+            "tier2": DEFAULT_TIER2_MODEL,
+            "tier3": DEFAULT_TIER3_MODEL,
         }
         self.router = None  # Optional RouterEngine for intelligent routing
         self.rag_engine = None  # Optional RAGEngine for style mimicry
@@ -48,7 +49,7 @@ class AIEngine:
         General-purpose LLM generation used by sequence_controller and others.
         Returns {"success": bool, "response": str, "error": str | None}.
         """
-        target_model = model or self._models.get("tier3", "gemini/gemini-1.5-flash")
+        target_model = model or self._models.get("tier3", DEFAULT_TIER3_MODEL)
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})

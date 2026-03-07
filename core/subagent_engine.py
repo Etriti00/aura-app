@@ -122,7 +122,8 @@ class SubagentEngine:
                     record_id = record.id
 
                 # Execute via router
-                result = self.run_subtask(record_id, prompt, tier)
+                subtask_max_tokens = pattern.get("max_tokens", 512)
+                result = self.run_subtask(record_id, prompt, tier, max_tokens=subtask_max_tokens)
 
                 if result.get("success"):
                     previous_output = result["output"]
@@ -166,12 +167,13 @@ class SubagentEngine:
             }
 
     def run_subtask(self, subtask_record_id: int, prompt: str,
-                    tier: str = SUBAGENT_DEFAULT_TIER) -> dict:
+                    tier: str = SUBAGENT_DEFAULT_TIER,
+                    max_tokens: int = 512) -> dict:
         """Execute a single subtask via router_engine. Updates SubagentTask row."""
         try:
             result = self.router_engine.route(
                 "agent_triage", prompt,
-                context={"max_tokens": 512, "temperature": 0.5},
+                context={"max_tokens": max_tokens, "temperature": 0.5},
             )
 
             tokens = result.get("tokens", 0)

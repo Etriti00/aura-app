@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from database.db_manager import DatabaseManager
 from database.schema import Agent, AgentTask, AgentMessage, AgentMemoryLog, Skill, Settings
+from config import AGENT_MAX_MESSAGES_PER_HOUR
 from utils.logger import get_logger
 
 logger = get_logger("agent_engine")
@@ -58,6 +59,8 @@ class AgentEngine:
         self.token_manager = None  # injected by main_window
         self.case_engine = None  # injected by main_window
         self.subagent_engine = None  # injected by main_window
+        # Per-agent hourly call counter: {agent_id: [(timestamp, ...)] }
+        self._hourly_calls: dict[int, list] = {}
 
     def boot_agent(self, agent_id: int) -> dict:
         """Set agent status to idle, record heartbeat, log boot event."""
@@ -107,11 +110,38 @@ class AgentEngine:
             logger.error(f"Failed to shutdown agent {agent_id}: {e}")
             return {"success": False, "error": str(e)}
 
+    def _check_hourly_rate(self, agent_id: int) -> bool:
+        """Return True if agent is within hourly rate limit."""
+        now = datetime.utcnow()
+        cutoff = now - timedelta(hours=1)
+        calls = self._hourly_calls.get(agent_id, [])
+        # Prune old entries
+        calls = [t for t in calls if t > cutoff]
+        self._hourly_calls[agent_id] = calls
+        return len(calls) < AGENT_MAX_MESSAGES_PER_HOUR
+
+    def _record_call(self, agent_id: int):
+        """Record a call timestamp for rate limiting."""
+        if agent_id not in self._hourly_calls:
+            self._hourly_calls[agent_id] = []
+        self._hourly_calls[agent_id].append(datetime.utcnow())
+
     def run_task(self, agent_id: int, task_type: str, payload: dict,
                  _delegation_depth: int = 0,
                  _parent_cmd_id: int = None, _correlation_id: str = None) -> dict:
         """Create and execute a task for the specified agent."""
         try:
+            # Enforce hourly rate limit
+            if not self._check_hourly_rate(agent_id):
+                logger.warning(
+                    f"Agent {agent_id} throttled: {AGENT_MAX_MESSAGES_PER_HOUR} calls/hour limit reached"
+                )
+                return {
+                    "success": False,
+                    "error": f"Rate limit: agent {agent_id} exceeded {AGENT_MAX_MESSAGES_PER_HOUR} calls/hour",
+                    "rate_limited": True,
+                }
+
             # Create task record and find matching skill
             with self.db_manager.session_scope() as session:
                 agent = session.query(Agent).filter_by(id=agent_id).first()
@@ -146,6 +176,9 @@ class AgentEngine:
                 )
                 agent_name = agent.name
                 model_tier = agent.model_tier
+
+            # Record call for rate limiting
+            self._record_call(agent_id)
 
             # Log task dispatch to command history
             cmd_id = None
