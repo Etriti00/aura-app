@@ -1,0 +1,65 @@
+# ─── Virtual Environment ─────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+*.pyo
+*.pyd
+
+# ─── PyInstaller Build Artifacts ─────────────────────────────────────────────
+dist/
+build/
+*.manifest
+*.spec.bak
+
+# ─── Testing ─────────────────────────────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+.hypothesis/
+test_phase1.py
+
+# ─── IDE / Editors ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# ─── OS Files ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ─── Runtime Data (created by the app) ───────────────────────────────────────
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+
+# ─── Secrets & Credentials (NEVER commit) ───────────────────────────────────
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# ─── Claude Code / AI Context ───────────────────────────────────────────────
+.claude/

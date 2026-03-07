@@ -1,0 +1,3 @@
+"""
+Aura — core package init
+"""

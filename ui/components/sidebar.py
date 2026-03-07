@@ -1,0 +1,172 @@
+"""
+Aura — Sidebar Navigation Component
+Premium navigation rail with gradient logo, glow indicators, and smooth visual hierarchy.
+"""
+
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy, QSpacerItem,
+    QGraphicsDropShadowEffect
+)
+from PySide6.QtCore import Signal, Qt, QSize
+from PySide6.QtGui import QFont, QColor
+
+from config import Geometry, APP_NAME
+from ui.icons import get_icon, get_pixmap, SIDEBAR_ICON_KEYS
+
+
+class Sidebar(QWidget):
+    """Navigation sidebar with icon-labeled buttons for each page."""
+
+    page_changed = Signal(int)
+
+    # Page definitions: (label, icon_key, tooltip)
+    PAGES = [
+        ("Dashboard",    "sidebar_dashboard",    "View campaign statistics"),
+        ("Hunter",       "sidebar_hunter",       "Find and scrape leads"),
+        ("Forge",        "sidebar_forge",        "Create AI personas"),
+        ("Outreach",     "sidebar_outreach",     "Generate and send emails"),
+        ("Fleet",        "sidebar_fleet",        "Multi-agent command center"),
+        ("Kanban",       "sidebar_kanban",       "Ticket board & task management"),
+        ("History",      "sidebar_history",      "Command history & activity log"),
+        ("Trends",       "sidebar_trends",       "Google Trends intelligence"),
+        ("Budget",       "sidebar_budget",       "Cost pacing & budget monitoring"),
+        ("Integrations", "sidebar_integrations", "External chat & platform connections"),
+        ("Settings",     "sidebar_settings",     "Configure API keys and preferences"),
+        ("Suppression",  "sidebar_suppression",  "Manage global suppression list"),
+        ("Research",     "sidebar_research",     "Pre-outreach lead intelligence"),
+        ("Calls",        "sidebar_calls",        "Voice calls & cold calling"),
+    ]
+
+    def __init__(self, parent=None, theme: str = "dark"):
+        super().__init__(parent)
+        self.setObjectName("sidebar")
+        self.setFixedWidth(Geometry.SIDEBAR_WIDTH)
+        self.buttons = []
+        self._current_index = 0
+        self._theme = theme
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Logo area with glow effect
+        logo_container = QWidget()
+        logo_container.setFixedHeight(56)
+        logo_layout = QVBoxLayout(logo_container)
+        logo_layout.setContentsMargins(20, 14, 20, 14)
+
+        logo_icon = QLabel()
+        logo_icon.setPixmap(get_pixmap("logo_mark", self._theme, "accent", 18))
+        logo_icon.setFixedSize(22, 22)
+
+        logo_text = QLabel(APP_NAME)
+        logo_text.setObjectName("logoText")
+
+        logo_row = QWidget()
+        logo_row_layout = QHBoxLayout(logo_row)
+        logo_row_layout.setContentsMargins(0, 0, 0, 0)
+        logo_row_layout.setSpacing(8)
+        logo_row_layout.addWidget(logo_icon)
+        logo_row_layout.addWidget(logo_text)
+        logo_row_layout.addStretch()
+
+        # Keep logo_label reference for glow effect
+        logo_label = logo_text
+        logo_label.setObjectName("logoText")
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        # Add subtle indigo glow to logo
+        logo_glow = QGraphicsDropShadowEffect(logo_label)
+        logo_glow.setBlurRadius(30)
+        logo_glow.setOffset(0, 0)
+        logo_glow.setColor(QColor(129, 140, 248, 60))
+        logo_label.setGraphicsEffect(logo_glow)
+
+        logo_layout.addWidget(logo_row)
+
+        layout.addWidget(logo_container)
+
+        # Separator
+        separator = QWidget()
+        separator.setObjectName("separator")
+        separator.setFixedHeight(1)
+        layout.addWidget(separator)
+
+        # Navigation section label
+        nav_header = QLabel("  NAVIGATION")
+        nav_header.setObjectName("navSectionLabel")
+        layout.addWidget(nav_header)
+
+        # Navigation buttons
+        nav_container = QWidget()
+        nav_layout = QVBoxLayout(nav_container)
+        nav_layout.setContentsMargins(0, 4, 0, 12)
+        nav_layout.setSpacing(2)
+
+        for i, (label, icon_key, tooltip) in enumerate(self.PAGES):
+            btn = QPushButton(f"  {label}")
+            btn.setIcon(get_icon(icon_key, self._theme))
+            btn.setIconSize(QSize(18, 18))
+            btn.setObjectName("sidebarButton")
+            btn.setToolTip(tooltip)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+            font = btn.font()
+            font.setPointSize(10)
+            btn.setFont(font)
+
+            btn.clicked.connect(lambda checked, idx=i: self._on_button_clicked(idx))
+            nav_layout.addWidget(btn)
+            self.buttons.append(btn)
+
+        layout.addWidget(nav_container)
+
+        # Spacer to push version info to bottom
+        layout.addSpacerItem(QSpacerItem(
+            20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
+        ))
+
+        # Bottom accent line
+        bottom_accent = QWidget()
+        bottom_accent.setObjectName("sidebarAccent")
+        bottom_accent.setFixedHeight(2)
+        layout.addWidget(bottom_accent)
+
+        # Version info at bottom
+        from config import APP_VERSION
+        version_label = QLabel(f"v{APP_VERSION}")
+        version_label.setObjectName("versionLabel")
+        version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(version_label)
+
+        # Set initial active state
+        self._update_active_state(0)
+
+    def _on_button_clicked(self, index: int):
+        """Handle navigation button click."""
+        if index != self._current_index:
+            self._current_index = index
+            self._update_active_state(index)
+            self.page_changed.emit(index)
+
+    def _update_active_state(self, active_index: int):
+        """Update button visual states."""
+        for i, btn in enumerate(self.buttons):
+            btn.setProperty("active", "true" if i == active_index else "false")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+    def set_page(self, index: int):
+        """Programmatically set the active page."""
+        if 0 <= index < len(self.buttons):
+            self._current_index = index
+            self._update_active_state(index)
+
+    def update_icons(self, theme: str):
+        """Rebuild all icons for a new theme."""
+        self._theme = theme
+        for i, (label, icon_key, tooltip) in enumerate(self.PAGES):
+            if i < len(self.buttons):
+                self.buttons[i].setIcon(get_icon(icon_key, theme))
