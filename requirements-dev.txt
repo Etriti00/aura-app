@@ -1,0 +1,4 @@
+# Aura AI Sales Agent — Development/Test Dependencies
+-r requirements.txt
+pytest>=8.0.0
+pytest-qt>=4.0.0

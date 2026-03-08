@@ -60,7 +60,26 @@ LOG_PATH = DATA_DIR / "aura.log"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── Encryption ────────────────────────────────────────────────────────────────
-ENCRYPTION_SALT = "aura-app-v1"
+import secrets as _secrets
+
+_SALT_FILE = DATA_DIR / ".salt"
+_LEGACY_SALT = "aura-app-v1"  # kept for migration from pre-v1.1 installs
+
+def _load_or_create_salt() -> str:
+    """Load existing salt or generate a new one on first run."""
+    if _SALT_FILE.exists():
+        return _SALT_FILE.read_text(encoding="utf-8").strip()
+    salt = _secrets.token_hex(32)
+    _SALT_FILE.write_text(salt, encoding="utf-8")
+    # Restrict file permissions (owner-only read/write)
+    try:
+        import stat
+        os.chmod(_SALT_FILE, stat.S_IRUSR | stat.S_IWUSR)
+    except (OSError, AttributeError):
+        pass  # Windows may not support chmod the same way
+    return salt
+
+ENCRYPTION_SALT = _load_or_create_salt()
 
 # ─── Color Palette (Cupertino Light) ───────────────────────────────────────────
 class Colors:

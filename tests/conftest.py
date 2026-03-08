@@ -33,10 +33,12 @@ class InMemoryDatabaseManager(DatabaseManager):
     """DatabaseManager using in-memory SQLite for tests."""
 
     def __init__(self):
+        import threading
         from sqlalchemy import create_engine, event
         from sqlalchemy.orm import sessionmaker
 
         self.db_path = Path(":memory:")
+        self._write_lock = threading.RLock()
         self.engine = create_engine(
             "sqlite:///:memory:",
             echo=False,

@@ -92,6 +92,9 @@ hiddenimports = [
     # Database
     'database.db_manager',
     'database.schema',
+    'database.seed_skills',
+    'database.seed_agents',
+    'database.migrations',
     # Utils
     'utils.logger',
     'core.key_vault',

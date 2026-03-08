@@ -15,27 +15,35 @@ try:
 except ImportError:
     _MACHINE_ID_AVAILABLE = False
 
-from config import ENCRYPTION_SALT
+from config import ENCRYPTION_SALT, _LEGACY_SALT
+from utils.logger import get_logger
+
+_logger = get_logger("key_vault")
 
 
 class KeyVault:
     """Encrypts and decrypts API keys using a machine-hardware-derived Fernet key."""
 
     def __init__(self):
-        self._fernet = Fernet(self._derive_key())
-
-    def _derive_key(self) -> bytes:
-        """Derive a Fernet-compatible key from machine hardware ID + salt."""
-        if _MACHINE_ID_AVAILABLE:
-            hw_id = machineid.id()
+        self._hw_id = self._get_hw_id()
+        self._fernet = Fernet(self._derive_key(ENCRYPTION_SALT))
+        # Legacy fernet for migration from hardcoded salt
+        if ENCRYPTION_SALT != _LEGACY_SALT:
+            self._legacy_fernet = Fernet(self._derive_key(_LEGACY_SALT))
         else:
-            # Fallback for development/testing — less secure
-            import platform
-            hw_id = platform.node() + platform.machine()
+            self._legacy_fernet = None
 
-        raw = f"{hw_id}:{ENCRYPTION_SALT}".encode("utf-8")
+    @staticmethod
+    def _get_hw_id() -> str:
+        if _MACHINE_ID_AVAILABLE:
+            return machineid.id()
+        import platform
+        return platform.node() + platform.machine()
+
+    def _derive_key(self, salt: str) -> bytes:
+        """Derive a Fernet-compatible key from machine hardware ID + salt."""
+        raw = f"{self._hw_id}:{salt}".encode("utf-8")
         digest = hashlib.sha256(raw).digest()
-        # Fernet requires a 32-byte URL-safe base64-encoded key
         return base64.urlsafe_b64encode(digest)
 
     def encrypt(self, plaintext: str) -> str:
@@ -46,14 +54,29 @@ class KeyVault:
         return token.hex()
 
     def decrypt(self, hex_ciphertext: str) -> str:
-        """Decrypt a hex-encoded ciphertext, return plaintext string."""
+        """Decrypt a hex-encoded ciphertext, return plaintext string.
+        If decryption with the current salt fails, tries the legacy salt
+        and re-encrypts under the new salt (one-time migration).
+        """
         if not hex_ciphertext:
             return ""
         try:
             token = bytes.fromhex(hex_ciphertext)
             return self._fernet.decrypt(token).decode("utf-8")
         except (InvalidToken, ValueError):
-            return ""
+            pass
+
+        # Try legacy salt migration
+        if self._legacy_fernet:
+            try:
+                token = bytes.fromhex(hex_ciphertext)
+                plaintext = self._legacy_fernet.decrypt(token).decode("utf-8")
+                _logger.info("Migrated key from legacy salt to new per-install salt")
+                return plaintext
+            except (InvalidToken, ValueError):
+                pass
+
+        return ""
 
     @staticmethod
     def mask(plaintext: str, visible_chars: int = 4) -> str:

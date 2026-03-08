@@ -1,14 +1,15 @@
-# Aura AI Sales Agent — Dependencies
-PySide6>=6.6.0
-SQLAlchemy>=2.0.0
-litellm>=1.30.0
-playwright>=1.40.0
-beautifulsoup4>=4.12.0
-httpx>=0.27.0
-cryptography>=42.0.0
-py-machineid>=0.6.0
-resend>=0.8.0
-packaging>=24.0
-lxml>=5.0.0
-pytrends>=4.9.0
-qtawesome>=1.3.0
+# Aura AI Sales Agent — Dependencies (pinned for reproducible builds)
+PySide6==6.8.3
+SQLAlchemy==2.0.40
+litellm==1.72.5
+playwright==1.52.0
+beautifulsoup4==4.13.4
+httpx==0.28.1
+cryptography==45.0.3
+py-machineid==0.6.0
+resend==2.7.0
+packaging==24.2
+lxml==5.4.0
+pytrends==4.9.4
+qtawesome==1.4.0
+playwright-stealth==1.0.6

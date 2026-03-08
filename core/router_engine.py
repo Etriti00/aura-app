@@ -8,6 +8,7 @@ Logs all usage to ApiUsageLog for cost tracking.
 import json
 import time
 import re
+import threading
 from typing import Optional, Dict, Any
 
 from database.db_manager import DatabaseManager
@@ -91,6 +92,9 @@ class RouterEngine:
         self._sonnet_model = DEFAULT_TIER3_MODEL
         self._ollama_model = "ollama/llama3"  # local Ollama server
         self._models_loaded = False
+
+        # Serialize Ollama calls — single GPU can only handle one inference at a time
+        self._ollama_semaphore = threading.Semaphore(1)
 
     # ─── Configuration ─────────────────────────────────────────────
 
@@ -240,9 +244,14 @@ class RouterEngine:
         }
 
     def _execute_tier(self, tier: str, task_type: str, prompt: str, context: dict) -> dict:
-        """Execute a task on a specific tier."""
+        """Execute a task on a specific tier.
+        Ollama tier is serialized via semaphore (single GPU)."""
         if tier == "local":
             return self._run_local(task_type, prompt, context)
+        elif tier == "ollama":
+            with self._ollama_semaphore:
+                model = self._get_model_for_tier(tier)
+                return self._run_llm(model, tier, prompt, context, task_type=task_type)
         else:
             model = self._get_model_for_tier(tier)
             return self._run_llm(model, tier, prompt, context, task_type=task_type)

@@ -29,6 +29,7 @@ class ReplyDetector:
         self.knowledge_graph_engine = None  # injected by main_window
         self.strategy_engine = None  # injected by main_window
         self._suggested_response = None  # last generated response data
+        self._imap_conn = None  # Persistent IMAP connection for reuse
 
     def _get_imap_config(self) -> Optional[dict]:
         """Load IMAP credentials from settings."""
@@ -55,6 +56,42 @@ class ReplyDetector:
         except Exception as e:
             logger.error(f"Error loading IMAP config: {e}")
             return None
+
+    def _get_imap_connection(self, config: dict):
+        """Return a live IMAP connection, reusing an existing one if possible."""
+        if self._imap_conn:
+            try:
+                # noop() checks if the connection is still alive
+                status, _ = self._imap_conn.noop()
+                if status == "OK":
+                    self._imap_conn.select("INBOX")
+                    return self._imap_conn
+            except Exception:
+                # Connection is stale — discard and reconnect
+                try:
+                    self._imap_conn.logout()
+                except Exception:
+                    pass
+                self._imap_conn = None
+
+        if config["use_ssl"]:
+            mail = imaplib.IMAP4_SSL(config["host"], config["port"])
+        else:
+            mail = imaplib.IMAP4(config["host"], config["port"])
+
+        mail.login(config["username"], config["password"])
+        mail.select("INBOX")
+        self._imap_conn = mail
+        return mail
+
+    def close_connection(self):
+        """Close the persistent IMAP connection."""
+        if self._imap_conn:
+            try:
+                self._imap_conn.logout()
+            except Exception:
+                pass
+            self._imap_conn = None
 
     def check_inbox(self) -> list:
         """
@@ -95,21 +132,14 @@ class ReplyDetector:
                     if subj_clean:
                         lead_subjects[subj_clean] = lead.id
 
-            # Connect to IMAP
-            if config["use_ssl"]:
-                mail = imaplib.IMAP4_SSL(config["host"], config["port"])
-            else:
-                mail = imaplib.IMAP4(config["host"], config["port"])
-
-            mail.login(config["username"], config["password"])
-            mail.select("INBOX")
+            # Reuse existing IMAP connection or create a new one
+            mail = self._get_imap_connection(config)
 
             # Search for emails since the oldest send date
             date_str = since_date.strftime("%d-%b-%Y")
             _, msg_ids = mail.search(None, f'(SINCE "{date_str}")')
 
             if not msg_ids[0]:
-                mail.logout()
                 return []
 
             replies = []
@@ -143,11 +173,12 @@ class ReplyDetector:
                     logger.warning(f"Error parsing email {msg_id}: {e}")
                     continue
 
-            mail.logout()
             logger.info(f"Found {len(replies)} replies from inbox scan")
             return replies
 
         except Exception as e:
+            # Connection went stale — discard and retry next cycle
+            self._imap_conn = None
             logger.error(f"IMAP check failed: {e}")
             return []
 

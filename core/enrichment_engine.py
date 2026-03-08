@@ -7,6 +7,7 @@ and website screenshots using Playwright + httpx.
 import os
 import re
 import hashlib
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
 
@@ -33,6 +34,70 @@ class EnrichmentEngine:
         self.hunter_engine = None
         self.lead_lifecycle_engine = None  # injected by main_window
         self.knowledge_graph_engine = None  # injected by main_window
+        # Persistent browser for batch operations
+        self._batch_playwright = None
+        self._batch_browser = None
+
+    # ─── Browser lifecycle management ──────────────────────────────
+
+    @contextmanager
+    def _browser_context(self):
+        """Context manager that yields a Playwright browser page.
+        Uses the batch browser if available, otherwise launches a one-shot browser
+        with guaranteed cleanup."""
+        if self._batch_browser:
+            page = self._batch_browser.new_page(viewport={"width": 1280, "height": 800})
+            try:
+                yield page
+            finally:
+                page.close()
+            return
+
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        browser = None
+        try:
+            browser = pw.chromium.launch(headless=True)
+            # Apply stealth if available
+            try:
+                from playwright_stealth import stealth_sync
+                page = browser.new_page(viewport={"width": 1280, "height": 800})
+                stealth_sync(page)
+            except ImportError:
+                page = browser.new_page(viewport={"width": 1280, "height": 800})
+            try:
+                yield page
+            finally:
+                page.close()
+        finally:
+            if browser:
+                browser.close()
+            pw.stop()
+
+    def start_batch(self):
+        """Start a persistent browser for batch screenshot operations."""
+        if self._batch_browser:
+            return
+        from playwright.sync_api import sync_playwright
+        self._batch_playwright = sync_playwright().start()
+        self._batch_browser = self._batch_playwright.chromium.launch(headless=True)
+        logger.info("Batch browser started")
+
+    def end_batch(self):
+        """Close the persistent batch browser."""
+        if self._batch_browser:
+            try:
+                self._batch_browser.close()
+            except Exception:
+                pass
+            self._batch_browser = None
+        if self._batch_playwright:
+            try:
+                self._batch_playwright.stop()
+            except Exception:
+                pass
+            self._batch_playwright = None
+        logger.info("Batch browser closed")
 
     def enrich_lead(self, lead_dict: dict) -> dict:
         """
@@ -181,6 +246,7 @@ class EnrichmentEngine:
     def _capture_website_screenshot(self, url: str, lead_id: int) -> Optional[str]:
         """
         Capture a screenshot of the lead's website using Playwright.
+        Browser cleanup guaranteed via _browser_context.
         Returns the file path or None.
         """
         try:
@@ -191,13 +257,9 @@ class EnrichmentEngine:
             if os.path.exists(filepath):
                 return filepath
 
-            from playwright.sync_api import sync_playwright
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page(viewport={"width": 1280, "height": 800})
+            with self._browser_context() as page:
                 page.goto(url, timeout=15000, wait_until="domcontentloaded")
                 page.screenshot(path=filepath, full_page=False)
-                browser.close()
 
             logger.info(f"Screenshot saved: {filepath}")
             return filepath
@@ -246,13 +308,9 @@ class EnrichmentEngine:
                 return None
 
             # Screenshot the competitor site
-            from playwright.sync_api import sync_playwright
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page(viewport={"width": 1280, "height": 800})
+            with self._browser_context() as page:
                 page.goto(target_url, timeout=15000, wait_until="domcontentloaded")
                 page.screenshot(path=filepath, full_page=False)
-                browser.close()
 
             logger.info(f"Competitor screenshot saved: {filepath}")
             return filepath

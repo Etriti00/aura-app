@@ -49,7 +49,7 @@ Every step is automated. Every step is configurable. Every step requires your ap
 ### Option A: Download the Executable (Recommended)
 
 1. Go to [Releases](https://github.com/Etriti00/aura-app/releases)
-2. Download `Aura-v1.0.0-win64.zip`
+2. Download `Aura-v1.1.0-win64.zip`
 3. Extract and run `Aura.exe`
 4. Complete the setup wizard (enter at least one AI API key)
 
@@ -124,6 +124,15 @@ On first launch, the **Setup Wizard** walks you through:
 - **STT** — Whisper (local or API)
 - **Auto-trigger** — Detects stalled leads (3+ failed emails or 7+ days silent)
 - **Always requires approval** — Even at full-trust autonomy level
+
+### Security & Reliability
+- **Per-install encryption salt** — Unique random salt per installation (auto-migrates from legacy)
+- **LLM retry with backoff** — Exponential backoff on transient errors (429, 503, timeouts)
+- **Thread-safe database** — Serialized writes prevent SQLite locking errors
+- **Browser lifecycle management** — Context-managed Playwright with batch mode for bulk operations
+- **IMAP connection pooling** — Persistent connections with automatic stale detection and reconnect
+- **GPU-aware scheduling** — Ollama calls serialized via semaphore for single-GPU machines
+- **Thread-safe safety guard** — All mutable counters protected by locks
 
 ### Autonomy & Control
 - **4 autonomy levels** — Observer, Supervised, Autonomous, Full Trust
@@ -218,14 +227,17 @@ aura-app/
 │
 ├── database/
 │   ├── schema.py            # 30+ SQLAlchemy models
-│   └── db_manager.py        # CRUD, migrations, seeding
+│   ├── db_manager.py        # Session factory, WAL mode, thread-safe writes
+│   ├── migrations.py        # ALTER TABLE migrations for backward compat
+│   ├── seed_agents.py       # 19 agent definitions + hierarchy setup
+│   └── seed_skills.py       # Built-in skill & settings seeding
 │
 ├── assets/
 │   ├── themes/              # QSS stylesheets (dark + light)
 │   ├── icons/               # Application icon
 │   └── templates/           # CSV import templates
 │
-└── tests/                   # 853+ tests across 40 files
+└── tests/                   # 935 tests across 40+ files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
 ```
@@ -242,7 +254,7 @@ aura-app/
 | Voice Calls | Twilio + WebSocket media streams |
 | TTS | ElevenLabs, OpenAI, Piper (local) |
 | STT | Whisper (local via faster-whisper, or API) |
-| Encryption | AES-256 via `cryptography` (machine-bound) |
+| Encryption | AES-256 via `cryptography` (machine-bound, per-install salt) |
 | Packaging | PyInstaller (OneDir) |
 
 ---
@@ -294,7 +306,7 @@ venv\Scripts\python.exe -m pytest tests/test_agent_engine.py -v
 venv\Scripts\python.exe -m pytest tests/ -k "test_stalled" -v
 ```
 
-**Current status**: 853+ tests across 40 files — 100% passing.
+**Current status**: 935 tests across 40+ files — 100% passing.
 
 ---
 
@@ -345,6 +357,28 @@ Please ensure all tests pass before submitting.
 
 ---
 
+## Changelog
+
+### v1.1.0 — Hardening & Reliability
+
+- **Security**: Per-install random encryption salt replaces hardcoded salt; automatic key migration from v1.0
+- **LLM resilience**: Exponential backoff retry (up to 3 attempts) on transient LLM errors (429, 503, timeouts)
+- **Thread safety**: Database writes serialized via `threading.RLock`; safety guard counters protected by locks
+- **Browser management**: Context-managed Playwright lifecycle with batch mode for bulk enrichment
+- **IMAP pooling**: Persistent IMAP connections with keepalive checks and stale connection recovery
+- **GPU scheduling**: Ollama calls serialized via semaphore to prevent GPU contention
+- **Codebase refactor**: Extracted `db_manager.py` (1400+ lines) into `migrations.py`, `seed_agents.py`, `seed_skills.py`
+- **Dev tooling**: Added `requirements-dev.txt` for test/lint dependencies
+- **Tests**: 853 → 935 tests (added `test_hardening_fixes.py` with 82 new tests)
+
+### v1.0.0 — Initial Release
+
+- Full B2B lead generation pipeline with 19 AI agents
+- Multi-source lead discovery, deep research, outreach automation
+- Voice calling, ticket system, 4-tier LLM routing, autonomy controls
+
+---
+
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
@@ -363,5 +397,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v1.0.0</sub>
+  <sub>Aura v1.1.0</sub>
 </p>

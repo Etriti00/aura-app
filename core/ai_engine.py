@@ -106,40 +106,59 @@ class AIEngine:
 
         logger.info(f"AI Engine configured. Tier2: {self._models['tier2']}, Tier3: {self._models['tier3']}")
 
+    # Error substrings that indicate a transient (retryable) failure
+    _TRANSIENT_ERRORS = ("429", "rate_limit", "timeout", "502", "503", "529", "overloaded")
+
     def _call_llm(self, model: str, messages: list, temperature: float = 0.7,
-                  max_tokens: int = 1024) -> Optional[str]:
+                  max_tokens: int = 1024, _max_retries: int = 3) -> Optional[str]:
         """
-        Make a LiteLLM completion call.
+        Make a LiteLLM completion call with exponential backoff on transient errors.
         Returns the response text or None on failure.
         """
-        try:
-            import litellm
-            litellm.set_verbose = False
+        import time as _time
+        import litellm
+        litellm.set_verbose = False
 
-            response = litellm.completion(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+        for attempt in range(_max_retries):
+            try:
+                response = litellm.completion(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
 
-            # Track token usage
-            usage = response.get("usage", {})
-            total_tokens = usage.get("total_tokens", 0)
-            # Rough cost estimate
-            cost = litellm.completion_cost(completion_response=response) or 0.0
-            self.safety.add_token_usage(total_tokens, cost)
+                # Track token usage
+                usage = response.get("usage", {})
+                total_tokens = usage.get("total_tokens", 0)
+                cost = litellm.completion_cost(completion_response=response) or 0.0
+                self.safety.add_token_usage(total_tokens, cost)
 
-            content = response["choices"][0]["message"]["content"]
-            logger.debug(
-                f"LLM call: model={model}, tokens={total_tokens}, "
-                f"cost=${cost:.6f}"
-            )
-            return content.strip()
+                content = response["choices"][0]["message"]["content"]
+                logger.debug(
+                    f"LLM call: model={model}, tokens={total_tokens}, "
+                    f"cost=${cost:.6f}"
+                )
+                return content.strip()
 
-        except Exception as e:
-            logger.error(f"LLM call failed (model={model}): {e}")
-            return None
+            except Exception as e:
+                error_str = str(e).lower()
+                is_transient = any(t in error_str for t in self._TRANSIENT_ERRORS)
+
+                if is_transient and attempt < _max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s, 4s
+                    logger.warning(
+                        f"LLM transient error (attempt {attempt + 1}/{_max_retries}, "
+                        f"retry in {wait}s): {e}"
+                    )
+                    _time.sleep(wait)
+                    continue
+
+                # Permanent error or final attempt
+                logger.error(f"LLM call failed (model={model}): {e}")
+                return None
+
+        return None
 
     # ─── Tier 2: Junior Analyst — Lead Qualification ──────────────────
 

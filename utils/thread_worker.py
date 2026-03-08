@@ -5,6 +5,7 @@ Used by all controllers for background operations.
 """
 
 from PySide6.QtCore import QThread, Signal, QObject
+import inspect
 import traceback
 
 
@@ -40,10 +41,16 @@ class ThreadWorker(QThread):
     def run(self):
         """Execute the function and emit appropriate signals."""
         try:
-            # Inject progress callback and cancel checker into kwargs
-            # so the target function can report progress and check cancellation
-            self.kwargs["_progress_callback"] = self.signals.progress.emit
-            self.kwargs["_cancel_checker"] = lambda: self._is_cancelled
+            # Only inject callbacks if the function can accept them
+            sig = inspect.signature(self.fn)
+            params = sig.parameters
+            accepts_kwargs = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()
+            )
+            if accepts_kwargs or "_progress_callback" in params:
+                self.kwargs["_progress_callback"] = self.signals.progress.emit
+            if accepts_kwargs or "_cancel_checker" in params:
+                self.kwargs["_cancel_checker"] = lambda: self._is_cancelled
 
             result = self.fn(*self.args, **self.kwargs)
             if not self._is_cancelled:
