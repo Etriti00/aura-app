@@ -16,7 +16,7 @@ try:
     FASTER_WHISPER_AVAILABLE = True
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
-    logger.info("faster-whisper not installed — local STT unavailable")
+    logger.debug("faster-whisper not installed — local STT unavailable")
 
 # OpenAI API fallback
 try:

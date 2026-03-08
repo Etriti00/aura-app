@@ -634,7 +634,8 @@ class AgentTicket(Base):
                             order_by="TicketComment.created_at")
     dependencies = relationship("TicketDependency",
                                 foreign_keys="TicketDependency.ticket_id",
-                                cascade="all, delete-orphan")
+                                cascade="all, delete-orphan",
+                                overlaps="ticket")
 
     def __repr__(self):
         return f"<AgentTicket(id={self.id}, title='{self.title}', status='{self.status}')>"
@@ -666,7 +667,8 @@ class TicketDependency(Base):
     ticket_id = Column(Integer, ForeignKey("agent_tickets.id"), nullable=False)
     depends_on_id = Column(Integer, ForeignKey("agent_tickets.id"), nullable=False)
 
-    ticket = relationship("AgentTicket", foreign_keys=[ticket_id])
+    ticket = relationship("AgentTicket", foreign_keys=[ticket_id],
+                          overlaps="dependencies")
     depends_on = relationship("AgentTicket", foreign_keys=[depends_on_id])
 
     __table_args__ = (

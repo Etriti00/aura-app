@@ -1017,7 +1017,7 @@ class SkillRegistry:
             logger.error(f"Failed to seed skills: {e}")
             errors.append(str(e))
 
-        logger.info(f"Skill registry: created={created}, updated={updated}, errors={len(errors)}")
+        logger.debug(f"Skill registry: created={created}, updated={updated}, errors={len(errors)}")
         return {"created": created, "updated": updated, "errors": errors}
 
     def get_all_skills(self) -> List[dict]:

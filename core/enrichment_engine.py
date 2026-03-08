@@ -102,7 +102,7 @@ class EnrichmentEngine:
             except Exception:
                 pass
             self._batch_playwright = None
-        logger.info("Batch browser closed")
+        logger.debug("Batch browser closed")
 
     def enrich_lead(self, lead_dict: dict) -> dict:
         """

@@ -26,7 +26,7 @@ try:
     TWILIO_AVAILABLE = True
 except ImportError:
     TWILIO_AVAILABLE = False
-    logger.info("twilio not installed — voice calls unavailable")
+    logger.debug("twilio not installed — voice calls unavailable")
 
 # WebSocket server
 try:
@@ -34,7 +34,7 @@ try:
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
     WEBSOCKETS_AVAILABLE = False
-    logger.info("websockets not installed — WS server unavailable")
+    logger.debug("websockets not installed — WS server unavailable")
 
 
 class CallSession:

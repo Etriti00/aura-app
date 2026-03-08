@@ -9,6 +9,9 @@ import sys
 
 from config import LOG_PATH, APP_NAME
 
+# CLI override for console log level (None = default INFO)
+_cli_console_level = [None]
+
 
 def get_logger(name: str = None) -> logging.Logger:
     """
@@ -42,9 +45,10 @@ def get_logger(name: str = None) -> logging.Logger:
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
-        # Console handler — INFO and above
+        # Console handler — respects CLI override if set
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_level = _cli_console_level[0] if _cli_console_level[0] is not None else logging.INFO
+        console_handler.setLevel(console_level)
         console_formatter = logging.Formatter(
             "%(asctime)s | %(levelname)-8s | %(message)s",
             datefmt="%H:%M:%S",
@@ -53,3 +57,20 @@ def get_logger(name: str = None) -> logging.Logger:
         logger.addHandler(console_handler)
 
     return logger
+
+
+def set_console_level(level: int):
+    """Set console log level for all Aura loggers (current and future).
+
+    Called by CLI before engine init to suppress INFO noise.
+    File handler continues at DEBUG regardless.
+    """
+    _cli_console_level[0] = level
+
+    # Update all existing Aura loggers
+    for name, lg in logging.Logger.manager.loggerDict.items():
+        if isinstance(lg, logging.Logger) and name.startswith(APP_NAME):
+            for handler in lg.handlers:
+                if isinstance(handler, logging.StreamHandler) and \
+                   not isinstance(handler, RotatingFileHandler):
+                    handler.setLevel(level)

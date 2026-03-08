@@ -345,7 +345,7 @@ class FleetOrchestrator:
                     a.status = "idle"
                     a.current_task = None
 
-            logger.info("Fleet shut down")
+            logger.debug("Fleet shut down")
             return {"success": True}
         except Exception as e:
             logger.error(f"Fleet shutdown failed: {e}")

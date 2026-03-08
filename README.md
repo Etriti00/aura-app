@@ -12,8 +12,8 @@
   <a href="https://github.com/Etriti00/aura-app/stargazers"><img src="https://img.shields.io/github/stars/Etriti00/aura-app?style=for-the-badge&color=4E5BF2" alt="Stars"></a>
   <a href="https://github.com/Etriti00/aura-app/issues"><img src="https://img.shields.io/github/issues/Etriti00/aura-app?style=for-the-badge" alt="Issues"></a>
   <a href="https://github.com/Etriti00/aura-app/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Etriti00/aura-app?style=for-the-badge" alt="License"></a>
-  <img src="https://img.shields.io/badge/python-3.11+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Platform">
 </p>
 
 <p align="center">
@@ -46,45 +46,76 @@ Every step is automated. Every step is configurable. Every step requires your ap
 
 ## Quick Start
 
-### Option A: Download the Executable (Recommended)
-
-1. Go to [Releases](https://github.com/Etriti00/aura-app/releases)
-2. Download `Aura-v1.1.0-win64.zip`
-3. Extract and run `Aura.exe`
-4. Complete the setup wizard (enter at least one AI API key)
-
-### Option B: Run from Source
-
-**Prerequisites**: Python 3.11+ and Git
+### Install the CLI
 
 ```bash
-# Clone the repository
+# Install from source (recommended)
 git clone https://github.com/Etriti00/aura-app.git
 cd aura-app
+pip install .
 
-# Create virtual environment
-python -m venv venv
+# Or install in editable/dev mode
+pip install -e .
 
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Install Playwright browser (needed for web scraping)
+# Install the browser engine (needed for web scraping)
 playwright install chromium
-
-# Launch
-python main.py
 ```
+
+After installation, the `aura` command is available globally:
+
+```bash
+$ aura status
+Aura v1.3.0 — System Status
+───────────────────────────────
+  Campaigns          0
+  Leads              0
+  Agents             19
+
+$ aura help
+$ aura hunt "plumber" --city "Austin TX"
+$ aura                    # starts interactive REPL
+```
+
+### Install the Desktop App (GUI)
+
+```bash
+# Option A: Download pre-built executable
+# → https://github.com/Etriti00/aura-app/releases
+#   Windows: Aura.exe  |  macOS: Aura.app  |  Linux: ./Aura
+
+# Option B: Install from source with GUI
+git clone https://github.com/Etriti00/aura-app.git
+cd aura-app
+pip install ".[gui]"
+playwright install chromium
+aura-gui
+```
+
+### Cross-Platform Notes
+
+| Platform | CLI Install | GUI Install | Build |
+|----------|-------------|-------------|-------|
+| **Windows** | `pip install .` → `aura` | `pip install ".[gui]"` → `aura-gui` | `pyinstaller aura.spec` → `dist\Aura\Aura.exe` |
+| **macOS** | `pip install .` → `aura` | `pip install ".[gui]"` → `aura-gui` | `pyinstaller aura.spec` → `dist/Aura.app` |
+| **Linux** | `pip install .` → `aura` | `pip install ".[gui]"` → `aura-gui` | `pyinstaller aura.spec` → `dist/Aura/Aura` |
+
+**Prerequisites**: Python 3.10+ and Git.
 
 ### First Launch
 
-On first launch, the **Setup Wizard** walks you through:
+On first launch, configure at least one AI API key:
 
-1. **AI Provider Key** — At least one of: Anthropic (Claude), OpenAI, or Google (Gemini)
-2. **Sender Identity** — Your name, email, and company
-3. **Email Delivery** — Resend API key or SMTP credentials
+```bash
+# CLI
+aura config-api-keys
+
+# GUI
+# The Setup Wizard opens automatically on first run
+```
+
+1. **AI Provider Key** — Anthropic (Claude), OpenAI, or Google (Gemini)
+2. **Sender Identity** — `aura config-set sender_name "Your Name"`
+3. **Email Delivery** — `aura config-smtp`
 
 > All API keys are encrypted with machine-bound AES-256. They never leave your device.
 
@@ -160,15 +191,77 @@ On first launch, the **Setup Wizard** walks you through:
 
 ---
 
+## CLI Reference
+
+The CLI provides **75 commands** across **16 groups** with full feature parity to the GUI. Run `aura` to start the interactive REPL, or `aura <command>` for one-shot execution.
+
+### REPL Mode
+
+```
+$ aura
+Aura v1.3.0 — AI Sales Agent
+Type /help for commands, or type naturally.
+
+aura> /hunt plumber --city "Austin TX" --limit 20
+aura> /qualify 1
+aura> /draft 1
+aura> /send 1
+aura> find me SaaS leads in healthcare    ← natural language works too
+```
+
+### Command Groups
+
+| Group | Commands | Description |
+|-------|----------|-------------|
+| **Pipeline** | `/hunt`, `/qualify`, `/enrich`, `/draft`, `/send`, `/replies`, `/sequence` | Core lead-to-email pipeline |
+| **Campaigns** | `/campaigns`, `/campaign-create`, `/campaign-status`, `/campaign-pause`, `/campaign-resume`, `/export-csv`, `/export-pdf` | Campaign management and export |
+| **Leads** | `/leads`, `/lead-detail`, `/lead-lifecycle`, `/lead-search`, `/case` | Lead management and case files |
+| **Fleet** | `/fleet-status`, `/fleet-boot`, `/fleet-shutdown`, `/agents`, `/agent-assign`, `/goals`, `/goal-create`, `/reflections`, `/knowledge-graph`, `/conversations`, `/ask`, `/improvement` | AI agent fleet operations |
+| **Kanban** | `/tickets`, `/ticket-create`, `/ticket-update`, `/ticket-comment`, `/ticket-stats` | Ticket/task management |
+| **Skills** | `/skills`, `/skill-detail` | AI skill registry |
+| **Research** | `/research`, `/research-report`, `/research-queue` | Lead research intelligence |
+| **Voice** | `/call`, `/call-log`, `/call-transcript` | Voice call management |
+| **Budget** | `/budget`, `/budget-set`, `/token-usage` | Cost pacing and token tracking |
+| **Trends** | `/trends`, `/trends-opportunities`, `/trends-alerts` | Google Trends market intelligence |
+| **Autonomy** | `/autonomy-level`, `/autonomy-set`, `/approvals`, `/approve`, `/deny` | Agent autonomy controls |
+| **Suppression** | `/suppression-list`, `/suppress`, `/unsuppress` | Email suppression management |
+| **Integrations** | `/gateway-status`, `/gateway-connect`, `/gateway-disconnect`, `/crm-sync`, `/gateway-auth` | Telegram, Discord, CRM |
+| **History** | `/history`, `/history-detail`, `/history-tree` | Command audit trail |
+| **Config** | `/config`, `/config-set`, `/config-api-keys`, `/config-smtp` | Settings management |
+| **System** | `/help`, `/status`, `/version`, `/clear`, `/exit` | System utilities |
+
+### One-Shot Commands
+
+```bash
+# Hunt leads
+aura hunt "SaaS companies" --city "San Francisco" --limit 100
+
+# Check campaign stats
+aura campaign-status 1
+
+# Show system status
+aura status
+
+# Get help
+aura help pipeline
+
+# Verbose mode (show engine logs)
+aura --verbose status
+```
+
+---
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    UI Layer (PySide6)                     │
-│   14 Pages  │  10 Components  │  Chat Panel  │  Sidebar  │
+│              Interface Layer (GUI or CLI)                 │
+│   GUI: PySide6 (14 Pages, Chat Panel, Sidebar)          │
+│   CLI: REPL + 75 commands (no PySide6 required)         │
 ├─────────────────────────────────────────────────────────┤
 │                   Controller Layer                       │
-│       19 QObject controllers with Signal/Slot wiring     │
+│   GUI: 19 QObject controllers with Signal/Slot wiring   │
+│   CLI: Direct engine calls (bypasses controllers)       │
 ├─────────────────────────────────────────────────────────┤
 │                   Core Engine Layer                      │
 │          50+ specialized engines (business logic)        │
@@ -185,10 +278,13 @@ On first launch, the **Setup Wizard** walks you through:
 
 ```
 aura-app/
-├── main.py                  # Entry point
+├── main.py                  # GUI entry point
+├── cli.py                   # CLI entry point (75 commands, REPL)
 ├── config.py                # All constants, paths, design tokens
-├── aura.spec                # PyInstaller build configuration
-├── requirements.txt         # Python dependencies
+├── aura.spec                # PyInstaller build configuration (cross-platform)
+├── pyproject.toml           # Python packaging (pip install -e .)
+├── requirements.txt         # Full dependencies (GUI + CLI)
+├── requirements-cli.txt     # CLI-only dependencies (no PySide6)
 │
 ├── core/                    # 50+ business logic engines
 │   ├── ai_engine.py         # LLM orchestration (generate, qualify, classify)
@@ -243,6 +339,11 @@ aura-app/
 │   ├── icons/               # Application icon
 │   └── templates/           # CSV import templates
 │
+├── scripts/                 # Build scripts (cross-platform, macOS icon, Linux installer)
+│   ├── build.py             # Cross-platform build automation
+│   ├── build_icns.sh        # macOS icon generation
+│   └── linux/               # Linux desktop entry + installer
+│
 └── tests/                   # 959 tests across 40+ files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
@@ -261,7 +362,8 @@ aura-app/
 | TTS | ElevenLabs, OpenAI, Piper (local) |
 | STT | Whisper (local via faster-whisper, or API) |
 | Encryption | AES-256 via `cryptography` (machine-bound, per-install salt) |
-| Packaging | PyInstaller (OneDir) |
+| CLI | 75 commands, REPL, natural language fallback |
+| Packaging | PyInstaller (OneDir), cross-platform (Win/macOS/Linux) |
 
 ---
 
@@ -285,17 +387,43 @@ Runtime settings (API keys, toggles, sender identity) are configured in the **Se
 
 ## Building from Source
 
+### Windows
+
 ```bash
-# Activate virtual environment
 venv\Scripts\activate
-
-# Build the executable
 pyinstaller aura.spec --noconfirm
-
 # Output: dist/Aura/Aura.exe
 ```
 
-The build bundles all assets, themes, fonts, and dependencies into a self-contained directory at `dist/Aura/`.
+### macOS
+
+```bash
+source venv/bin/activate
+# Generate .icns icon (optional, requires iconutil)
+bash scripts/build_icns.sh
+# Build
+pyinstaller aura.spec --noconfirm
+# Output: dist/Aura.app
+```
+
+### Linux
+
+```bash
+source venv/bin/activate
+pyinstaller aura.spec --noconfirm
+# Output: dist/Aura/Aura
+
+# Optional: System-wide install
+sudo bash scripts/linux/install.sh
+```
+
+### Cross-Platform Build Script
+
+```bash
+python scripts/build.py
+```
+
+The build bundles all assets, themes, fonts, and dependencies into a self-contained directory.
 
 ---
 
@@ -365,6 +493,23 @@ Please ensure all tests pass before submitting.
 
 ## Changelog
 
+### v1.3.0 — Advanced CLI + Cross-Platform
+
+- **Advanced CLI**: Complete rewrite of `cli.py` — 75 commands across 16 groups with full GUI parity
+- **Easy install**: `pip install .` → `aura` command available globally (CLI-only, no PySide6 required)
+- **GUI as optional**: `pip install ".[gui]"` → includes PySide6 for desktop app
+- **Clean output**: Zero noise by default — no warnings, no INFO logs. Use `--verbose` for debug output
+- **REPL mode**: Interactive `aura>` prompt with `/help` system, fuzzy command matching, ANSI formatting
+- **Natural language**: Type plain English in the REPL — orchestrator parses intent and executes
+- **One-shot mode**: `aura hunt "plumber" --city "Austin TX"` runs a single command and exits
+- **Full engine init**: CLI initializes all 50+ engines (mirrors `main_window.py` exactly)
+- **Cross-platform**: Platform-aware `aura.spec` (Windows .exe, macOS .app bundle, Linux executable)
+- **macOS icon**: `scripts/build_icns.sh` generates `.icns` from PNG
+- **Linux installer**: `scripts/linux/install.sh` + `.desktop` file for system-wide install
+- **Build script**: `scripts/build.py` cross-platform build automation
+- **CI/CD**: GitHub Actions matrix build for Windows, macOS, and Linux
+- **PySide6-optional**: `navigation_service.py` and `thread_worker.py` work without Qt
+
 ### v1.2.0 — Audit Round 2: Deep Hardening
 
 - **Key migration**: `KeyVault.migrate_ciphertext()` re-encrypts legacy-salt keys with new per-install salt on startup
@@ -417,5 +562,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v1.1.0</sub>
+  <sub>Aura v1.3.0</sub>
 </p>

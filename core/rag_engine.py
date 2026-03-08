@@ -329,7 +329,7 @@ class RAGEngine:
             logger.info(f"Vector store initialized: ChromaDB + {VECTOR_RAG_MODEL}")
 
         except ImportError:
-            logger.info("ChromaDB/sentence-transformers not installed — using TF-IDF fallback")
+            logger.debug("ChromaDB/sentence-transformers not installed — using TF-IDF fallback")
         except Exception as e:
             logger.warning(f"Vector store init failed: {e} — using TF-IDF fallback")
 
