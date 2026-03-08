@@ -68,6 +68,7 @@ class TriageEngine:
         if not config:
             return []
 
+        mail = None
         try:
             since = datetime.utcnow() - timedelta(hours=hours_back)
             date_str = since.strftime("%d-%b-%Y")
@@ -82,7 +83,6 @@ class TriageEngine:
 
             _, msg_ids = mail.search(None, f'(SINCE "{date_str}")')
             if not msg_ids[0]:
-                mail.logout()
                 return []
 
             emails = []
@@ -108,12 +108,17 @@ class TriageEngine:
                 except Exception as e:
                     logger.warning(f"Error parsing email {msg_id}: {e}")
 
-            mail.logout()
             return emails
 
         except Exception as e:
             logger.error(f"Triage IMAP fetch failed: {e}")
             return []
+        finally:
+            if mail:
+                try:
+                    mail.logout()
+                except Exception:
+                    pass
 
     def _categorize_email(self, from_addr: str, subject: str, body: str) -> str:
         """Categorize an email based on heuristics."""

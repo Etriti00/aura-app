@@ -112,5 +112,45 @@ def migrate_schema(db_path):
     _add_col("settings", "voice_max_call_duration_s", "INTEGER", "300")
     _add_col("settings", "piper_model_path", "TEXT", "''")
 
+    # ─── Skills table: enhanced fields (Claude Agent SDK-inspired) ──────
+    _add_col("skills", "description", "TEXT", "''")
+    _add_col("skills", "instructions", "TEXT", "''")
+    _add_col("skills", "input_schema", "TEXT", "'{}'")
+    _add_col("skills", "output_schema", "TEXT", "'{}'")
+    _add_col("skills", "examples", "TEXT", "'[]'")
+    _add_col("skills", "category", "VARCHAR(50)", "'general'")
+    _add_col("skills", "version", "VARCHAR(20)", "'1.0'")
+    _add_col("skills", "capabilities", "TEXT", "'[]'")
+    _add_col("skills", "tags", "TEXT", "'[]'")
+
+    # ─── AgentTask: token tracking + dedup ─────────────────────────────
+    _add_col("agent_tasks", "input_tokens", "INTEGER", "0")
+    _add_col("agent_tasks", "output_tokens", "INTEGER", "0")
+    _add_col("agent_tasks", "context_hash", "TEXT", "NULL")
+
+    # ─── Indexes for frequently queried columns ──────────────────────
+    indexes = [
+        ("ix_leads_campaign_id", "leads", "campaign_id"),
+        ("ix_leads_status", "leads", "status"),
+        ("ix_leads_email", "leads", "email"),
+        ("ix_leads_lifecycle_state", "leads", "lifecycle_state"),
+        ("ix_campaigns_status", "campaigns", "status"),
+        ("ix_agent_tasks_agent_id", "agent_tasks", "agent_id"),
+        ("ix_agent_tasks_status", "agent_tasks", "status"),
+        ("ix_agent_tasks_task_type", "agent_tasks", "task_type"),
+        ("ix_follow_up_sends_lead_id", "follow_up_sends", "lead_id"),
+        ("ix_follow_up_sends_status", "follow_up_sends", "status"),
+        ("ix_agent_tickets_status", "agent_tickets", "status"),
+        ("ix_agent_tickets_assignee_id", "agent_tickets", "assignee_id"),
+        ("ix_crm_sync_log_lead_id", "crm_sync_log", "lead_id"),
+        ("ix_command_log_source", "command_log", "source"),
+        ("ix_command_log_created_at", "command_log", "created_at"),
+    ]
+    for idx_name, table, column in indexes:
+        try:
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table}({column})")
+        except sqlite3.OperationalError:
+            pass  # Table may not exist yet
+
     conn.commit()
     conn.close()

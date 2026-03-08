@@ -78,6 +78,27 @@ class KeyVault:
 
         return ""
 
+    def migrate_ciphertext(self, hex_ciphertext: str) -> str | None:
+        """If this ciphertext was encrypted with the legacy salt, re-encrypt with the new salt.
+        Returns the new hex ciphertext, or None if no migration was needed."""
+        if not self._legacy_fernet or not hex_ciphertext:
+            return None
+        try:
+            token = bytes.fromhex(hex_ciphertext)
+            # Try new salt first — if it works, no migration needed
+            self._fernet.decrypt(token)
+            return None
+        except Exception:
+            pass
+        try:
+            token = bytes.fromhex(hex_ciphertext)
+            plaintext = self._legacy_fernet.decrypt(token).decode("utf-8")
+            new_ct = self.encrypt(plaintext)
+            _logger.info("Re-encrypted key from legacy salt to new per-install salt")
+            return new_ct
+        except Exception:
+            return None
+
     @staticmethod
     def mask(plaintext: str, visible_chars: int = 4) -> str:
         """

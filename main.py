@@ -65,6 +65,23 @@ def main():
     # Initialize key vault
     key_vault = KeyVault()
 
+    # Migrate any keys still encrypted with the legacy salt
+    _settings_for_migration = db_manager.get_settings()
+    if _settings_for_migration:
+        _enc_fields = [f for f in dir(_settings_for_migration) if f.endswith("_enc") and getattr(_settings_for_migration, f, None)]
+        _migrated = False
+        for _field in _enc_fields:
+            _old_ct = getattr(_settings_for_migration, _field)
+            _new_ct = key_vault.migrate_ciphertext(_old_ct)
+            if _new_ct:
+                from database.schema import Settings
+                with db_manager.session_scope() as session:
+                    s = session.query(Settings).first()
+                    setattr(s, _field, _new_ct)
+                _migrated = True
+        if _migrated:
+            logger.info("Migrated encrypted keys to new per-install salt")
+
     # Check first-run status
     settings = db_manager.get_settings()
 

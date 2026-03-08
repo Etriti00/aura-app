@@ -1,9 +1,12 @@
 """
 Aura — Delivery Engine
 Email delivery via Resend API (primary) with SMTP fallback.
+Thread-safe: all mutable counters protected by a lock.
 """
 
+import html
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -17,9 +20,11 @@ class DeliveryEngine:
     """
     Handles email delivery with primary (Resend) and fallback (SMTP) transports.
     Tracks daily send counts for rate limiting.
+    Thread-safe: all mutable counters protected by a lock.
     """
 
     def __init__(self):
+        self._lock = threading.Lock()
         self._resend_key = None
         self._smtp_config = None
         self._daily_count = 0
@@ -46,15 +51,26 @@ class DeliveryEngine:
 
     def reset_daily_count(self):
         """Reset the daily send counter (call at midnight)."""
-        self._daily_count = 0
+        with self._lock:
+            self._daily_count = 0
 
     @property
     def daily_remaining(self) -> int:
-        return max(0, self._max_daily - self._daily_count)
+        with self._lock:
+            return max(0, self._max_daily - self._daily_count)
 
     @property
     def daily_count(self) -> int:
-        return self._daily_count
+        with self._lock:
+            return self._daily_count
+
+    def _increment_daily(self) -> bool:
+        """Atomically check limit and increment. Returns False if limit reached."""
+        with self._lock:
+            if self._daily_count >= self._max_daily:
+                return False
+            self._daily_count += 1
+            return True
 
     def send_email(
         self,
@@ -70,8 +86,8 @@ class DeliveryEngine:
         Returns:
             dict with keys: success (bool), method (str), error (str or None), message_id (str or None)
         """
-        # Rate limit check
-        if self._daily_count >= self._max_daily:
+        # Atomic rate limit check + increment
+        if not self._increment_daily():
             return {
                 "success": False,
                 "method": "none",
@@ -83,7 +99,6 @@ class DeliveryEngine:
         if self._resend_key:
             result = self._send_via_resend(to_email, from_email, subject, body, from_name)
             if result["success"]:
-                self._daily_count += 1
                 self._store_in_rag(subject, body)
                 return result
             logger.warning(f"Resend failed: {result['error']}. Trying SMTP fallback.")
@@ -92,7 +107,6 @@ class DeliveryEngine:
         if self._smtp_config:
             result = self._send_via_smtp(to_email, from_email, subject, body, from_name)
             if result["success"]:
-                self._daily_count += 1
                 self._store_in_rag(subject, body)
                 return result
 
@@ -151,6 +165,7 @@ class DeliveryEngine:
         self, to_email: str, from_email: str, subject: str, body: str, from_name: str
     ) -> dict:
         """Send email using SMTP fallback."""
+        server = None
         try:
             cfg = self._smtp_config
             msg = MIMEMultipart()
@@ -159,15 +174,11 @@ class DeliveryEngine:
             msg["Subject"] = subject
             msg.attach(MIMEText(body, "plain", "utf-8"))
 
+            server = smtplib.SMTP(cfg["host"], cfg["port"])
             if cfg["use_tls"]:
-                server = smtplib.SMTP(cfg["host"], cfg["port"])
                 server.starttls()
-            else:
-                server = smtplib.SMTP(cfg["host"], cfg["port"])
-
             server.login(cfg["username"], cfg["password"])
             server.sendmail(from_email, to_email, msg.as_string())
-            server.quit()
 
             logger.info(f"Email sent via SMTP to {to_email}")
             return {
@@ -184,6 +195,12 @@ class DeliveryEngine:
                 "error": str(e),
                 "message_id": None,
             }
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
 
     def send_with_screenshot(
         self,
@@ -203,8 +220,8 @@ class DeliveryEngine:
         if not screenshot_path or not os.path.exists(screenshot_path):
             return self.send_email(to_email, from_email, subject, body, from_name)
 
-        # Rate limit check
-        if self._daily_count >= self._max_daily:
+        # Atomic rate limit check + increment
+        if not self._increment_daily():
             return {
                 "success": False,
                 "method": "none",
@@ -221,9 +238,10 @@ class DeliveryEngine:
             msg_root["To"] = to_email
             msg_root["Subject"] = subject
 
-            # HTML body with inline image
+            # HTML body with inline image — escape body to prevent malformed HTML
+            escaped_body = html.escape(body).replace(chr(10), '<br>')
             html_body = f"""<html><body>
-<p>{body.replace(chr(10), '<br>')}</p>
+<p>{escaped_body}</p>
 <br>
 <p><strong>Here's what your competitors' web presence looks like:</strong></p>
 <img src="cid:screenshot_cid" style="max-width:600px; border:1px solid #ddd; border-radius:8px;">
@@ -254,7 +272,6 @@ class DeliveryEngine:
                         "html": html_body,
                     })
                     message_id = email_resp.get("id", "unknown") if isinstance(email_resp, dict) else str(email_resp)
-                    self._daily_count += 1
                     logger.info(f"Screenshot email sent via Resend to {to_email}")
                     return {"success": True, "method": "resend", "error": None, "message_id": message_id}
                 except Exception as e:
@@ -262,21 +279,24 @@ class DeliveryEngine:
 
             # Fallback: SMTP with full MIME attachment
             if self._smtp_config:
+                server = None
                 try:
                     cfg = self._smtp_config
+                    server = smtplib.SMTP(cfg["host"], cfg["port"])
                     if cfg["use_tls"]:
-                        server = smtplib.SMTP(cfg["host"], cfg["port"])
                         server.starttls()
-                    else:
-                        server = smtplib.SMTP(cfg["host"], cfg["port"])
                     server.login(cfg["username"], cfg["password"])
                     server.sendmail(from_email, to_email, msg_root.as_string())
-                    server.quit()
-                    self._daily_count += 1
                     logger.info(f"Screenshot email sent via SMTP to {to_email}")
                     return {"success": True, "method": "smtp", "error": None, "message_id": None}
                 except Exception as e:
                     logger.warning(f"SMTP screenshot email failed: {e}")
+                finally:
+                    if server:
+                        try:
+                            server.quit()
+                        except Exception:
+                            pass
 
             return {"success": False, "method": "none", "error": "No delivery method available", "message_id": None}
         except Exception as e:

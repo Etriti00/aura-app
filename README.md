@@ -127,10 +127,16 @@ On first launch, the **Setup Wizard** walks you through:
 
 ### Security & Reliability
 - **Per-install encryption salt** — Unique random salt per installation (auto-migrates from legacy)
+- **Key migration** — Automatic re-encryption of legacy ciphertext to new per-install salt
 - **LLM retry with backoff** — Exponential backoff on transient errors (429, 503, timeouts)
 - **Thread-safe database** — Serialized writes prevent SQLite locking errors
-- **Browser lifecycle management** — Context-managed Playwright with batch mode for bulk operations
+- **Thread-safe delivery counter** — Atomic daily send limit with `threading.Lock`
+- **Browser lifecycle management** — Context-managed Playwright with batch mode and stealth for bulk operations
 - **IMAP connection pooling** — Persistent connections with automatic stale detection and reconnect
+- **Resource cleanup on error** — SMTP and IMAP connections always closed via `try/finally`
+- **HTML injection prevention** — Email body escaped before HTML embedding
+- **Database indexes** — 15 indexes on frequently queried columns for faster lookups
+- **Graceful shutdown** — `closeEvent` stops all timers, fleet, gateways, and batch browser on exit
 - **GPU-aware scheduling** — Ollama calls serialized via semaphore for single-GPU machines
 - **Thread-safe safety guard** — All mutable counters protected by locks
 
@@ -237,7 +243,7 @@ aura-app/
 │   ├── icons/               # Application icon
 │   └── templates/           # CSV import templates
 │
-└── tests/                   # 935 tests across 40+ files
+└── tests/                   # 959 tests across 40+ files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
 ```
@@ -306,7 +312,7 @@ venv\Scripts\python.exe -m pytest tests/test_agent_engine.py -v
 venv\Scripts\python.exe -m pytest tests/ -k "test_stalled" -v
 ```
 
-**Current status**: 935 tests across 40+ files — 100% passing.
+**Current status**: 959 tests across 40+ files — 100% passing.
 
 ---
 
@@ -358,6 +364,20 @@ Please ensure all tests pass before submitting.
 ---
 
 ## Changelog
+
+### v1.2.0 — Audit Round 2: Deep Hardening
+
+- **Key migration**: `KeyVault.migrate_ciphertext()` re-encrypts legacy-salt keys with new per-install salt on startup
+- **Batch browser wiring**: Hunter controller now calls `start_batch()`/`end_batch()` around enrichment loops
+- **Stealth in batch path**: `playwright_stealth` applied to batch browser pages (not just single-page mode)
+- **Thread-safe delivery**: `DeliveryEngine` daily counter uses `threading.Lock` with atomic `_increment_daily()`
+- **SMTP leak fix**: All SMTP connections wrapped in `try/finally` with `server.quit()`
+- **HTML escape**: Email body HTML-escaped before embedding to prevent XSS injection
+- **IMAP leak fix**: Triage engine IMAP connections wrapped in `try/finally` with `mail.logout()`
+- **Database indexes**: 15 indexes on frequently queried columns (leads, agent_tasks, tickets, command_log)
+- **Graceful shutdown**: `MainWindow.closeEvent()` stops timers, fleet, IMAP, gateways, batch browser, voice engine
+- **Consolidated migrations**: Removed dual migration system — all column migrations now in `database/migrations.py`
+- **Tests**: 935 → 959 tests (24 new audit round 2 hardening tests)
 
 ### v1.1.0 — Hardening & Reliability
 

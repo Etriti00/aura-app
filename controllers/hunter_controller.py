@@ -169,58 +169,72 @@ class HunterController(QObject):
                     seen_names.add(name_key)
                     all_leads.append(lead_dict)
 
+        # Start batch browser for enrichment (avoids launching Chromium per-lead)
+        if self.enrichment_engine:
+            try:
+                self.enrichment_engine.start_batch()
+            except Exception as e:
+                logger.warning(f"Failed to start batch browser: {e}")
+
         # Phase 3: Save all leads to DB
         saved_count = 0
-        for lead in all_leads:
-            if _cancel_checker and _cancel_checker():
-                break
+        try:
+            for lead in all_leads:
+                if _cancel_checker and _cancel_checker():
+                    break
 
-            lead_dict = self._save_lead(lead)
-            if lead_dict:
-                saved_count += 1
-                self.lead_found.emit(lead_dict)
+                lead_dict = self._save_lead(lead)
+                if lead_dict:
+                    saved_count += 1
+                    self.lead_found.emit(lead_dict)
 
-                # Run enrichment if enabled
-                if self.enrichment_engine:
-                    try:
-                        enrichment_data = self.enrichment_engine.enrich_lead(lead_dict)
-                        if enrichment_data:
-                            self.lead_enriched.emit(lead_dict["id"], enrichment_data)
-                    except Exception as e:
-                        logger.warning(f"Enrichment failed for lead #{lead_dict['id']}: {e}")
+                    # Run enrichment if enabled
+                    if self.enrichment_engine:
+                        try:
+                            enrichment_data = self.enrichment_engine.enrich_lead(lead_dict)
+                            if enrichment_data:
+                                self.lead_enriched.emit(lead_dict["id"], enrichment_data)
+                        except Exception as e:
+                            logger.warning(f"Enrichment failed for lead #{lead_dict['id']}: {e}")
 
-                # Auto-qualify via AI after enrichment
-                if self.ai_engine:
-                    try:
-                        qual = self.ai_engine.qualify_lead(lead_dict, niche)
-                        with self.db_manager.session_scope() as session:
-                            db_lead = session.query(Lead).filter_by(id=lead_dict["id"]).first()
-                            if db_lead:
-                                if qual.get("qualified"):
-                                    db_lead.status = "qualified"
-                                    db_lead.notes = (db_lead.notes or "") + f"\n[Qualified] Score: {qual.get('score', 0)}/10 — {qual.get('reason', '')}"
-                                else:
-                                    db_lead.status = "disqualified"
-                                    db_lead.notes = (db_lead.notes or "") + f"\n[Disqualified] Score: {qual.get('score', 0)}/10 — {qual.get('reason', '')}"
-                        self.lead_qualified.emit(lead_dict["id"], qual)
-                        if self.lead_lifecycle_engine:
-                            new_state = "qualified" if qual.get("qualified") else "disqualified"
-                            self.lead_lifecycle_engine.transition(
-                                lead_dict["id"], new_state, triggered_by="auto_qualify",
-                            )
-                        # Auto-research qualified leads
-                        if qual.get("qualified") and getattr(self, "research_engine", None):
-                            try:
-                                from database.schema import Settings
-                                with self.db_manager.session_scope() as session:
-                                    settings = session.query(Settings).first()
-                                    auto_enabled = settings.research_auto_enabled if settings else True
-                                if auto_enabled:
-                                    self.research_engine.research_lead(lead_dict["id"])
-                            except Exception as re:
-                                logger.debug(f"Auto-research failed for lead #{lead_dict['id']}: {re}")
-                    except Exception as e:
-                        logger.warning(f"Qualification failed for lead #{lead_dict['id']}: {e}")
+                    # Auto-qualify via AI after enrichment
+                    if self.ai_engine:
+                        try:
+                            qual = self.ai_engine.qualify_lead(lead_dict, niche)
+                            with self.db_manager.session_scope() as session:
+                                db_lead = session.query(Lead).filter_by(id=lead_dict["id"]).first()
+                                if db_lead:
+                                    if qual.get("qualified"):
+                                        db_lead.status = "qualified"
+                                        db_lead.notes = (db_lead.notes or "") + f"\n[Qualified] Score: {qual.get('score', 0)}/10 — {qual.get('reason', '')}"
+                                    else:
+                                        db_lead.status = "disqualified"
+                                        db_lead.notes = (db_lead.notes or "") + f"\n[Disqualified] Score: {qual.get('score', 0)}/10 — {qual.get('reason', '')}"
+                            self.lead_qualified.emit(lead_dict["id"], qual)
+                            if self.lead_lifecycle_engine:
+                                new_state = "qualified" if qual.get("qualified") else "disqualified"
+                                self.lead_lifecycle_engine.transition(
+                                    lead_dict["id"], new_state, triggered_by="auto_qualify",
+                                )
+                            # Auto-research qualified leads
+                            if qual.get("qualified") and getattr(self, "research_engine", None):
+                                try:
+                                    from database.schema import Settings
+                                    with self.db_manager.session_scope() as session:
+                                        settings = session.query(Settings).first()
+                                        auto_enabled = settings.research_auto_enabled if settings else True
+                                    if auto_enabled:
+                                        self.research_engine.research_lead(lead_dict["id"])
+                                except Exception as re:
+                                    logger.debug(f"Auto-research failed for lead #{lead_dict['id']}: {re}")
+                        except Exception as e:
+                            logger.warning(f"Qualification failed for lead #{lead_dict['id']}: {e}")
+        finally:
+            if self.enrichment_engine:
+                try:
+                    self.enrichment_engine.end_batch()
+                except Exception:
+                    pass
 
         # Update campaign counters
         self._update_campaign_stats()

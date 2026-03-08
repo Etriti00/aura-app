@@ -1533,3 +1533,51 @@ class MainWindow(QMainWindow):
                     show_toast(self, "CSV report exported!", "success")
                 else:
                     show_toast(self, f"Export failed: {result.get('error')}", "error")
+
+    # ─── Graceful Shutdown ─────────────────────────────────────
+
+    def closeEvent(self, event):
+        """Stop all background resources before closing."""
+        logger.info("Shutting down Aura…")
+
+        # Stop dashboard refresh timer
+        if hasattr(self, "_dashboard_timer"):
+            self._dashboard_timer.stop()
+
+        # Stop fleet (agents, escalation timer, caller timer, sequence/reply timers)
+        if hasattr(self, "fleet_ctrl"):
+            try:
+                self.fleet_ctrl.shutdown_fleet()
+            except Exception as e:
+                logger.warning(f"Fleet shutdown error: {e}")
+
+        # Close IMAP reply detector connection
+        if hasattr(self, "reply_detector"):
+            try:
+                self.reply_detector.close_connection()
+            except Exception as e:
+                logger.warning(f"Reply detector close error: {e}")
+
+        # Stop gateway adapters (Telegram, Discord)
+        if hasattr(self, "gateway_ctrl"):
+            try:
+                self.gateway_ctrl.stop_all()
+            except Exception as e:
+                logger.warning(f"Gateway stop error: {e}")
+
+        # Close batch browser if open
+        if hasattr(self, "enrichment_engine"):
+            try:
+                self.enrichment_engine.end_batch()
+            except Exception as e:
+                logger.warning(f"Batch browser close error: {e}")
+
+        # Stop voice engine WebSocket server
+        if hasattr(self, "voice_engine"):
+            try:
+                self.voice_engine.shutdown()
+            except Exception as e:
+                logger.warning(f"Voice engine shutdown error: {e}")
+
+        logger.info("Shutdown complete.")
+        super().closeEvent(event)

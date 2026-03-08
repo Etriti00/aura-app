@@ -48,6 +48,11 @@ class EnrichmentEngine:
         if self._batch_browser:
             page = self._batch_browser.new_page(viewport={"width": 1280, "height": 800})
             try:
+                from playwright_stealth import stealth_sync
+                stealth_sync(page)
+            except ImportError:
+                pass
+            try:
                 yield page
             finally:
                 page.close()

@@ -24,7 +24,7 @@ class Campaign(Base):
     target_city = Column(String(255), default="")
     target_niche = Column(String(255), default="")
     scrape_sources = Column(String(500), default='["duckduckgo"]')  # JSON list
-    status = Column(String(50), default="draft")  # draft/active/paused/completed
+    status = Column(String(50), default="draft", index=True)  # draft/active/paused/completed
     total_leads = Column(Integer, default=0)
     qualified_leads = Column(Integer, default=0)
     emails_sent = Column(Integer, default=0)
@@ -54,21 +54,21 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
     business_name = Column(String(500), default="")
     category = Column(String(255), default="")
     address = Column(String(500), default="")
     city = Column(String(255), default="")
     country = Column(String(100), default="")
     phone = Column(String(50), default="")
-    email = Column(String(255), default="")
+    email = Column(String(255), default="", index=True)
     source_url = Column(String(1000), default="")
     source_platform = Column(String(50), default="")  # duckduckgo/google_maps/yelp
     has_website = Column(Boolean, default=False)
     website_url = Column(String(1000), default="")
     website_issues = Column(Text, default="")
     website_score = Column(Integer, default=0)  # 0–100
-    status = Column(String(50), default="new")
+    status = Column(String(50), default="new", index=True)
     disqualify_reason = Column(String(500), default="")
     tier2_tokens_used = Column(Integer, default=0)
     tier2_cost_usd = Column(Float, default=0.0)
@@ -85,7 +85,7 @@ class Lead(Base):
     ab_variant = Column(String(2), nullable=True)          # "A" or "B"
     timezone_offset = Column(Integer, nullable=True)       # UTC offset in hours
     scheduled_send_at = Column(DateTime, nullable=True)
-    lifecycle_state = Column(String(50), default="new")   # rich state machine (Phase 2)
+    lifecycle_state = Column(String(50), default="new", index=True)   # rich state machine (Phase 2)
 
     # Relationships
     campaign = relationship("Campaign", back_populates="leads")
@@ -316,11 +316,11 @@ class FollowUpSend(Base):
     __tablename__ = "follow_up_sends"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
     step_id = Column(Integer, ForeignKey("follow_up_steps.id"), nullable=False)
     sent_at = Column(DateTime, nullable=True)
     scheduled_for = Column(DateTime, nullable=True)
-    status = Column(String(20), default="scheduled")  # scheduled/sent/skipped/failed
+    status = Column(String(20), default="scheduled", index=True)  # scheduled/sent/skipped/failed
 
     # Relationships
     lead = relationship("Lead", back_populates="follow_up_sends")
@@ -404,7 +404,7 @@ class CrmSyncLog(Base):
     __tablename__ = "crm_sync_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
     crm_platform = Column(String(50), nullable=False)   # "hubspot", "pipedrive"
     crm_record_id = Column(String(255), default="")
     sync_status = Column(String(20), default="pending")  # "synced", "failed", "pending"
@@ -529,10 +529,10 @@ class AgentTask(Base):
     __tablename__ = "agent_tasks"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=False)
-    task_type = Column(String(100), nullable=False)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=False, index=True)
+    task_type = Column(String(100), nullable=False, index=True)
     task_payload = Column(Text, default="{}")            # JSON
-    status = Column(String(20), default="queued")        # queued/running/completed/failed/delegated
+    status = Column(String(20), default="queued", index=True)        # queued/running/completed/failed/delegated
     assigned_by = Column(String(255), default="user")    # orchestrator name or "user"
     delegated_to_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
     result = Column(Text, nullable=True)
@@ -606,8 +606,8 @@ class AgentTicket(Base):
     title = Column(String(500), nullable=False)
     description = Column(Text, default="")
     priority = Column(String(20), default="medium")          # critical/high/medium/low
-    status = Column(String(20), default="backlog")           # backlog/todo/in_progress/review/done
-    assignee_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    status = Column(String(20), default="backlog", index=True)           # backlog/todo/in_progress/review/done
+    assignee_id = Column(Integer, ForeignKey("agents.id"), nullable=True, index=True)
     reporter_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
     reporter_type = Column(String(20), default="user")       # "user" or "agent"
     parent_ticket_id = Column(Integer, ForeignKey("agent_tickets.id"), nullable=True)
@@ -691,7 +691,7 @@ class CommandLog(Base):
     correlation_id = Column(String(64), nullable=True)
 
     # Source tracking
-    source = Column(String(50), nullable=False)
+    source = Column(String(50), nullable=False, index=True)
     source_sender_id = Column(String(255), nullable=True)
     source_display_name = Column(String(255), nullable=True)
 
@@ -717,7 +717,7 @@ class CommandLog(Base):
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
     completed_at = Column(DateTime, nullable=True)
     duration_ms = Column(Integer, nullable=True)
 

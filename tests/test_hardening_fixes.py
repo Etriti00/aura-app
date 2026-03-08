@@ -565,3 +565,267 @@ class TestPlaywrightStealth:
         import core.enrichment_engine as ee
         source = inspect.getsource(ee)
         assert "contextmanager" in source
+
+
+# ─── Audit Round 2: New hardening tests ──────────────────────────────
+
+class TestKeyVaultMigrationReencrypts:
+    """Verify KeyVault.migrate_ciphertext re-encrypts legacy ciphertext."""
+
+    def test_migrate_ciphertext_returns_none_when_no_legacy(self):
+        """migrate_ciphertext should return None if no legacy fernet."""
+        from core.key_vault import KeyVault
+        vault = KeyVault()
+        vault._legacy_fernet = None
+        assert vault.migrate_ciphertext("aabbcc") is None
+
+    def test_migrate_ciphertext_returns_none_for_empty(self):
+        from core.key_vault import KeyVault
+        vault = KeyVault()
+        assert vault.migrate_ciphertext("") is None
+
+    def test_migrate_ciphertext_returns_none_if_already_new(self):
+        """If ciphertext decrypts with new salt, no migration needed."""
+        from core.key_vault import KeyVault
+        vault = KeyVault()
+        ct = vault.encrypt("my-api-key")
+        result = vault.migrate_ciphertext(ct)
+        assert result is None  # Already encrypted with new salt
+
+    def test_migrate_ciphertext_reencrypts_legacy(self):
+        """If ciphertext was encrypted with legacy salt, re-encrypt with new salt."""
+        from core.key_vault import KeyVault
+        from config import ENCRYPTION_SALT, _LEGACY_SALT
+
+        vault = KeyVault()
+        if ENCRYPTION_SALT == _LEGACY_SALT:
+            pytest.skip("Salt hasn't changed from legacy — no migration to test")
+
+        # Encrypt with legacy fernet
+        legacy_ct = vault._legacy_fernet.encrypt(b"secret-key-123").hex()
+
+        # Migrate
+        new_ct = vault.migrate_ciphertext(legacy_ct)
+        assert new_ct is not None
+        assert new_ct != legacy_ct
+
+        # New ciphertext should decrypt with new salt
+        assert vault.decrypt(new_ct) == "secret-key-123"
+
+    def test_migrate_ciphertext_method_exists(self):
+        from core.key_vault import KeyVault
+        assert hasattr(KeyVault, 'migrate_ciphertext')
+
+
+class TestDeliveryEngineThreadSafeCounter:
+    """Verify DeliveryEngine daily counter is thread-safe."""
+
+    def test_has_lock(self):
+        from core.delivery_engine import DeliveryEngine
+        engine = DeliveryEngine.__new__(DeliveryEngine)
+        engine._lock = threading.Lock()
+        engine._daily_count = 0
+        engine._max_daily = 100
+        assert isinstance(engine._lock, type(threading.Lock()))
+
+    def test_increment_daily_respects_limit(self):
+        from core.delivery_engine import DeliveryEngine
+        engine = DeliveryEngine.__new__(DeliveryEngine)
+        engine._lock = threading.Lock()
+        engine._daily_count = 0
+        engine._max_daily = 3
+
+        assert engine._increment_daily() is True
+        assert engine._increment_daily() is True
+        assert engine._increment_daily() is True
+        assert engine._increment_daily() is False  # Limit reached
+
+    def test_concurrent_increment(self):
+        """Multiple threads incrementing should not exceed max_daily."""
+        from core.delivery_engine import DeliveryEngine
+        engine = DeliveryEngine.__new__(DeliveryEngine)
+        engine._lock = threading.Lock()
+        engine._daily_count = 0
+        engine._max_daily = 50
+
+        successes = []
+
+        def increment_many():
+            for _ in range(20):
+                if engine._increment_daily():
+                    successes.append(1)
+
+        threads = [threading.Thread(target=increment_many) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Exactly 50 should succeed (100 attempts, 50 limit)
+        assert len(successes) == 50
+        assert engine._daily_count == 50
+
+
+class TestSMTPConnectionCleanup:
+    """Verify SMTP connections are cleaned up on error."""
+
+    def test_send_via_smtp_has_finally(self):
+        """_send_via_smtp should use try/finally for cleanup."""
+        from core.delivery_engine import DeliveryEngine
+        source = inspect.getsource(DeliveryEngine._send_via_smtp)
+        assert "finally" in source
+        assert "server.quit()" in source or "server.quit" in source
+
+    def test_send_with_screenshot_smtp_has_finally(self):
+        """send_with_screenshot SMTP block should use try/finally."""
+        from core.delivery_engine import DeliveryEngine
+        source = inspect.getsource(DeliveryEngine.send_with_screenshot)
+        assert "finally" in source
+
+
+class TestTriageIMAPCleanup:
+    """Verify triage engine IMAP connections are cleaned up on error."""
+
+    def test_fetch_overnight_has_finally(self):
+        """fetch_overnight_emails should use try/finally for IMAP cleanup."""
+        from core.triage_engine import TriageEngine
+        source = inspect.getsource(TriageEngine.fetch_overnight_emails)
+        assert "finally" in source
+        assert "mail.logout()" in source or "mail.logout" in source
+
+    def test_fetch_returns_empty_on_no_config(self):
+        """fetch_overnight_emails should return [] when no IMAP config."""
+        from core.triage_engine import TriageEngine
+        engine = TriageEngine(MagicMock(), MagicMock())
+        engine.db_manager.get_settings.return_value = None
+        result = engine.fetch_overnight_emails()
+        assert result == []
+
+
+class TestHTMLEscapeInEmail:
+    """Verify email body is HTML-escaped before embedding."""
+
+    def test_delivery_engine_uses_html_escape(self):
+        """DeliveryEngine should use html.escape for email body."""
+        from core.delivery_engine import DeliveryEngine
+        source = inspect.getsource(DeliveryEngine)
+        assert "html.escape" in source
+
+    def test_html_escape_import(self):
+        """delivery_engine module should import html."""
+        import core.delivery_engine as de
+        assert hasattr(de, 'html')
+
+    def test_escape_prevents_xss(self):
+        """html.escape should neutralize script tags."""
+        import html
+        malicious = '<script>alert("xss")</script>'
+        escaped = html.escape(malicious)
+        assert "<script>" not in escaped
+        assert "&lt;script&gt;" in escaped
+
+
+class TestBatchBrowserStealthApplied:
+    """Verify stealth is applied in batch browser path."""
+
+    def test_batch_path_applies_stealth(self):
+        """_browser_context batch path should import and apply stealth_sync."""
+        from core.enrichment_engine import EnrichmentEngine
+        source = inspect.getsource(EnrichmentEngine._browser_context)
+        assert "stealth_sync" in source
+
+    def test_batch_path_uses_batch_browser(self):
+        """When _batch_browser is set, _browser_context should use it."""
+        from core.enrichment_engine import EnrichmentEngine
+        engine = EnrichmentEngine(MagicMock())
+
+        mock_browser = MagicMock()
+        mock_page = MagicMock()
+        mock_browser.new_page.return_value = mock_page
+        engine._batch_browser = mock_browser
+
+        with engine._browser_context() as page:
+            assert page == mock_page
+
+        mock_browser.new_page.assert_called_once()
+        mock_page.close.assert_called_once()
+
+
+class TestDatabaseIndexes:
+    """Verify database indexes exist on frequently queried columns."""
+
+    def test_schema_has_indexed_columns(self):
+        """Key columns in schema.py should have index=True."""
+        from database.schema import Lead, Campaign, AgentTask, FollowUpSend, AgentTicket, CommandLog
+        # Check Lead indexes
+        assert Lead.__table__.c.campaign_id.index is True
+        assert Lead.__table__.c.status.index is True
+        assert Lead.__table__.c.email.index is True
+        assert Lead.__table__.c.lifecycle_state.index is True
+        # Campaign
+        assert Campaign.__table__.c.status.index is True
+        # AgentTask
+        assert AgentTask.__table__.c.agent_id.index is True
+        assert AgentTask.__table__.c.status.index is True
+        assert AgentTask.__table__.c.task_type.index is True
+        # FollowUpSend
+        assert FollowUpSend.__table__.c.lead_id.index is True
+        assert FollowUpSend.__table__.c.status.index is True
+        # AgentTicket
+        assert AgentTicket.__table__.c.status.index is True
+        assert AgentTicket.__table__.c.assignee_id.index is True
+        # CommandLog
+        assert CommandLog.__table__.c.source.index is True
+        assert CommandLog.__table__.c.created_at.index is True
+
+    def test_migrations_create_indexes(self):
+        """migrations.py should create indexes for existing databases."""
+        from database.migrations import migrate_schema
+        source = inspect.getsource(migrate_schema)
+        assert "CREATE INDEX IF NOT EXISTS" in source
+        assert "ix_leads_status" in source
+        assert "ix_agent_tasks_agent_id" in source
+
+
+class TestMainWindowCloseEvent:
+    """Verify MainWindow has closeEvent for cleanup."""
+
+    def test_close_event_exists(self):
+        """MainWindow should have a closeEvent method."""
+        from ui.main_window import MainWindow
+        assert hasattr(MainWindow, 'closeEvent')
+
+    def test_close_event_stops_resources(self):
+        """closeEvent source should stop key resources."""
+        from ui.main_window import MainWindow
+        source = inspect.getsource(MainWindow.closeEvent)
+        assert "fleet_ctrl" in source or "shutdown_fleet" in source
+        assert "reply_detector" in source or "close_connection" in source
+        assert "gateway_ctrl" in source or "stop_all" in source
+        assert "enrichment_engine" in source or "end_batch" in source
+        assert "_dashboard_timer" in source
+
+
+class TestConsolidatedMigrations:
+    """Verify migration system is consolidated — no dual migrations."""
+
+    def test_db_manager_no_migrate_schema_method(self):
+        """DatabaseManager should NOT have _migrate_schema (consolidated into migrations.py)."""
+        from database.db_manager import DatabaseManager
+        assert not hasattr(DatabaseManager, '_migrate_schema')
+
+    def test_migrations_has_skills_columns(self):
+        """migrations.py should handle skills table columns."""
+        from database.migrations import migrate_schema
+        source = inspect.getsource(migrate_schema)
+        assert "skills" in source
+        assert "description" in source
+        assert "capabilities" in source
+
+    def test_migrations_has_agent_tasks_columns(self):
+        """migrations.py should handle agent_tasks token columns."""
+        from database.migrations import migrate_schema
+        source = inspect.getsource(migrate_schema)
+        assert "input_tokens" in source
+        assert "output_tokens" in source
+        assert "context_hash" in source

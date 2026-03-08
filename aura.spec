@@ -21,6 +21,7 @@ hiddenimports = [
     'qtawesome.iconic_font',
     'litellm',
     'playwright',
+    'playwright_stealth',
     'PySide6.QtCore',
     'PySide6.QtGui',
     'PySide6.QtWidgets',
