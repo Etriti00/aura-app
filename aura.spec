@@ -1,10 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_all
+import sys
 import os
+from PyInstaller.utils.hooks import collect_all
 
 _SPEC_DIR = os.path.dirname(os.path.abspath(SPEC))
-_ICON_PATH = os.path.join(_SPEC_DIR, 'assets', 'icons', 'aura_icon.ico')
+
+# Platform-specific icon
+if sys.platform == "darwin":
+    _ICON_PATH = os.path.join(_SPEC_DIR, 'assets', 'icons', 'aura_icon.icns')
+elif sys.platform == "win32":
+    _ICON_PATH = os.path.join(_SPEC_DIR, 'assets', 'icons', 'aura_icon.ico')
+else:
+    _ICON_PATH = os.path.join(_SPEC_DIR, 'assets', 'icons', 'aura_icon.png')
 
 datas = [('assets', 'assets')]
 
@@ -144,6 +152,8 @@ hiddenimports = [
     'core.voice_call_engine',
     'controllers.voice_controller',
     'ui.pages.calls',
+    # Navigation service
+    'core.navigation_service',
 ]
 
 # Collect all playwright dependencies
@@ -166,8 +176,6 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
 )
@@ -185,7 +193,7 @@ exe = EXE(
     upx=True,
     console=False,
     disable_windowed_traceback=False,
-    argv_emulation=False,
+    argv_emulation=sys.platform == "darwin",  # macOS needs this for drag-and-drop
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -201,3 +209,20 @@ coll = COLLECT(
     upx_exclude=[],
     name='Aura',
 )
+
+# macOS: create .app bundle
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name='Aura.app',
+        icon=_ICON_PATH,
+        bundle_identifier='com.aura.salesagent',
+        info_plist={
+            'CFBundleName': 'Aura',
+            'CFBundleDisplayName': 'Aura — AI Sales Agent',
+            'CFBundleVersion': '1.2.0',
+            'CFBundleShortVersionString': '1.2.0',
+            'NSHighResolutionCapable': True,
+            'LSMinimumSystemVersion': '11.0',
+        },
+    )

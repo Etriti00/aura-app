@@ -4,17 +4,59 @@ Reusable QThread wrapper with result, error, progress, and finished signals.
 Used by all controllers for background operations.
 """
 
-from PySide6.QtCore import QThread, Signal, QObject
 import inspect
 import traceback
+
+try:
+    from PySide6.QtCore import QThread, Signal, QObject
+    _HAS_QT = True
+except ImportError:
+    _HAS_QT = False
+    import threading
+
+    class QObject:
+        """Stub for headless/CLI mode."""
+        def __init__(self, parent=None):
+            pass
+
+    class Signal:
+        """Minimal signal stub."""
+        def __init__(self, *args):
+            self._callbacks = []
+
+        def connect(self, cb):
+            self._callbacks.append(cb)
+
+        def emit(self, *args):
+            for cb in self._callbacks:
+                cb(*args)
+
+    class QThread:
+        """Minimal QThread stub backed by threading.Thread."""
+        def __init__(self):
+            self._thread = None
+
+        def start(self):
+            self._thread = threading.Thread(target=self.run, daemon=True)
+            self._thread.start()
+
+        def run(self):
+            pass
 
 
 class WorkerSignals(QObject):
     """Signals available from a running worker thread."""
-    result = Signal(object)     # Return value of the function
-    error = Signal(str)         # Error message if function raises
-    progress = Signal(int)      # 0–100 progress updates
-    finished = Signal()         # Always emitted at the end
+    if _HAS_QT:
+        result = Signal(object)
+        error = Signal(str)
+        progress = Signal(int)
+        finished = Signal()
+    else:
+        def __init__(self):
+            self.result = Signal(object)
+            self.error = Signal(str)
+            self.progress = Signal(int)
+            self.finished = Signal()
 
 
 class ThreadWorker(QThread):

@@ -5,7 +5,30 @@ Enables programmatic navigation between all 12 pages with data context.
 """
 
 from typing import Optional, Dict, Callable, Any
-from PySide6.QtCore import QObject, Signal
+
+try:
+    from PySide6.QtCore import QObject, Signal
+    _HAS_QT = True
+except ImportError:
+    _HAS_QT = False
+
+    class QObject:
+        """Stub for headless/CLI mode."""
+        def __init__(self, parent=None):
+            pass
+
+    class Signal:
+        """Minimal signal stub that works as a simple callback list."""
+        def __init__(self, *args):
+            self._callbacks = []
+
+        def connect(self, cb):
+            self._callbacks.append(cb)
+
+        def emit(self, *args):
+            for cb in self._callbacks:
+                cb(*args)
+
 from utils.logger import get_logger
 
 logger = get_logger("navigation_service")

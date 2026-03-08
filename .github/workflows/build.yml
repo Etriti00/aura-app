@@ -1,0 +1,55 @@
+name: Build Aura
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: Aura-Windows
+          - os: macos-latest
+            artifact: Aura-macOS
+          - os: ubuntu-latest
+            artifact: Aura-Linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install chromium
+
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libxkbcommon0 libxcb-cursor0
+
+      - name: Generate macOS icon
+        if: runner.os == 'macOS'
+        run: bash scripts/build_icns.sh
+
+      - name: Build with PyInstaller
+        run: python scripts/build.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/

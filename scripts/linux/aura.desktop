@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Aura
+Comment=AI-Powered Sales Agent
+Exec=/opt/aura/Aura
+Icon=/opt/aura/assets/icons/aura_icon.png
+Terminal=false
+Type=Application
+Categories=Office;Network;
+StartupWMClass=Aura
