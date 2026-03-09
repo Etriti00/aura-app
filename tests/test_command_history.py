@@ -445,5 +445,5 @@ class TestCommandHistoryController:
         from controllers.command_history_controller import CommandHistoryController
         ctrl = CommandHistoryController(db, engine)
         agents = ctrl.get_agents_list()
-        assert len(agents) == 19
+        assert len(agents) == 20
         assert all("id" in a and "name" in a for a in agents)

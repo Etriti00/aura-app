@@ -86,6 +86,7 @@ class Lead(Base):
     timezone_offset = Column(Integer, nullable=True)       # UTC offset in hours
     scheduled_send_at = Column(DateTime, nullable=True)
     lifecycle_state = Column(String(50), default="new", index=True)   # rich state machine (Phase 2)
+    data_completeness_score = Column(Float, default=0.0)             # 0-100 enrichment completeness
 
     # Relationships
     campaign = relationship("Campaign", back_populates="leads")
@@ -265,6 +266,24 @@ class Settings(Base):
     voice_max_call_duration_s = Column(Integer, default=300)
     piper_model_path = Column(String(500), default="")
 
+    # ─── v2.0: Business / Invoice Settings ───────────────────────────────
+    company_legal_name = Column(String(255), default="")
+    company_address = Column(Text, default="")
+    company_tax_id = Column(String(100), default="")
+    company_iban = Column(String(50), default="")
+    company_swift = Column(String(20), default="")
+    company_bank_name = Column(String(255), default="")
+    invoice_prefix = Column(String(20), default="INV-")
+    invoice_next_number = Column(Integer, default=1)
+    invoice_currency = Column(String(10), default="EUR")
+    payment_terms_days = Column(Integer, default=30)
+    invoice_notes = Column(Text, default="")
+    company_logo_path = Column(String(500), default="")
+    company_email = Column(String(255), default="")
+    company_phone = Column(String(50), default="")
+    company_website = Column(String(500), default="")
+    telegram_owner_chat_id = Column(String(50), default="")
+
     def __repr__(self):
         return f"<Settings(id={self.id}, theme='{self.theme}')>"
 
@@ -356,6 +375,34 @@ class EnrichmentData(Base):
     has_linkedin = Column(Boolean, default=False)
     website_screenshot_path = Column(String(1000), nullable=True)
     enriched_at = Column(DateTime, default=datetime.utcnow)
+
+    # ─── Layer 0: DNS / WHOIS / SSL ──────────────────────────────────────
+    whois_registrar = Column(String(255), nullable=True)
+    mx_records_valid = Column(Boolean, nullable=True)
+    has_ssl = Column(Boolean, nullable=True)
+    is_mobile_responsive = Column(Boolean, nullable=True)
+    tech_stack = Column(Text, default="")                   # JSON list: ["WordPress", "Shopify"]
+    social_links = Column(Text, default="")                 # JSON dict: {"linkedin": "...", "twitter": "..."}
+
+    # ─── Layer 1: Ollama extraction ──────────────────────────────────────
+    decision_maker_name = Column(String(255), nullable=True)
+    decision_maker_title = Column(String(255), nullable=True)
+    company_description = Column(Text, default="")
+    pain_points = Column(Text, default="")                  # JSON list
+    icp_fit_score = Column(Integer, nullable=True)          # 0-100
+
+    # ─── Layer 2: Free APIs ──────────────────────────────────────────────
+    gmaps_phone = Column(String(50), nullable=True)
+    gmaps_category = Column(String(255), nullable=True)
+    gmaps_hours = Column(Text, default="")                  # JSON
+    company_size_estimate = Column(String(50), nullable=True)  # "1-10", "11-50", etc.
+    industry_tag = Column(String(100), nullable=True)
+    linkedin_url = Column(String(500), nullable=True)
+
+    # ─── Layer 4: Deep crawl ──────────────────────────────────────────────
+    email_source = Column(String(100), nullable=True)       # how email was found
+    data_sources = Column(Text, default="[]")               # JSON list of sources used
+    deep_crawl_summary = Column(Text, default="")           # Ollama synthesis of multi-page crawl
 
     # Relationships
     lead = relationship("Lead", back_populates="enrichment")
@@ -1143,3 +1190,119 @@ class VoiceCall(Base):
 
     def __repr__(self):
         return f"<VoiceCall(id={self.id}, lead={self.lead_id}, status='{self.status}')>"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v2.0 — Pricing, Invoicing, Discord Server
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class Service(Base):
+    """Catalog of services offered — used by pricing engine for invoice line items."""
+    __tablename__ = "services"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="")
+    base_price = Column(Float, default=0.0)
+    max_price = Column(Float, default=0.0)
+    unit = Column(String(50), default="project")           # project / hour / month / lead
+    category = Column(String(100), default="general")      # consulting / development / marketing
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Service(id={self.id}, name='{self.name}', price={self.base_price})>"
+
+
+class Invoice(Base):
+    """Generated invoice — ties to a lead/campaign with itemized pricing."""
+    __tablename__ = "invoices"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_number = Column(String(50), unique=True, nullable=False)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
+    client_name = Column(String(255), default="")
+    client_email = Column(String(255), default="")
+    client_address = Column(Text, default="")
+    subtotal = Column(Float, default=0.0)
+    tax_rate = Column(Float, default=0.0)               # e.g. 0.21 for 21%
+    tax_amount = Column(Float, default=0.0)
+    total = Column(Float, default=0.0)
+    currency = Column(String(10), default="EUR")
+    status = Column(String(30), default="draft")         # draft / sent / paid / overdue / cancelled
+    approval_status = Column(String(30), default="pending")  # pending / approved / rejected
+    due_date = Column(DateTime, nullable=True)
+    pdf_path = Column(String(500), nullable=True)
+    pricing_rationale = Column(Text, default="")
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    lead = relationship("Lead")
+    campaign = relationship("Campaign")
+    line_items = relationship("InvoiceLineItem", back_populates="invoice", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Invoice(id={self.id}, number='{self.invoice_number}', total={self.total})>"
+
+
+class InvoiceLineItem(Base):
+    """Individual line item on an invoice."""
+    __tablename__ = "invoice_line_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=False)
+    service_id = Column(Integer, ForeignKey("services.id"), nullable=True)
+    description = Column(String(500), default="")
+    quantity = Column(Float, default=1.0)
+    unit_price = Column(Float, default=0.0)
+    total = Column(Float, default=0.0)
+
+    invoice = relationship("Invoice", back_populates="line_items")
+    service = relationship("Service")
+
+    def __repr__(self):
+        return f"<InvoiceLineItem(id={self.id}, desc='{self.description}', total={self.total})>"
+
+
+class FinanceNote(Base):
+    """Free-text notes on leads or invoices from the Accountant agent or user."""
+    __tablename__ = "finance_notes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=True)
+    invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True)
+    note_type = Column(String(50), default="general")     # general / pricing / payment / dispute
+    content = Column(Text, default="")
+    created_by = Column(String(100), default="user")       # user / agent / system
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    lead = relationship("Lead")
+    invoice = relationship("Invoice")
+
+    def __repr__(self):
+        return f"<FinanceNote(id={self.id}, type='{self.note_type}')>"
+
+
+class DiscordServerConfig(Base):
+    """Per-guild Discord server configuration — channel IDs for Aura HQ."""
+    __tablename__ = "discord_server_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    guild_id = Column(String(30), unique=True, nullable=False)
+    guild_name = Column(String(255), default="")
+    channel_dashboard = Column(String(30), nullable=True)
+    channel_leads = Column(String(30), nullable=True)
+    channel_outreach = Column(String(30), nullable=True)
+    channel_fleet = Column(String(30), nullable=True)
+    channel_approvals = Column(String(30), nullable=True)
+    channel_invoices = Column(String(30), nullable=True)
+    channel_logs = Column(String(30), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<DiscordServerConfig(guild='{self.guild_id}', name='{self.guild_name}')>"

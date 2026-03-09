@@ -141,6 +141,17 @@ ICONS = {
     # Main window
     "error_chat":            "mdi6.alert-outline",
 
+    # Settings sub-tabs
+    "tab_api_keys":          "mdi6.key-outline",
+    "tab_ai_config":         "mdi6.brain",
+    "tab_email_delivery":    "mdi6.email-arrow-right-outline",
+    "tab_features":          "mdi6.toggle-switch-outline",
+    "tab_business":          "mdi6.domain",
+    "tab_appearance":        "mdi6.palette-outline",
+    "section_company":       "mdi6.domain",
+    "section_banking":       "mdi6.bank-outline",
+    "section_invoice":       "mdi6.receipt-text-outline",
+
     # Setup wizard
     "wizard_welcome":        "mdi6.star-four-points",
     "wizard_done":           "mdi6.check-decagram",

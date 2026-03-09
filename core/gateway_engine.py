@@ -314,6 +314,32 @@ class GatewayEngine:
 
         return {"sent_to": sent_to, "total": len(sent_to)}
 
+    # ─── Event notifications (real-time channel updates) ────────────
+
+    def notify_event(self, event_type: str, data: dict):
+        """
+        Send a real-time notification to appropriate channels on all platforms.
+        Used by engines to push updates (lead found, reply detected, approval needed, etc.).
+        """
+        for platform, adapter in self._adapters.items():
+            if adapter and adapter.is_connected():
+                try:
+                    # Adapters with server mode (discord_server, telegram_notifications)
+                    # will handle routing to the correct channel
+                    notification_router = getattr(adapter, "notification_router", None)
+                    if notification_router:
+                        notification_router.route_event(event_type, data)
+                    else:
+                        # Fallback: broadcast to all authorized users as text
+                        text = f"[{event_type}] {data.get('message', str(data))}"
+                        formatted = self._format_response(platform, text)
+                        users = self.get_authorized_users()
+                        for user in users:
+                            if user["platform"] == platform:
+                                adapter.send_message(user["user_id"], formatted)
+                except Exception as e:
+                    logger.error(f"Notify event '{event_type}' failed on {platform}: {e}")
+
     # ─── Gateway config persistence ────────────────────────────────
 
     def save_gateway_config(self, platform: str, bot_token: str,

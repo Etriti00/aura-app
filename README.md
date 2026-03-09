@@ -28,7 +28,7 @@
 
 ## What is Aura?
 
-Aura is a **desktop AI sales agent** that automates the entire B2B lead generation pipeline — from finding prospects to closing deals. It runs locally on your machine with a fleet of 19 specialized AI agents that handle prospecting, research, outreach, follow-ups, and even voice calls.
+Aura is a **desktop AI sales agent** that automates the entire B2B lead generation pipeline — from finding prospects to closing deals. It runs locally on your machine with a fleet of 20 specialized AI agents that handle prospecting, research, outreach, follow-ups, invoicing, and even voice calls.
 
 Unlike cloud SaaS tools, Aura keeps your data local (SQLite), your API keys encrypted (machine-bound AES), and gives you full control over autonomy levels — from observer mode to full autopilot.
 
@@ -65,11 +65,11 @@ After installation, the `aura` command is available globally:
 
 ```bash
 $ aura status
-Aura v1.3.0 — System Status
+Aura v2.0.0 — System Status
 ───────────────────────────────
   Campaigns          0
   Leads              0
-  Agents             19
+  Agents             20
 
 $ aura help
 $ aura hunt "plumber" --city "Austin TX"
@@ -143,9 +143,9 @@ aura config-api-keys
 - **A/B testing** — Compare subject lines and email variants
 
 ### AI Agent Fleet
-- **19 specialized agents** — Prospector, Qualifier, Closer, Researcher, Caller, and more
+- **20 specialized agents** — Prospector, Qualifier, Closer, Researcher, Accountant, Caller, and more
 - **Rank-based hierarchy** — Commander (C-Level) → Specialists → Workers
-- **Task routing** — 20 task types automatically dispatched to the right specialist
+- **Task routing** — 25+ task types automatically dispatched to the right specialist
 - **Ticket system** — Kanban board with escalation, dependencies, and due dates
 - **Self-improvement** — Agents learn from performance metrics and reflection scores
 
@@ -199,7 +199,7 @@ The CLI provides **75 commands** across **16 groups** with full feature parity t
 
 ```
 $ aura
-Aura v1.3.0 — AI Sales Agent
+Aura v2.0.0 — AI Sales Agent
 Type /help for commands, or type naturally.
 
 aura> /hunt plumber --city "Austin TX" --limit 20
@@ -299,6 +299,7 @@ aura-app/
 │   ├── rag_engine.py        # TF-IDF + optional ChromaDB retrieval
 │   ├── voice/               # TTS (ElevenLabs, OpenAI, Piper) + STT (Whisper)
 │   ├── gateway_adapters/    # Telegram + Discord bot adapters
+│   ├── enrichment_layers/   # DNS, Ollama, free APIs, deep crawl enrichment
 │   └── ...                  # 40+ more engines
 │
 ├── controllers/             # 19 signal-based UI controllers
@@ -328,10 +329,10 @@ aura-app/
 │       └── ...
 │
 ├── database/
-│   ├── schema.py            # 30+ SQLAlchemy models
+│   ├── schema.py            # 50+ SQLAlchemy models
 │   ├── db_manager.py        # Session factory, WAL mode, thread-safe writes
 │   ├── migrations.py        # ALTER TABLE migrations for backward compat
-│   ├── seed_agents.py       # 19 agent definitions + hierarchy setup
+│   ├── seed_agents.py       # 20 agent definitions + hierarchy setup
 │   └── seed_skills.py       # Built-in skill & settings seeding
 │
 ├── assets/
@@ -344,7 +345,7 @@ aura-app/
 │   ├── build_icns.sh        # macOS icon generation
 │   └── linux/               # Linux desktop entry + installer
 │
-└── tests/                   # 959 tests across 40+ files
+└── tests/                   # 1200 tests across 40+ files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
 ```
@@ -440,7 +441,7 @@ venv\Scripts\python.exe -m pytest tests/test_agent_engine.py -v
 venv\Scripts\python.exe -m pytest tests/ -k "test_stalled" -v
 ```
 
-**Current status**: 959 tests across 40+ files — 100% passing.
+**Current status**: 1200 tests across 40+ files — 100% passing.
 
 ---
 
@@ -493,6 +494,19 @@ Please ensure all tests pass before submitting.
 
 ## Changelog
 
+### v2.0.0 — Enterprise Features + Settings Overhaul
+
+- **Multi-platform response formatting** — ResponseFormatter renders agent output for Telegram (HTML), Discord (Markdown), Chat (rich text), and CLI (plain text)
+- **4-layer enrichment pipeline** — DNS/WHOIS (Layer 0), Ollama local LLM (Layer 1), free APIs (Layer 2), deep web crawl (Layer 4) with weighted completeness scoring
+- **Excel export engine** — Professional .xlsx exports with multiple sheets (summary, leads, agents, timeline), auto-column-width, styled headers, and charts
+- **Pricing + invoice system** — Service CRUD, invoice generation (PDF via ReportLab or text fallback), approval flow with rank-based escalation, revenue summaries. New Accountant agent (20th agent)
+- **Discord server mode** — Auto-create notification channels (#leads, #campaigns, #fleet, #alerts, #reports), event→channel routing with embeds, config persistence
+- **Telegram command system** — 12 slash commands (/status, /hunt, /leads, /agents, /draft, /send, /campaigns, /budget, /approve, /deny, /help, /settings) with inline keyboards
+- **Business & Invoicing settings** — New Settings tab with company info, banking details, and invoice configuration (16 fields for agent context and invoice generation)
+- **Tabbed Settings page** — Restructured from single scroll into 6 sub-tabs: API Keys, AI Config, Email & Delivery, Features, Business & Invoicing, Appearance
+- **Schema expansion** — 5 new models (Service, Invoice, InvoiceLineItem, FinanceNote, DiscordServerConfig), expanded Lead/EnrichmentData/Settings
+- **Tests**: 959 → 1200 tests (241 new tests across 8 new test files)
+
 ### v1.3.0 — Advanced CLI + Cross-Platform
 
 - **Advanced CLI**: Complete rewrite of `cli.py` — 75 commands across 16 groups with full GUI parity
@@ -538,7 +552,7 @@ Please ensure all tests pass before submitting.
 
 ### v1.0.0 — Initial Release
 
-- Full B2B lead generation pipeline with 19 AI agents
+- Full B2B lead generation pipeline with 20 AI agents
 - Multi-source lead discovery, deep research, outreach automation
 - Voice calling, ticket system, 4-tier LLM routing, autonomy controls
 
@@ -562,5 +576,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v1.3.0</sub>
+  <sub>Aura v2.0.0</sub>
 </p>

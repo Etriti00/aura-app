@@ -134,3 +134,59 @@ class DiscordAdapter(BaseAdapter):
             and self._client is not None
             and self._client.is_ready()
         )
+
+    def send_to_channel(self, channel_id: str, text: str):
+        """Send a text message to a specific channel."""
+        if not self._client or not self._loop:
+            logger.warning("Cannot send to channel: Discord adapter not running")
+            return
+
+        async def _send():
+            try:
+                channel = self._client.get_channel(int(channel_id))
+                if channel is None:
+                    channel = await self._client.fetch_channel(int(channel_id))
+                if channel:
+                    await channel.send(text)
+            except Exception as e:
+                logger.error(f"Discord channel send error to {channel_id}: {e}")
+
+        try:
+            asyncio.run_coroutine_threadsafe(_send(), self._loop)
+        except Exception as e:
+            logger.error(f"Failed to schedule channel send: {e}")
+
+    def send_embed(self, channel_id: str, embed_dict: dict):
+        """Send a rich embed to a specific channel."""
+        if not self._client or not self._loop:
+            logger.warning("Cannot send embed: Discord adapter not running")
+            return
+
+        async def _send():
+            try:
+                import discord
+                channel = self._client.get_channel(int(channel_id))
+                if channel is None:
+                    channel = await self._client.fetch_channel(int(channel_id))
+                if channel:
+                    embed = discord.Embed(
+                        title=embed_dict.get("title", ""),
+                        description=embed_dict.get("description", ""),
+                        color=embed_dict.get("color", 0x4E5BF2),
+                    )
+                    for field in embed_dict.get("fields", []):
+                        embed.add_field(
+                            name=field["name"],
+                            value=field["value"],
+                            inline=field.get("inline", True),
+                        )
+                    if "footer" in embed_dict:
+                        embed.set_footer(text=embed_dict["footer"].get("text", ""))
+                    await channel.send(embed=embed)
+            except Exception as e:
+                logger.error(f"Discord embed send error to {channel_id}: {e}")
+
+        try:
+            asyncio.run_coroutine_threadsafe(_send(), self._loop)
+        except Exception as e:
+            logger.error(f"Failed to schedule embed send: {e}")

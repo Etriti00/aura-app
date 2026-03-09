@@ -1,8 +1,8 @@
 # Aura — Technical Documentation
 
-> **Version**: 1.0.0
+> **Version**: 2.0.0
 > **Stack**: Python 3.14 | PySide6 | SQLAlchemy | SQLite | LiteLLM
-> **Platform**: Windows (packaged via PyInstaller)
+> **Platform**: Windows | macOS | Linux (packaged via PyInstaller)
 
 ---
 
@@ -38,13 +38,13 @@ Aura is a desktop lead-generation and outreach automation platform built with a 
 │  Pages (14) │ Components (9) │ Chat Panel │ Sidebar  │
 ├─────────────────────────────────────────────────────┤
 │                  Controller Layer                    │
-│  19 QObject controllers with Signal/Slot wiring      │
+│  20 QObject controllers with Signal/Slot wiring      │
 ├─────────────────────────────────────────────────────┤
 │                  Core Engine Layer                    │
 │  50+ specialized engines (business logic)            │
 ├─────────────────────────────────────────────────────┤
 │                  Database Layer                       │
-│  SQLAlchemy ORM │ SQLite (WAL mode) │ 39 tables      │
+│  SQLAlchemy ORM │ SQLite (WAL mode) │ 50+ tables     │
 ├─────────────────────────────────────────────────────┤
 │                  External Services                    │
 │  LiteLLM │ Apollo │ Twilio │ Telegram │ Discord │ IMAP│
@@ -70,8 +70,8 @@ AuraApp/
 ├── aura.spec                  # PyInstaller build specification
 │
 ├── database/
-│   ├── schema.py              # 39 SQLAlchemy ORM models
-│   └── db_manager.py          # DB init, migrations, seeding (18 skills, 19 agents)
+│   ├── schema.py              # 50+ SQLAlchemy ORM models
+│   └── db_manager.py          # DB init, migrations, seeding (18 skills, 20 agents)
 │
 ├── core/                      # 50+ business logic engines
 │   ├── ai_engine.py           # Universal LiteLLM adapter (2-tier routing)
@@ -101,12 +101,18 @@ AuraApp/
 │   ├── hubspot_engine.py      # HubSpot CRM search and enrichment
 │   ├── linkedin_engine.py     # LinkedIn CSV import
 │   ├── observer_engine.py     # Fleet health monitoring
+│   ├── response_formatter.py  # Multi-platform output (Telegram/Discord/Chat/CLI)
+│   ├── enrichment_scoring.py  # Weighted completeness scoring
+│   ├── excel_export_engine.py # Professional .xlsx exports with charts
+│   ├── pricing_engine.py      # Service CRUD, invoice gen, PDF, revenue
+│   ├── invoice_approval_engine.py # Approval flow with rank-based escalation
 │   ├── ... (15+ more)
 │   ├── voice/                 # TTS (ElevenLabs, OpenAI, Piper) + STT (Whisper)
+│   ├── enrichment_layers/     # DNS/WHOIS, Ollama, free APIs, deep crawl
 │   ├── research_providers/    # Tavily, Firecrawl, Apify research providers
-│   └── gateway_adapters/      # Telegram & Discord bot adapters
+│   └── gateway_adapters/      # Telegram & Discord bot adapters + server mode
 │
-├── controllers/               # 19 signal-based UI controllers
+├── controllers/               # 20 signal-based UI controllers
 │   ├── dashboard_controller.py
 │   ├── hunter_controller.py
 │   ├── forge_controller.py
@@ -129,7 +135,7 @@ AuraApp/
 │   │   ├── trends.py          # Google Trends intelligence
 │   │   ├── budget.py          # Cost pacing and budget monitoring
 │   │   ├── integrations.py    # Telegram/Discord connections
-│   │   ├── settings.py        # API keys, models, SMTP/IMAP, toggles
+│   │   ├── settings.py        # 6-tab layout: API Keys, AI, Email, Features, Business, Appearance
 │   │   ├── suppression.py     # Email/domain suppression list
 │   │   ├── research.py        # Multi-source lead research and reports
 │   │   └── calls.py           # Voice call system and call logs
@@ -154,7 +160,7 @@ AuraApp/
 │   ├── logger.py              # Rotating file logger (5MB, 3 backups)
 │   └── thread_worker.py       # QThread wrapper with signals
 │
-└── tests/                     # 853 tests across 40 files
+└── tests/                     # 1200 tests across 40+ files
     ├── conftest.py            # InMemoryDatabaseManager, shared fixtures
     ├── test_scraper.py
     ├── test_ai_engine.py
@@ -163,7 +169,14 @@ AuraApp/
     ├── test_voice_call_engine.py
     ├── test_research_engine.py
     ├── test_integration_gaps.py
-    └── ... (31 more)
+    ├── test_enrichment_layers.py
+    ├── test_excel_export_engine.py
+    ├── test_pricing_engine.py
+    ├── test_discord_server.py
+    ├── test_telegram_commands.py
+    ├── test_settings_controller.py
+    ├── test_integration_v2.py
+    └── ... (30+ more)
 ```
 
 ---
@@ -392,7 +405,7 @@ All controllers inherit `QObject` and use Qt's Signal/Slot system for UI communi
 
 ## 7. Multi-Agent System
 
-### 7.1 Agent Hierarchy (19 Agents)
+### 7.1 Agent Hierarchy (20 Agents)
 
 ```
 Commander (rank 1, orchestrator)
@@ -411,6 +424,7 @@ Commander (rank 1, orchestrator)
 ├── Syncer (rank 3, worker)
 ├── Suppressor (rank 3, worker)
 ├── Reporter (rank 3, worker)
+├── Accountant (rank 3, worker)
 ├── Caller (rank 3, worker)
 ├── Observer (rank 2, observer)
 │   └── Canary (rank 3, canary)
@@ -927,7 +941,7 @@ On first launch, if `settings.first_run_complete` is False, a SetupWizard modal 
 - **Database**: `InMemoryDatabaseManager` (SQLite `:memory:`)
 - **Fixtures** (`tests/conftest.py`):
   - `db` — Bare in-memory database
-  - `db_with_agents` — Database with 19 seeded agents
+  - `db_with_agents` — Database with 20 seeded agents
   - `ticket_engine` — TicketEngine instance
   - `command_history` — CommandHistoryEngine instance
   - `qapp` — Session-scoped QCoreApplication for signal testing
@@ -946,8 +960,15 @@ On first launch, if `settings.first_run_complete` is False, a SetupWizard modal 
 | `test_escalation_engine.py` | Blocked detection, escalation chain, approval flow |
 | `test_kanban_controller.py` | Board refresh, CRUD signals, due dates, sprints |
 | `test_command_history.py` | Logging, trees, queries, stats, pruning, controller |
+| `test_enrichment_layers.py` | DNS/WHOIS, Ollama, free APIs, deep crawl layers |
+| `test_excel_export_engine.py` | .xlsx generation, multi-sheet, styling |
+| `test_pricing_engine.py` | Service CRUD, invoice gen, PDF, approval flow, revenue |
+| `test_discord_server.py` | Channel management, event routing, config persistence |
+| `test_telegram_commands.py` | Command routing, arg parsing, inline keyboards |
+| `test_settings_controller.py` | Business fields get/save, toggles, regression |
+| `test_integration_v2.py` | Cross-engine integration for v2.0 features |
 | ... | ... | ... |
-| **Total** | **853 tests** | **100% passing** |
+| **Total** | **1200 tests** | **100% passing** |
 
 ### 16.3 Running Tests
 

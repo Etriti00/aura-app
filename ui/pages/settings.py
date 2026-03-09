@@ -1,12 +1,14 @@
 """
-Aura — Settings Page (Full Implementation)
-API key management, model selection, sender identity, SMTP config, theme toggle.
+Aura — Settings Page (Tabbed Layout)
+Six sub-tabs: API Keys, AI Config, Email & Delivery, Features,
+Business & Invoicing, Appearance.
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QSpinBox, QScrollArea, QFrame, QCheckBox,
-    QRadioButton, QButtonGroup, QSizePolicy
+    QRadioButton, QButtonGroup, QSizePolicy, QTabWidget,
+    QTextEdit, QFileDialog,
 )
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
@@ -19,56 +21,79 @@ from ui.icons import get_icon, get_pixmap
 
 
 class SettingsPage(QWidget):
-    """Settings page — API keys, models, SMTP, sender info, theme."""
+    """Settings page — tabbed layout with 6 sub-pages."""
 
-    # Signals to controller
-    save_key_requested = Signal(str, str)             # provider, key
-    save_models_requested = Signal(str, str)           # tier2, tier3
-    save_chat_model_requested = Signal(str)            # chat model
-    save_sender_requested = Signal(str, str, str)      # name, email, company
-    save_smtp_requested = Signal(str, int, str, str)   # host, port, user, pass
-    save_imap_requested = Signal(str, int, str, str, bool) # host, port, user, pass, use_ssl
-    save_toggles_requested = Signal(dict)              # dict of feature_name: bool
-    theme_change_requested = Signal(str)               # "light" or "dark"
-    save_anthropic_sub_requested = Signal(str)         # setup-token
-    openai_oauth_requested = Signal()                  # trigger OAuth flow
-    openai_disconnect_requested = Signal()             # clear OpenAI sub tokens
-    auth_mode_changed = Signal(str, str)               # provider, mode
-    autonomy_level_changed = Signal(str)                # new autonomy level
+    # Signals to controller (preserved from original)
+    save_key_requested = Signal(str, str)
+    save_models_requested = Signal(str, str)
+    save_chat_model_requested = Signal(str)
+    save_sender_requested = Signal(str, str, str)
+    save_smtp_requested = Signal(str, int, str, str)
+    save_imap_requested = Signal(str, int, str, str, bool)
+    save_toggles_requested = Signal(dict)
+    theme_change_requested = Signal(str)
+    save_anthropic_sub_requested = Signal(str)
+    openai_oauth_requested = Signal()
+    openai_disconnect_requested = Signal()
+    auth_mode_changed = Signal(str, str)
+    autonomy_level_changed = Signal(str)
+    save_business_requested = Signal(dict)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._setup_ui()
 
+    # ─── Main Layout ──────────────────────────────────────────────────
+
     def _setup_ui(self):
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
 
-        # Scrollable content
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(32, 24, 32, 24)
+        main_layout.setSpacing(16)
+
+        # Header
+        title = QLabel("Settings")
+        title.setObjectName("sectionHeader")
+        main_layout.addWidget(title)
+        subtitle = QLabel("Configure API keys, models, delivery, and business details")
+        subtitle.setObjectName("sectionSubheader")
+        main_layout.addWidget(subtitle)
+
+        # Tab widget
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+        main_layout.addWidget(self.tabs)
+
+        # Build tabs
+        self.tabs.addTab(self._build_api_keys_tab(), get_icon("tab_api_keys", "dark"), "API Keys")
+        self.tabs.addTab(self._build_ai_config_tab(), get_icon("tab_ai_config", "dark"), "AI Config")
+        self.tabs.addTab(self._build_email_tab(), get_icon("tab_email_delivery", "dark"), "Email && Delivery")
+        self.tabs.addTab(self._build_features_tab(), get_icon("tab_features", "dark"), "Features")
+        self.tabs.addTab(self._build_business_tab(), get_icon("tab_business", "dark"), "Business && Invoicing")
+        self.tabs.addTab(self._build_appearance_tab(), get_icon("tab_appearance", "dark"), "Appearance")
+
+    # ─── Tab Builders ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _make_scroll_tab(content_widget: QWidget) -> QScrollArea:
+        """Wrap a content widget in a QScrollArea for a tab."""
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setMinimumWidth(0)
-        scroll.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        scroll.setWidget(content_widget)
+        return scroll
 
+    # ── Tab 1: API Keys ───────────────────────────────────────────────
+
+    def _build_api_keys_tab(self) -> QScrollArea:
         content = QWidget()
-        content.setObjectName("centralWidget")
-        content.setMinimumWidth(0)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 24, 32, 24)
+        layout.setContentsMargins(0, 16, 0, 16)
         layout.setSpacing(20)
 
-        # Header
-        header_text = QVBoxLayout()
-        title = QLabel("Settings")
-        title.setObjectName("sectionHeader")
-        header_text.addWidget(title)
-        subtitle = QLabel("Configure API keys, models, and delivery")
-        subtitle.setObjectName("sectionSubheader")
-        header_text.addWidget(subtitle)
-        layout.addLayout(header_text)
-
-        # ─── API Keys Section ──────────────────────────────────────────
+        # ── API Keys Card ──
         key_card = GlassCard()
         key_layout = key_card.get_layout()
         self._icon_header("section_keys", "API Keys", key_layout)
@@ -76,29 +101,18 @@ class SettingsPage(QWidget):
         key_info.setObjectName("mutedText")
         key_layout.addWidget(key_info)
 
-        # Gemini
         self.gemini_input = self._add_key_row(key_layout, "Google Gemini", "gemini")
-        # Anthropic
         self.anthropic_input = self._add_key_row(key_layout, "Anthropic", "anthropic")
-        # OpenAI
         self.openai_input = self._add_key_row(key_layout, "OpenAI", "openai")
-        # Resend
         self.resend_input = self._add_key_row(key_layout, "Resend (Email)", "resend")
-        # Apollo.io
         self.apollo_input = self._add_key_row(key_layout, "Apollo.io", "apollo")
-        # Hunter.io
         self.hunter_input = self._add_key_row(key_layout, "Hunter.io", "hunter")
-        # HubSpot
         self.hubspot_input = self._add_key_row(key_layout, "HubSpot CRM", "hubspot")
-        # Pipedrive
         self.pipedrive_input = self._add_key_row(key_layout, "Pipedrive CRM", "pipedrive")
-        # OpenRouter
         self.openrouter_input = self._add_key_row(key_layout, "OpenRouter", "openrouter")
-        # Research APIs
         self.tavily_input = self._add_key_row(key_layout, "Tavily (AI Search)", "tavily")
         self.firecrawl_input = self._add_key_row(key_layout, "Firecrawl (Web Crawl)", "firecrawl")
         self.apify_input = self._add_key_row(key_layout, "Apify (Scraping)", "apify")
-        # Voice APIs
         self.twilio_sid_input = self._add_key_row(key_layout, "Twilio Account SID", "twilio_sid")
         self.twilio_token_input = self._add_key_row(key_layout, "Twilio Auth Token", "twilio_token")
         self.elevenlabs_input = self._add_key_row(key_layout, "ElevenLabs (TTS)", "elevenlabs")
@@ -109,10 +123,9 @@ class SettingsPage(QWidget):
         or_info.setObjectName("mutedText")
         or_info.setWordWrap(True)
         key_layout.addWidget(or_info)
-
         layout.addWidget(key_card)
 
-        # ─── Authentication Mode ──────────────────────────────────────
+        # ── Authentication Mode Card ──
         auth_card = GlassCard()
         auth_layout = auth_card.get_layout()
         self._icon_header("section_auth", "Authentication Mode", auth_layout)
@@ -169,10 +182,9 @@ class SettingsPage(QWidget):
         self.openai_mode_group.idToggled.connect(
             lambda id, checked: self._on_auth_mode_changed("openai", id) if checked else None
         )
-
         layout.addWidget(auth_card)
 
-        # ─── Subscription Auth ────────────────────────────────────────
+        # ── Subscription Auth Card ──
         sub_card = GlassCard()
         sub_layout = sub_card.get_layout()
         self._icon_header("section_subscription", "Subscription Auth", sub_layout)
@@ -184,7 +196,7 @@ class SettingsPage(QWidget):
         sub_info.setWordWrap(True)
         sub_layout.addWidget(sub_info)
 
-        # Anthropic (Claude) subscription
+        # Anthropic subscription
         anthropic_sub_label = QLabel("Anthropic — Claude Subscription")
         anthropic_sub_label.setObjectName("formLabel")
         sub_layout.addWidget(anthropic_sub_label)
@@ -210,7 +222,7 @@ class SettingsPage(QWidget):
         self.anthropic_sub_status.setObjectName("mutedText")
         sub_layout.addWidget(self.anthropic_sub_status)
 
-        # OpenAI (ChatGPT) subscription
+        # OpenAI subscription
         openai_sub_label = QLabel("OpenAI — ChatGPT Subscription")
         openai_sub_label.setObjectName("formLabel")
         sub_layout.addWidget(openai_sub_label)
@@ -239,7 +251,7 @@ class SettingsPage(QWidget):
         self.openai_sub_status.setObjectName("mutedText")
         sub_layout.addWidget(self.openai_sub_status)
 
-        # Google Gemini note
+        # Gemini note
         gemini_sub_label = QLabel("Google — Gemini")
         gemini_sub_label.setObjectName("formLabel")
         sub_layout.addWidget(gemini_sub_label)
@@ -250,10 +262,20 @@ class SettingsPage(QWidget):
         gemini_sub_info.setObjectName("mutedText")
         gemini_sub_info.setWordWrap(True)
         sub_layout.addWidget(gemini_sub_info)
-
         layout.addWidget(sub_card)
 
-        # ─── Model Selection ───────────────────────────────────────────
+        layout.addStretch()
+        return self._make_scroll_tab(content)
+
+    # ── Tab 2: AI Config ──────────────────────────────────────────────
+
+    def _build_ai_config_tab(self) -> QScrollArea:
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(20)
+
+        # ── Model Selection Card ──
         model_card = GlassCard()
         model_layout = model_card.get_layout()
         self._icon_header("section_models", "AI Models", model_layout)
@@ -325,15 +347,82 @@ class SettingsPage(QWidget):
         model_row.addLayout(chat_col, stretch=1)
 
         model_layout.addLayout(model_row)
-
         save_model_btn = ModernButton("Save Models", "primary")
         save_model_btn.setFixedHeight(36)
         save_model_btn.clicked.connect(self._on_save_models)
         model_layout.addWidget(save_model_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
         layout.addWidget(model_card)
 
-        # ─── Sender Info ───────────────────────────────────────────────
+        # ── Autonomy Control Card ──
+        autonomy_card = GlassCard()
+        autonomy_layout = autonomy_card.get_layout()
+        self._icon_header("section_autonomy", "Autonomy Level", autonomy_layout)
+        autonomy_info = QLabel(
+            "Controls how much the AI agents can do without your approval. "
+            "Observer = everything needs approval. Full Trust = fully autonomous."
+        )
+        autonomy_info.setObjectName("mutedText")
+        autonomy_info.setWordWrap(True)
+        autonomy_layout.addWidget(autonomy_info)
+
+        autonomy_row = QHBoxLayout()
+        autonomy_label = QLabel("Level")
+        autonomy_label.setObjectName("formLabel")
+        autonomy_row.addWidget(autonomy_label)
+        self.autonomy_combo = QComboBox()
+        self.autonomy_combo.setObjectName("autonomySelector")
+        self.autonomy_combo.addItems(["observer", "supervised", "autonomous", "full_trust"])
+        self.autonomy_combo.setCurrentText("supervised")
+        self.autonomy_combo.currentTextChanged.connect(
+            lambda level: self.autonomy_level_changed.emit(level)
+        )
+        autonomy_row.addWidget(self.autonomy_combo)
+        autonomy_row.addStretch()
+        autonomy_layout.addLayout(autonomy_row)
+
+        self.autonomy_description = QLabel("")
+        self.autonomy_description.setObjectName("mutedText")
+        self.autonomy_description.setWordWrap(True)
+        autonomy_layout.addWidget(self.autonomy_description)
+        self.autonomy_combo.currentTextChanged.connect(self._update_autonomy_description)
+        layout.addWidget(autonomy_card)
+
+        # ── Advanced AI Engines Card ──
+        ai_card = GlassCard()
+        ai_layout = ai_card.get_layout()
+        self._icon_header("section_ai", "Advanced AI Engines", ai_layout)
+
+        self.reflection_toggle = QCheckBox("Enable Reflection (auto-critique task output)")
+        self.reflection_toggle.setChecked(True)
+        ai_layout.addWidget(self.reflection_toggle)
+
+        self.self_improvement_toggle = QCheckBox("Enable Self-Improvement (daily optimization)")
+        ai_layout.addWidget(self.self_improvement_toggle)
+
+        self.knowledge_graph_toggle = QCheckBox("Enable Knowledge Graph (entity tracking)")
+        ai_layout.addWidget(self.knowledge_graph_toggle)
+
+        self.conversation_toggle = QCheckBox("Enable Conversation Engine (reply tracking)")
+        ai_layout.addWidget(self.conversation_toggle)
+
+        save_ai_btn = ModernButton("Save AI Settings", "primary")
+        save_ai_btn.setFixedHeight(36)
+        save_ai_btn.clicked.connect(self._on_save_ai_toggles)
+        ai_layout.addWidget(save_ai_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(ai_card)
+
+        layout.addStretch()
+        return self._make_scroll_tab(content)
+
+    # ── Tab 3: Email & Delivery ───────────────────────────────────────
+
+    def _build_email_tab(self) -> QScrollArea:
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(20)
+
+        # ── Sender Identity Card ──
         sender_card = GlassCard()
         sender_layout = sender_card.get_layout()
         self._icon_header("section_sender", "Sender Identity", sender_layout)
@@ -364,15 +453,13 @@ class SettingsPage(QWidget):
         sender_row.addLayout(company_col, stretch=1)
 
         sender_layout.addLayout(sender_row)
-
         save_sender_btn = ModernButton("Save Sender Info", "primary")
         save_sender_btn.setFixedHeight(36)
         save_sender_btn.clicked.connect(self._on_save_sender)
         sender_layout.addWidget(save_sender_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
         layout.addWidget(sender_card)
 
-        # ─── SMTP Config ──────────────────────────────────────────────
+        # ── SMTP Fallback Card ──
         smtp_card = GlassCard()
         smtp_layout = smtp_card.get_layout()
         self._icon_header("section_smtp", "SMTP Fallback", smtp_layout)
@@ -381,7 +468,6 @@ class SettingsPage(QWidget):
         smtp_layout.addWidget(smtp_info)
 
         smtp_row = QHBoxLayout()
-
         host_col = QVBoxLayout()
         host_col.setSpacing(4)
         host_col.addWidget(self._field_label("SMTP Host"))
@@ -415,34 +501,13 @@ class SettingsPage(QWidget):
         smtp_row.addLayout(pass_col, stretch=1)
 
         smtp_layout.addLayout(smtp_row)
-
         save_smtp_btn = ModernButton("Save SMTP", "primary")
         save_smtp_btn.setFixedHeight(36)
         save_smtp_btn.clicked.connect(self._on_save_smtp)
         smtp_layout.addWidget(save_smtp_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
         layout.addWidget(smtp_card)
 
-        # ─── Theme Toggle ─────────────────────────────────────────────
-        theme_card = GlassCard()
-        theme_layout = theme_card.get_layout()
-        self._icon_header("section_appearance", "Appearance", theme_layout)
-
-        theme_row = QHBoxLayout()
-        theme_label = QLabel("Theme")
-        theme_label.setObjectName("formLabel")
-        theme_row.addWidget(theme_label)
-
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["light", "dark"])
-        self.theme_combo.currentTextChanged.connect(self._on_theme_changed)
-        theme_row.addWidget(self.theme_combo)
-        theme_row.addStretch()
-
-        theme_layout.addLayout(theme_row)
-        layout.addWidget(theme_card)
-
-        # ─── IMAP Configuration ──────────────────────────────────────
+        # ── IMAP Configuration Card ──
         imap_card = GlassCard()
         imap_layout = imap_card.get_layout()
         self._icon_header("section_imap", "IMAP (Reply Detection)", imap_layout)
@@ -487,10 +552,20 @@ class SettingsPage(QWidget):
         save_imap_btn.setFixedHeight(36)
         save_imap_btn.clicked.connect(self._on_save_imap)
         imap_layout.addWidget(save_imap_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
         layout.addWidget(imap_card)
 
-        # ─── Feature Toggles ─────────────────────────────────────────
+        layout.addStretch()
+        return self._make_scroll_tab(content)
+
+    # ── Tab 4: Features ───────────────────────────────────────────────
+
+    def _build_features_tab(self) -> QScrollArea:
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(20)
+
+        # ── Feature Toggles Card ──
         toggle_card = GlassCard()
         toggle_layout = toggle_card.get_layout()
         self._icon_header("section_toggles", "Feature Toggles", toggle_layout)
@@ -524,7 +599,6 @@ class SettingsPage(QWidget):
         self.trends_toggle = QCheckBox("Enable Google Trends Intelligence")
         toggle_layout.addWidget(self.trends_toggle)
 
-        # CRM platform selector
         crm_row = QHBoxLayout()
         crm_label = QLabel("CRM Platform")
         crm_label.setObjectName("formLabel")
@@ -539,10 +613,9 @@ class SettingsPage(QWidget):
         save_toggles_btn.setFixedHeight(36)
         save_toggles_btn.clicked.connect(self._on_save_toggles)
         toggle_layout.addWidget(save_toggles_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
         layout.addWidget(toggle_card)
 
-        # ─── Research & Voice Config ─────────────────────────────────
+        # ── Research & Voice Config Card ──
         rv_card = GlassCard()
         rv_layout = rv_card.get_layout()
         self._icon_header("section_ai", "Research & Voice Config", rv_layout)
@@ -572,7 +645,6 @@ class SettingsPage(QWidget):
         self.elevenlabs_voice_id_input.setPlaceholderText("Voice ID from ElevenLabs dashboard")
         voice_id_col.addWidget(self.elevenlabs_voice_id_input)
         rv_row1.addLayout(voice_id_col, stretch=1)
-
         rv_layout.addLayout(rv_row1)
 
         rv_row2 = QHBoxLayout()
@@ -601,82 +673,248 @@ class SettingsPage(QWidget):
         save_rv_btn.setFixedHeight(36)
         save_rv_btn.clicked.connect(self._on_save_rv_config)
         rv_layout.addWidget(save_rv_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
         layout.addWidget(rv_card)
 
-        # ─── Autonomy Control ────────────────────────────────────────
-        autonomy_card = GlassCard()
-        autonomy_layout = autonomy_card.get_layout()
-        self._icon_header("section_autonomy", "Autonomy Level", autonomy_layout)
-        autonomy_info = QLabel(
-            "Controls how much the AI agents can do without your approval. "
-            "Observer = everything needs approval. Full Trust = fully autonomous."
+        layout.addStretch()
+        return self._make_scroll_tab(content)
+
+    # ── Tab 5: Business & Invoicing ───────────────────────────────────
+
+    def _build_business_tab(self) -> QScrollArea:
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(20)
+
+        # ── Company Information Card ──
+        company_card = GlassCard()
+        cl = company_card.get_layout()
+        self._icon_header("section_company", "Company Information", cl)
+        company_info = QLabel(
+            "Your company details used for invoices, email signatures, and agent context."
         )
-        autonomy_info.setObjectName("mutedText")
-        autonomy_info.setWordWrap(True)
-        autonomy_layout.addWidget(autonomy_info)
+        company_info.setObjectName("mutedText")
+        company_info.setWordWrap(True)
+        cl.addWidget(company_info)
 
-        autonomy_row = QHBoxLayout()
-        autonomy_label = QLabel("Level")
-        autonomy_label.setObjectName("formLabel")
-        autonomy_row.addWidget(autonomy_label)
-        self.autonomy_combo = QComboBox()
-        self.autonomy_combo.setObjectName("autonomySelector")
-        self.autonomy_combo.addItems(["observer", "supervised", "autonomous", "full_trust"])
-        self.autonomy_combo.setCurrentText("supervised")
-        self.autonomy_combo.currentTextChanged.connect(
-            lambda level: self.autonomy_level_changed.emit(level)
+        row1 = QHBoxLayout()
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Company Legal Name"))
+        self.company_legal_name = QLineEdit()
+        self.company_legal_name.setPlaceholderText("Acme Corp GmbH")
+        col.addWidget(self.company_legal_name)
+        row1.addLayout(col, stretch=2)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Tax ID / VAT"))
+        self.company_tax_id = QLineEdit()
+        self.company_tax_id.setPlaceholderText("DE123456789")
+        col.addWidget(self.company_tax_id)
+        row1.addLayout(col, stretch=1)
+        cl.addLayout(row1)
+
+        row2 = QHBoxLayout()
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Company Email"))
+        self.company_email = QLineEdit()
+        self.company_email.setPlaceholderText("billing@company.com")
+        col.addWidget(self.company_email)
+        row2.addLayout(col, stretch=1)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Company Phone"))
+        self.company_phone = QLineEdit()
+        self.company_phone.setPlaceholderText("+49 30 12345678")
+        col.addWidget(self.company_phone)
+        row2.addLayout(col, stretch=1)
+        cl.addLayout(row2)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Company Website"))
+        self.company_website = QLineEdit()
+        self.company_website.setPlaceholderText("https://www.company.com")
+        col.addWidget(self.company_website)
+        cl.addLayout(col)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Company Address"))
+        self.company_address = QTextEdit()
+        self.company_address.setPlaceholderText("123 Main St\nBerlin, 10115\nGermany")
+        self.company_address.setFixedHeight(80)
+        col.addWidget(self.company_address)
+        cl.addLayout(col)
+
+        logo_row = QHBoxLayout()
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Company Logo Path"))
+        self.company_logo_path = QLineEdit()
+        self.company_logo_path.setPlaceholderText("/path/to/logo.png")
+        col.addWidget(self.company_logo_path)
+        logo_row.addLayout(col, stretch=1)
+        browse_btn = ModernButton("Browse", "secondary")
+        browse_btn.setFixedHeight(40)
+        browse_btn.setMinimumWidth(80)
+        browse_btn.clicked.connect(self._on_browse_logo)
+        logo_row.addWidget(browse_btn, alignment=Qt.AlignmentFlag.AlignBottom)
+        cl.addLayout(logo_row)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Telegram Owner Chat ID"))
+        self.telegram_owner_chat_id = QLineEdit()
+        self.telegram_owner_chat_id.setPlaceholderText("123456789")
+        col.addWidget(self.telegram_owner_chat_id)
+        cl.addLayout(col)
+
+        save_company_btn = ModernButton("Save Company Info", "primary")
+        save_company_btn.setFixedHeight(36)
+        save_company_btn.clicked.connect(self._on_save_company_info)
+        cl.addWidget(save_company_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(company_card)
+
+        # ── Banking Details Card ──
+        bank_card = GlassCard()
+        bl = bank_card.get_layout()
+        self._icon_header("section_banking", "Banking Details", bl)
+        bank_info = QLabel(
+            "Banking details for invoices. All data is stored locally and encrypted."
         )
-        autonomy_row.addWidget(self.autonomy_combo)
-        autonomy_row.addStretch()
-        autonomy_layout.addLayout(autonomy_row)
+        bank_info.setObjectName("mutedText")
+        bank_info.setWordWrap(True)
+        bl.addWidget(bank_info)
 
-        self.autonomy_description = QLabel("")
-        self.autonomy_description.setObjectName("mutedText")
-        self.autonomy_description.setWordWrap(True)
-        autonomy_layout.addWidget(self.autonomy_description)
-        self.autonomy_combo.currentTextChanged.connect(self._update_autonomy_description)
+        row = QHBoxLayout()
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Bank Name"))
+        self.company_bank_name = QLineEdit()
+        self.company_bank_name.setPlaceholderText("Deutsche Bank")
+        col.addWidget(self.company_bank_name)
+        row.addLayout(col, stretch=2)
 
-        layout.addWidget(autonomy_card)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("SWIFT / BIC"))
+        self.company_swift = QLineEdit()
+        self.company_swift.setPlaceholderText("DEUTDEDB")
+        col.addWidget(self.company_swift)
+        row.addLayout(col, stretch=1)
+        bl.addLayout(row)
 
-        # ─── Advanced AI Toggles ─────────────────────────────────────
-        ai_card = GlassCard()
-        ai_layout = ai_card.get_layout()
-        self._icon_header("section_ai", "Advanced AI Engines", ai_layout)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("IBAN"))
+        self.company_iban = QLineEdit()
+        self.company_iban.setPlaceholderText("DE89 3704 0044 0532 0130 00")
+        col.addWidget(self.company_iban)
+        bl.addLayout(col)
 
-        self.reflection_toggle = QCheckBox("Enable Reflection (auto-critique task output)")
-        self.reflection_toggle.setChecked(True)
-        ai_layout.addWidget(self.reflection_toggle)
+        save_bank_btn = ModernButton("Save Banking", "primary")
+        save_bank_btn.setFixedHeight(36)
+        save_bank_btn.clicked.connect(self._on_save_banking)
+        bl.addWidget(save_bank_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(bank_card)
 
-        self.self_improvement_toggle = QCheckBox("Enable Self-Improvement (daily optimization)")
-        ai_layout.addWidget(self.self_improvement_toggle)
+        # ── Invoice Configuration Card ──
+        inv_card = GlassCard()
+        il = inv_card.get_layout()
+        self._icon_header("section_invoice", "Invoice Configuration", il)
 
-        self.knowledge_graph_toggle = QCheckBox("Enable Knowledge Graph (entity tracking)")
-        ai_layout.addWidget(self.knowledge_graph_toggle)
+        inv_row1 = QHBoxLayout()
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Invoice Prefix"))
+        self.invoice_prefix = QLineEdit()
+        self.invoice_prefix.setPlaceholderText("INV-")
+        col.addWidget(self.invoice_prefix)
+        inv_row1.addLayout(col, stretch=1)
 
-        self.conversation_toggle = QCheckBox("Enable Conversation Engine (reply tracking)")
-        ai_layout.addWidget(self.conversation_toggle)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Next Number"))
+        self.invoice_next_number = QSpinBox()
+        self.invoice_next_number.setRange(1, 999999)
+        self.invoice_next_number.setValue(1)
+        col.addWidget(self.invoice_next_number)
+        inv_row1.addLayout(col, stretch=1)
 
-        save_ai_btn = ModernButton("Save AI Settings", "primary")
-        save_ai_btn.setFixedHeight(36)
-        save_ai_btn.clicked.connect(self._on_save_ai_toggles)
-        ai_layout.addWidget(save_ai_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Currency"))
+        self.invoice_currency = QComboBox()
+        self.invoice_currency.addItems(["EUR", "USD", "GBP", "CHF", "CAD", "AUD", "JPY"])
+        col.addWidget(self.invoice_currency)
+        inv_row1.addLayout(col, stretch=1)
+        il.addLayout(inv_row1)
 
-        layout.addWidget(ai_card)
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Payment Terms"))
+        self.payment_terms_days = QSpinBox()
+        self.payment_terms_days.setRange(0, 365)
+        self.payment_terms_days.setValue(30)
+        self.payment_terms_days.setSuffix(" days")
+        col.addWidget(self.payment_terms_days)
+        il.addLayout(col)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.addWidget(self._field_label("Default Invoice Notes"))
+        self.invoice_notes = QTextEdit()
+        self.invoice_notes.setPlaceholderText("Thank you for your business.\nPayment due within 30 days.")
+        self.invoice_notes.setFixedHeight(80)
+        col.addWidget(self.invoice_notes)
+        il.addLayout(col)
+
+        save_inv_btn = ModernButton("Save Invoice Config", "primary")
+        save_inv_btn.setFixedHeight(36)
+        save_inv_btn.clicked.connect(self._on_save_invoice_config)
+        il.addWidget(save_inv_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(inv_card)
 
         layout.addStretch()
-        scroll.setWidget(content)
+        return self._make_scroll_tab(content)
 
-        # Main layout wraps the scroll area
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
+    # ── Tab 6: Appearance ─────────────────────────────────────────────
 
-    # ─── Helpers ───────────────────────────────────────────────────────
+    def _build_appearance_tab(self) -> QScrollArea:
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(20)
+
+        theme_card = GlassCard()
+        theme_layout = theme_card.get_layout()
+        self._icon_header("section_appearance", "Appearance", theme_layout)
+
+        theme_row = QHBoxLayout()
+        theme_label = QLabel("Theme")
+        theme_label.setObjectName("formLabel")
+        theme_row.addWidget(theme_label)
+
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["light", "dark"])
+        self.theme_combo.currentTextChanged.connect(self._on_theme_changed)
+        theme_row.addWidget(self.theme_combo)
+        theme_row.addStretch()
+
+        theme_layout.addLayout(theme_row)
+        layout.addWidget(theme_card)
+
+        layout.addStretch()
+        return self._make_scroll_tab(content)
+
+    # ─── Helpers ──────────────────────────────────────────────────────
 
     @staticmethod
     def _icon_header(icon_key: str, text: str, parent_layout, theme: str = "dark"):
-        """Add a section header with icon + text to a layout."""
         row = QHBoxLayout()
         row.setSpacing(8)
         icon_lbl = QLabel()
@@ -696,9 +934,7 @@ class SettingsPage(QWidget):
         return lbl
 
     def _add_key_row(self, parent_layout, label: str, provider: str) -> MaskedInput:
-        """Add a key input row with a save button."""
         row = QHBoxLayout()
-
         col = QVBoxLayout()
         col.setSpacing(4)
         col.addWidget(self._field_label(label))
@@ -708,17 +944,18 @@ class SettingsPage(QWidget):
 
         save_btn = ModernButton("Save", "secondary")
         save_btn.setFixedHeight(40)
-        save_btn.setMinimumWidth(80)  # Flexible width
+        save_btn.setMinimumWidth(80)
         save_btn.clicked.connect(lambda: self._on_save_key(provider, masked))
         row.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignBottom)
 
         parent_layout.addLayout(row)
         return masked
 
-    # ─── Public Methods ────────────────────────────────────────────────
+    # ─── Public Methods ───────────────────────────────────────────────
 
     def load_settings(self, settings: dict):
         """Populate fields from controller settings dict."""
+        # API Keys
         if settings.get("has_gemini"):
             self.gemini_input.set_value(settings["gemini_key"])
         if settings.get("has_anthropic"):
@@ -737,8 +974,6 @@ class SettingsPage(QWidget):
             self.pipedrive_input.set_value(settings["pipedrive_key"])
         if settings.get("has_openrouter"):
             self.openrouter_input.set_value(settings["openrouter_key"])
-
-        # Research & Voice API keys
         if settings.get("has_tavily"):
             self.tavily_input.set_value(settings["tavily_key"])
         if settings.get("has_firecrawl"):
@@ -799,7 +1034,7 @@ class SettingsPage(QWidget):
         crm_map = {"": 0, "hubspot": 1, "pipedrive": 2}
         self.crm_combo.setCurrentIndex(crm_map.get(crm, 0))
 
-        # Autonomy level
+        # Autonomy
         autonomy_level = settings.get("autonomy_level", "supervised")
         idx = self.autonomy_combo.findText(autonomy_level)
         if idx >= 0:
@@ -857,7 +1092,27 @@ class SettingsPage(QWidget):
             self.openai_sign_in_btn.show()
             self.openai_disconnect_btn.hide()
 
-    # ─── Signal Emitters ───────────────────────────────────────────────
+        # Business & Invoicing fields
+        self.company_legal_name.setText(settings.get("company_legal_name", ""))
+        self.company_address.setPlainText(settings.get("company_address", ""))
+        self.company_tax_id.setText(settings.get("company_tax_id", ""))
+        self.company_email.setText(settings.get("company_email", ""))
+        self.company_phone.setText(settings.get("company_phone", ""))
+        self.company_website.setText(settings.get("company_website", ""))
+        self.company_logo_path.setText(settings.get("company_logo_path", ""))
+        self.telegram_owner_chat_id.setText(settings.get("telegram_owner_chat_id", ""))
+        self.company_bank_name.setText(settings.get("company_bank_name", ""))
+        self.company_swift.setText(settings.get("company_swift", ""))
+        self.company_iban.setText(settings.get("company_iban", ""))
+        self.invoice_prefix.setText(settings.get("invoice_prefix", "INV-"))
+        self.invoice_next_number.setValue(settings.get("invoice_next_number", 1))
+        currency_idx = self.invoice_currency.findText(settings.get("invoice_currency", "EUR"))
+        if currency_idx >= 0:
+            self.invoice_currency.setCurrentIndex(currency_idx)
+        self.payment_terms_days.setValue(settings.get("payment_terms_days", 30))
+        self.invoice_notes.setPlainText(settings.get("invoice_notes", ""))
+
+    # ─── Signal Emitters ──────────────────────────────────────────────
 
     def _on_save_key(self, provider: str, masked_input: MaskedInput):
         key = masked_input.get_value()
@@ -945,7 +1200,6 @@ class SettingsPage(QWidget):
         show_toast(self.window(), "OpenAI subscription disconnected.", "info")
 
     def on_openai_oauth_complete(self, success: bool, error: str = ""):
-        """Called by controller after OAuth flow completes."""
         self.openai_sign_in_btn.setEnabled(True)
         self.openai_sign_in_btn.setText("Sign in with ChatGPT")
         if success:
@@ -997,6 +1251,46 @@ class SettingsPage(QWidget):
     def _on_theme_changed(self, theme: str):
         self.theme_change_requested.emit(theme)
 
+    # ── Business tab handlers ─────────────────────────────────────────
+
+    def _on_save_company_info(self):
+        self.save_business_requested.emit({
+            "company_legal_name": self.company_legal_name.text().strip(),
+            "company_address": self.company_address.toPlainText().strip(),
+            "company_tax_id": self.company_tax_id.text().strip(),
+            "company_email": self.company_email.text().strip(),
+            "company_phone": self.company_phone.text().strip(),
+            "company_website": self.company_website.text().strip(),
+            "company_logo_path": self.company_logo_path.text().strip(),
+            "telegram_owner_chat_id": self.telegram_owner_chat_id.text().strip(),
+        })
+        show_toast(self.window(), "Company information saved.", "success")
+
+    def _on_save_banking(self):
+        self.save_business_requested.emit({
+            "company_bank_name": self.company_bank_name.text().strip(),
+            "company_swift": self.company_swift.text().strip(),
+            "company_iban": self.company_iban.text().strip(),
+        })
+        show_toast(self.window(), "Banking details saved.", "success")
+
+    def _on_save_invoice_config(self):
+        self.save_business_requested.emit({
+            "invoice_prefix": self.invoice_prefix.text().strip(),
+            "invoice_next_number": self.invoice_next_number.value(),
+            "invoice_currency": self.invoice_currency.currentText(),
+            "payment_terms_days": self.payment_terms_days.value(),
+            "invoice_notes": self.invoice_notes.toPlainText().strip(),
+        })
+        show_toast(self.window(), "Invoice configuration saved.", "success")
+
+    def _on_browse_logo(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select Company Logo", "",
+            "Images (*.png *.jpg *.jpeg *.svg *.bmp)"
+        )
+        if path:
+            self.company_logo_path.setText(path)
+
     def receive_context(self, context: dict):
-        """Handle incoming navigation context from other pages."""
         pass

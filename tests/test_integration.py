@@ -276,7 +276,7 @@ class TestFleetWithTicketsIntegration:
 
         # Boot the fleet
         boot = fo.boot_fleet()
-        assert boot["data"]["booted"] == 19
+        assert boot["data"]["booted"] == 20
 
         # Commander creates a ticket
         commander_id = get_agent_id_by_name(db, "Commander")

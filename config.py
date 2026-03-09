@@ -11,7 +11,7 @@ from pathlib import Path
 
 # ─── App Identity ──────────────────────────────────────────────────────────────
 APP_NAME = "Aura"
-APP_VERSION = "1.3.0"
+APP_VERSION = "2.0.0"
 APP_TAGLINE = "Your Local AI Sales Agent"
 GITHUB_REPO = "Etriti00/aura-app"
 
@@ -351,6 +351,11 @@ ROUTER_TASK_TIER_MAP = {
     "voice_conversation": "sonnet",
     "voice_call_notes": "haiku",
     "voice_call_classify": "haiku",
+    # Pricing / Invoicing
+    "evaluate_pricing": "haiku",
+    "create_invoice": "local",
+    "send_invoice": "local",
+    "track_payment": "local",
 }
 
 # ─── RAG Memory ──────────────────────────────────────────────────────────────
@@ -502,6 +507,7 @@ TASK_CONTEXT_SECTIONS = {
     "write_followup":       ["soul", "skill", "memory_today", "case_context", "payload"],
     "research":             ["soul", "mission", "skill", "long_term_memory", "payload"],
     "enrich_lead":          ["soul", "skill", "payload"],
+    "evaluate_pricing":     ["soul", "mission", "skill", "case_context", "payload"],
     "summarize":            ["soul", "payload"],
     "_default":             ["soul", "mission", "skill", "playbook", "boundaries",
                              "long_term_memory", "memory_today", "history",
@@ -559,3 +565,21 @@ VOICE_CALL_OUTCOMES = [
 CALLER_CHECK_INTERVAL_MS = 300_000       # 5 minutes
 CALLER_FAILED_EMAIL_THRESHOLD = 3        # 3+ failed/bounced emails → eligible for call
 CALLER_STALLED_DAYS = 7                  # Interested but silent 7+ days → eligible
+
+# ─── Enrichment Scoring (v2.0) ────────────────────────────────────────────
+ENRICHMENT_COMPLETENESS_THRESHOLD = 40   # Below this → trigger deep crawl (Layer 4)
+ENRICHMENT_WEIGHTS = {
+    "email": 40,
+    "decision_maker": 20,
+    "pain_points": 15,
+    "tech_stack": 10,
+    "phone": 15,
+}
+GMAPS_FREE_DAILY_LIMIT = 200
+CLEARBIT_FREE_DAILY_LIMIT = 20
+OLLAMA_ENRICHMENT_MODEL = "llama3.2"
+
+# ─── Invoice / Pricing (v2.0) ─────────────────────────────────────────────
+INVOICE_STATUSES = ["draft", "sent", "paid", "overdue", "cancelled"]
+INVOICE_APPROVAL_STATUSES = ["pending", "approved", "rejected"]
+PRICING_TASK_TYPES = ["evaluate_pricing", "create_invoice", "send_invoice", "track_payment"]

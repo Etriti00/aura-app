@@ -203,7 +203,7 @@ class TestGetAgentsList:
     def test_returns_agents(self, kanban_ctrl):
         kc, te, db = kanban_ctrl
         agents = kc.get_agents_list()
-        assert len(agents) == 19
+        assert len(agents) == 20
         assert all("id" in a for a in agents)
         assert all("name" in a for a in agents)
         assert all("emoji" in a for a in agents)

@@ -1,7 +1,7 @@
 # Aura — User Manual
 
 > **Your Local AI Sales Agent**
-> Version 1.0.0
+> Version 2.0.0
 
 ---
 
@@ -281,13 +281,13 @@ Generate outreach drafts for multiple channels simultaneously:
 
 ## 6. Fleet — Agent Management
 
-The Fleet page lets you manage Aura's team of 18 AI agents.
+The Fleet page lets you manage Aura's team of 20 AI agents.
 
 ### 6.1 Fleet Overview
 
 The top row shows fleet-wide stats:
 - **Fleet Health %** — Percentage of healthy agents
-- **Total Agents** — Count (18)
+- **Total Agents** — Count (20)
 - **Running** — Currently active agents
 - **Tasks Today** — Completed tasks count
 - **Cost Today** — Total AI spend
@@ -628,7 +628,18 @@ Toggle which proactive notifications you want to receive:
 
 ## 12. Settings — Configuration
 
-### 12.1 API Keys
+The Settings page is organized into **6 tabs** for easy navigation, similar to the Outreach page layout:
+
+| Tab | What It Contains |
+|-----|-----------------|
+| **API Keys** | API key management, authentication modes, subscription auth |
+| **AI Config** | Model selection, autonomy level, advanced AI engine toggles |
+| **Email & Delivery** | Sender identity, SMTP fallback, IMAP reply detection |
+| **Features** | Feature toggles, CRM platform, research & voice config |
+| **Business & Invoicing** | Company info, banking details, invoice configuration |
+| **Appearance** | Theme selection (light/dark) |
+
+### 12.1 API Keys Tab
 
 Enter API keys for the services you want to use:
 
@@ -643,58 +654,42 @@ Enter API keys for the services you want to use:
 | **Hunter** | Email finding/verification | Optional |
 | **HubSpot** | CRM sync | Optional |
 | **Pipedrive** | CRM sync | Optional |
+| **Tavily** | AI-powered web search (research) | Optional |
+| **Firecrawl** | Website scraping (research) | Optional |
+| **Apify** | Web automation (research) | Optional |
+| **Twilio** | Voice calling (Account SID + Auth Token) | Optional |
+| **ElevenLabs** | Premium text-to-speech | Optional |
 
 Keys are stored encrypted using hardware-bound encryption. They never leave your machine.
 
-Each key field shows a masked preview (e.g., `sk-proj-****6789`). Click the 👁 button to reveal.
+Each key field shows a masked preview (e.g., `sk-proj-****6789`). Click the eye button to reveal.
 
-### 12.2 Authentication Modes
+**Authentication Modes**: For Anthropic and OpenAI, choose between API Key or Subscription mode. Subscription lets you use your existing Claude Pro/Max or ChatGPT Plus account.
 
-For Anthropic and OpenAI, you can choose:
-- **API Key** — Standard key-based authentication
-- **Subscription** — Use your existing ChatGPT/Claude subscription
-  - Anthropic: Enter a setup token
-  - OpenAI: Sign in with your ChatGPT account (OAuth flow)
+**Subscription Auth**: Anthropic requires a setup-token from Claude Code CLI. OpenAI uses an OAuth browser sign-in flow. Gemini keys are free at aistudio.google.com.
 
-### 12.3 Model Selection
+### 12.2 AI Config Tab
 
-Choose which AI models to use for each task tier:
-
+**Model Selection**: Choose which AI models to use for each task tier:
 - **Tier 2 (Qualification)** — Cheap, fast model for lead scoring. Default: Gemini 2.0 Flash
 - **Tier 3 (Email Generation)** — Premium model for writing emails. Default: Claude Sonnet
 - **Chat (Assistant)** — Model for the chat panel. Default: same as Tier 3
 
-### 12.4 Sender Identity
+**Autonomy Level**: Controls how much independence your AI agents have (Observer, Supervised, Autonomous, Full Trust). See Section 17.7 for details.
 
-Configure who emails appear to come from:
-- **Your Name** — Displayed as the sender
-- **Email Address** — Reply-to address
-- **Company** — Company name for email signatures
+**Advanced AI Engines**: Toggle individual AI subsystems — Reflection (auto-critique), Self-Improvement (daily optimization), Knowledge Graph (entity tracking), Conversation Engine (reply tracking).
 
-### 12.5 SMTP Configuration
+### 12.3 Email & Delivery Tab
 
-If you don't use Resend, configure SMTP as a fallback:
-- **Host** — SMTP server (e.g., smtp.gmail.com)
-- **Port** — Usually 587 (TLS) or 465 (SSL)
-- **Username** — Your email login
-- **Password** — App-specific password (not your main password)
+**Sender Identity**: Configure who emails appear to come from — your name, email address, and company name.
 
-### 12.6 IMAP Configuration
+**SMTP Fallback**: Optional SMTP server for when Resend is unavailable — host, port, username, password.
 
-For reply detection and inbox triage:
-- **Host** — IMAP server (e.g., imap.gmail.com)
-- **Port** — Usually 993
-- **Username** — Your email login
-- **Password** — App-specific password
-- **Use SSL** — Enable for encrypted connections (recommended)
+**IMAP (Reply Detection)**: For reply detection and inbox triage — host, port, username, password, SSL toggle.
 
-### 12.7 Theme
+### 12.4 Features Tab
 
-Switch between **Light** and **Dark** themes. The change applies immediately.
-
-### 12.8 Feature Toggles
-
-Enable or disable individual features:
+**Feature Toggles**:
 
 | Toggle | What It Controls |
 |--------|-----------------|
@@ -708,6 +703,39 @@ Enable or disable individual features:
 | **Fleet System** | Enable the multi-agent fleet |
 | **Google Trends** | Enable trend monitoring and analysis |
 | **CRM Platform** | Select HubSpot or Pipedrive for CRM sync |
+
+**Research & Voice Config**: Toggle auto-research and voice calls, configure Twilio phone number, ElevenLabs Voice ID, TTS/STT provider selection.
+
+### 12.5 Business & Invoicing Tab
+
+This tab provides the company and billing information that AI agents use when generating invoices and professional communications.
+
+**Company Information**:
+- **Company Legal Name** — Used on invoices and official documents
+- **Tax ID / VAT** — Tax identification number
+- **Company Email & Phone** — Contact information for invoices
+- **Company Website** — Included in email signatures
+- **Company Address** — Full postal address (multi-line)
+- **Company Logo Path** — Path to logo file (used on PDF invoices). Click "Browse" to select
+- **Telegram Owner Chat ID** — Your personal Telegram ID for owner notifications
+
+**Banking Details**:
+- **Bank Name** — Your company's bank
+- **SWIFT / BIC** — International bank identifier
+- **IBAN** — International Bank Account Number
+
+All banking data is stored locally and encrypted. It is only used for invoice generation.
+
+**Invoice Configuration**:
+- **Invoice Prefix** — Prefix for invoice numbers (e.g., "INV-", "AURA-")
+- **Next Number** — The next invoice number to use (auto-increments)
+- **Currency** — Default currency (EUR, USD, GBP, CHF, CAD, AUD, JPY)
+- **Payment Terms** — Days until payment is due (default: 30)
+- **Default Invoice Notes** — Footer text on invoices (e.g., "Thank you for your business")
+
+### 12.6 Appearance Tab
+
+Switch between **Light** and **Dark** themes. The change applies immediately across all pages.
 
 ---
 
@@ -1089,5 +1117,5 @@ Check the log file at `~/.aura/aura.log` for detailed error information. The log
 
 ---
 
-*Aura v1.0.0 — Your Local AI Sales Agent*
-*Last updated: 2026-03-07*
+*Aura v2.0.0 — Your Local AI Sales Agent*
+*Last updated: 2026-03-09*

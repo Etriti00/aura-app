@@ -44,6 +44,11 @@ TASK_SPECIALTY_MAP = {
     "improve_skill": "Forger",
     # Voice calling (last resort)
     "make_call": "Caller",
+    # Pricing / invoicing
+    "evaluate_pricing": "Accountant",
+    "create_invoice": "Accountant",
+    "send_invoice": "Accountant",
+    "track_payment": "Accountant",
 }
 
 

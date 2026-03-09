@@ -245,6 +245,10 @@ class OrchestratorEngine:
                 return self._exec_approve_action(params, engines)
             elif intent == "deny_action":
                 return self._exec_deny_action(params, engines)
+            elif intent == "create_invoice":
+                return self._exec_create_invoice(params, engines)
+            elif intent == "show_invoices":
+                return self._exec_show_invoices(params, engines)
             elif intent == "general_question":
                 return self._exec_general_question(params, engines)
             else:
@@ -942,6 +946,38 @@ class OrchestratorEngine:
             return {"success": False, "error": "approval_id is required"}
         result = autonomy.deny_action(approval_id)
         return {"success": result.get("success", False), "action": "deny_action", "data": result.get("data", {}), "error": result.get("error")}
+
+    # ─── Invoice Intents ─────────────────────────────────────────────
+
+    def _exec_create_invoice(self, params: dict, engines: dict) -> dict:
+        """Create an invoice via pricing engine."""
+        pricing = engines.get("pricing")
+        if not pricing:
+            return {"success": False, "error": "Pricing engine not available"}
+
+        lead_id = params.get("lead_id")
+        line_items = params.get("line_items", [])
+        client_name = params.get("client_name", "")
+        client_email = params.get("client_email", "")
+        notes = params.get("notes", "")
+
+        result = pricing.create_invoice(
+            lead_id=lead_id,
+            line_items=line_items,
+            client_name=client_name,
+            client_email=client_email,
+            notes=notes,
+        )
+        return result
+
+    def _exec_show_invoices(self, params: dict, engines: dict) -> dict:
+        """List invoices, optionally filtered by status."""
+        pricing = engines.get("pricing")
+        if not pricing:
+            return {"success": False, "error": "Pricing engine not available"}
+
+        status = params.get("status")
+        return pricing.get_invoices(status=status)
 
     # ─── Helpers ───────────────────────────────────────────────────────
 

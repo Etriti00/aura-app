@@ -13,3 +13,6 @@ lxml==5.4.0
 pytrends==4.9.4
 qtawesome==1.4.0
 playwright-stealth==1.0.6
+openpyxl==3.1.5
+python-whois==0.9.4
+dnspython==2.7.0

@@ -123,8 +123,8 @@ class TestFleetStatus:
         result = fo.get_fleet_status()
         assert result["success"] is True
         data = result["data"]
-        assert data["total_agents"] == 19
-        assert data["idle"] == 19  # All idle initially
+        assert data["total_agents"] == 20
+        assert data["idle"] == 20  # All idle initially
         assert data["running"] == 0
         assert data["health_pct"] == 100
 
@@ -135,7 +135,7 @@ class TestFleetStatus:
             agent.status = "running"
         result = fo.get_fleet_status()
         assert result["data"]["running"] == 1
-        assert result["data"]["idle"] == 18
+        assert result["data"]["idle"] == 19
 
 
 class TestBootFleet:
@@ -143,7 +143,7 @@ class TestBootFleet:
         fo, db = fleet_orchestrator
         result = fo.boot_fleet()
         assert result["success"] is True
-        assert result["data"]["booted"] == 19
+        assert result["data"]["booted"] == 20
         assert result["data"]["errors"] == 0
 
         with db.session_scope() as s:

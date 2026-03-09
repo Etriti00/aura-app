@@ -256,7 +256,7 @@ class TestAgentStatus:
         ae, db = agent_engine
         result = ae.get_all_agents()
         assert result["success"] is True
-        assert len(result["data"]) == 19
+        assert len(result["data"]) == 20
 
 
 class TestUpdateAgentField:

@@ -115,6 +115,23 @@ class SettingsController(QObject):
             "elevenlabs_voice_id": getattr(settings, "elevenlabs_voice_id", ""),
             "voice_tts_provider": getattr(settings, "voice_tts_provider", "elevenlabs"),
             "voice_stt_provider": getattr(settings, "voice_stt_provider", "whisper_local"),
+            # Business & Invoice
+            "company_legal_name": getattr(settings, "company_legal_name", ""),
+            "company_address": getattr(settings, "company_address", ""),
+            "company_tax_id": getattr(settings, "company_tax_id", ""),
+            "company_email": getattr(settings, "company_email", ""),
+            "company_phone": getattr(settings, "company_phone", ""),
+            "company_website": getattr(settings, "company_website", ""),
+            "company_logo_path": getattr(settings, "company_logo_path", ""),
+            "company_iban": getattr(settings, "company_iban", ""),
+            "company_swift": getattr(settings, "company_swift", ""),
+            "company_bank_name": getattr(settings, "company_bank_name", ""),
+            "invoice_prefix": getattr(settings, "invoice_prefix", "INV-"),
+            "invoice_next_number": getattr(settings, "invoice_next_number", 1),
+            "invoice_currency": getattr(settings, "invoice_currency", "EUR"),
+            "payment_terms_days": getattr(settings, "payment_terms_days", 30),
+            "invoice_notes": getattr(settings, "invoice_notes", ""),
+            "telegram_owner_chat_id": getattr(settings, "telegram_owner_chat_id", ""),
         }
 
     def save_api_key(self, provider: str, key: str):
@@ -361,6 +378,20 @@ class SettingsController(QObject):
                 except Exception:
                     pass
         return tokens
+
+    def save_business_settings(self, data: dict):
+        """Save business/invoice configuration fields."""
+        try:
+            with self.db_manager.session_scope() as session:
+                settings = session.query(Settings).first()
+                if settings:
+                    for key, value in data.items():
+                        if hasattr(settings, key):
+                            setattr(settings, key, value)
+            self.settings_saved.emit()
+            logger.info(f"Business settings saved: {list(data.keys())}")
+        except Exception as e:
+            self.settings_error.emit(f"Failed to save business settings: {e}")
 
     def _mask_key(self, encrypted_key: str) -> str:
         """Return a masked version of an encrypted key."""

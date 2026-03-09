@@ -154,6 +154,22 @@ hiddenimports = [
     'ui.pages.calls',
     # Navigation service
     'core.navigation_service',
+    # v2.0: Response formatter, enrichment, pricing, invoicing
+    'core.response_formatter',
+    'core.enrichment_scoring',
+    'core.enrichment_layers',
+    'core.enrichment_layers.layer0_dns',
+    'core.enrichment_layers.layer1_ollama',
+    'core.enrichment_layers.layer2_free_apis',
+    'core.enrichment_layers.layer4_deep_crawl',
+    'core.excel_export_engine',
+    'core.pricing_engine',
+    'core.invoice_approval_engine',
+    # v2.0: Discord server + Telegram commands
+    'core.gateway_adapters.discord_server',
+    'core.gateway_adapters.discord_notifications',
+    'core.gateway_adapters.telegram_commands',
+    'core.gateway_adapters.telegram_notifications',
 ]
 
 # Collect all playwright dependencies
@@ -220,8 +236,8 @@ if sys.platform == "darwin":
         info_plist={
             'CFBundleName': 'Aura',
             'CFBundleDisplayName': 'Aura — AI Sales Agent',
-            'CFBundleVersion': '1.2.0',
-            'CFBundleShortVersionString': '1.2.0',
+            'CFBundleVersion': '2.0.0',
+            'CFBundleShortVersionString': '2.0.0',
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '11.0',
         },

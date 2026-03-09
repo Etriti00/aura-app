@@ -51,7 +51,7 @@ class TestAgentSeeding:
     def test_all_18_agents_present(self, db_with_agents):
         with db_with_agents.session_scope() as s:
             count = s.query(Agent).count()
-            assert count == 19, f"Expected 19 agents, got {count}"
+            assert count == 20, f"Expected 20 agents, got {count}"
 
     def test_commander_is_rank_1(self, db_with_agents):
         with db_with_agents.session_scope() as s:

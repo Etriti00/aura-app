@@ -26,6 +26,7 @@ from database.schema import (
     PendingApproval,
     CaseNote, CaseMemory, CachedSummary, SubagentTask,
     ResearchReport, VoiceCall,
+    Service, Invoice, InvoiceLineItem, FinanceNote, DiscordServerConfig,
 )
 
 
@@ -95,6 +96,7 @@ def db_with_agents(db):
             ("Reporter", "worker", "📄", "local", 3, "Analyst"),
             ("Canary", "canary", "🐤", "haiku", 3, "Observer"),
             ("Caller", "worker", "📞", "sonnet", 3, "Commander"),
+            ("Accountant", "worker", "💰", "haiku", 3, "Commander"),
         ]
 
         # First pass: create agents without reports_to

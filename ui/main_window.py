@@ -745,6 +745,10 @@ class MainWindow(QMainWindow):
             lambda: self.settings_ctrl.clear_sub_token("openai")
         )
 
+        self.settings_page.save_business_requested.connect(
+            self.settings_ctrl.save_business_settings
+        )
+
         self.settings_ctrl.settings_saved.connect(
             lambda: show_toast(self, "Settings saved.", "success")
         )

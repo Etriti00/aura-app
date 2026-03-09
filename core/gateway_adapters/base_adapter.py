@@ -52,3 +52,11 @@ class BaseAdapter(ABC):
     def is_connected(self) -> bool:
         """Return True if the adapter is currently connected and running."""
         ...
+
+    def send_to_channel(self, channel_id: str, text: str):
+        """Send a message to a specific channel (server mode). Default no-op."""
+        pass
+
+    def send_embed(self, channel_id: str, embed_dict: dict):
+        """Send a rich embed to a specific channel (server mode). Default no-op."""
+        pass
