@@ -284,6 +284,13 @@ class Settings(Base):
     company_website = Column(String(500), default="")
     telegram_owner_chat_id = Column(String(50), default="")
 
+    # ─── v2.0: Enrichment daily counters ────────────────────────────────
+    enrichment_gmaps_count = Column(Integer, default=0)
+    enrichment_gmaps_date = Column(String(10), default="")
+    enrichment_clearbit_count = Column(Integer, default=0)
+    enrichment_clearbit_date = Column(String(10), default="")
+    gmaps_api_key_enc = Column(String(500), default="")
+
     def __repr__(self):
         return f"<Settings(id={self.id}, theme='{self.theme}')>"
 
@@ -1237,6 +1244,11 @@ class Invoice(Base):
     pdf_path = Column(String(500), nullable=True)
     pricing_rationale = Column(Text, default="")
     notes = Column(Text, default="")
+    approval_requested_at = Column(DateTime, nullable=True)
+    approval_call_count = Column(Integer, default=0)
+    approved_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -177,6 +177,20 @@ def migrate_schema(db_path):
     _add_col("settings", "company_website", "TEXT", "''")
     _add_col("settings", "telegram_owner_chat_id", "TEXT", "''")
 
+    # ─── v2.0: Invoice approval lifecycle fields ──────────────────────
+    _add_col("invoices", "approval_requested_at", "DATETIME", "NULL")
+    _add_col("invoices", "approval_call_count", "INTEGER", "0")
+    _add_col("invoices", "approved_at", "DATETIME", "NULL")
+    _add_col("invoices", "sent_at", "DATETIME", "NULL")
+    _add_col("invoices", "paid_at", "DATETIME", "NULL")
+
+    # ─── v2.0: Enrichment daily counters (persisted) ──────────────────
+    _add_col("settings", "enrichment_gmaps_count", "INTEGER", "0")
+    _add_col("settings", "enrichment_gmaps_date", "TEXT", "''")
+    _add_col("settings", "enrichment_clearbit_count", "INTEGER", "0")
+    _add_col("settings", "enrichment_clearbit_date", "TEXT", "''")
+    _add_col("settings", "gmaps_api_key_enc", "TEXT", "''")
+
     # ─── v2.0: CREATE TABLE IF NOT EXISTS for new models ──────────────
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS services (

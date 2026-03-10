@@ -22,6 +22,7 @@ class InvoiceApprovalEngine:
         self.db_manager = db_manager
         self.gateway_engine = gateway_engine
         self.pricing_engine = pricing_engine
+        self.voice_call_engine = None  # injected by main_window
 
     # ─── Approval Flow ────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ class InvoiceApprovalEngine:
                     return {"success": False, "error": "Invoice already approved"}
 
                 inv.approval_status = "pending"
+                inv.approval_requested_at = datetime.utcnow()
 
                 # Log note
                 session.add(FinanceNote(
@@ -102,6 +104,7 @@ class InvoiceApprovalEngine:
                     return {"success": False, "error": "Already approved"}
 
                 inv.approval_status = "approved"
+                inv.approved_at = datetime.utcnow()
 
                 session.add(FinanceNote(
                     invoice_id=invoice_id,
@@ -203,7 +206,7 @@ class InvoiceApprovalEngine:
     # ─── Escalation ───────────────────────────────────────────────
 
     def escalate(self, invoice_id: int) -> dict:
-        """Escalate an invoice for urgent approval — sends high-priority notifications."""
+        """Full escalation: urgent notification -> voice calls (3 attempts) -> passive wait."""
         try:
             with self.db_manager.session_scope() as session:
                 inv = session.query(Invoice).get(invoice_id)
@@ -213,19 +216,13 @@ class InvoiceApprovalEngine:
                 if inv.approval_status == "approved":
                     return {"success": False, "error": "Already approved, no need to escalate"}
 
-                session.add(FinanceNote(
-                    invoice_id=invoice_id,
-                    lead_id=inv.lead_id,
-                    note_type="general",
-                    content="Invoice escalated for urgent approval.",
-                    created_by="system",
-                ))
-
+                call_count = inv.approval_call_count or 0
                 inv_number = inv.invoice_number
                 total = inv.total
                 currency = inv.currency
+                lead_id = inv.lead_id
 
-            # Send urgent notifications
+            # Step 1: Urgent text notification
             if self.gateway_engine:
                 try:
                     self.gateway_engine.notify_event("invoice_escalated", {
@@ -238,7 +235,50 @@ class InvoiceApprovalEngine:
                 except Exception as e:
                     logger.warning(f"Escalation notification failed: {e}")
 
-            logger.info(f"Invoice {inv_number} escalated for urgent approval")
+            # Step 2: Voice calls (up to 3 attempts)
+            called = False
+            if call_count < 3:
+                # Try high-priority Discord notification
+                if self.gateway_engine:
+                    try:
+                        self.gateway_engine.notify_event("invoice_voice_ring", {
+                            "invoice_id": invoice_id,
+                            "invoice_number": inv_number,
+                            "total": total,
+                            "currency": currency,
+                            "message": f"URGENT: Invoice {inv_number} for {currency} {total:.2f} needs your approval!",
+                            "force_notification": True,
+                        })
+                        called = True
+                    except Exception as e:
+                        logger.warning(f"Voice ring notification failed: {e}")
+
+                # Update call count
+                with self.db_manager.session_scope() as session:
+                    inv = session.query(Invoice).get(invoice_id)
+                    if inv:
+                        inv.approval_call_count = call_count + 1
+
+                    session.add(FinanceNote(
+                        invoice_id=invoice_id,
+                        lead_id=lead_id,
+                        note_type="follow_up",
+                        content=f"Escalation attempt {call_count + 1}/3. Notification {'sent' if called else 'failed'}.",
+                        created_by="system",
+                    ))
+            else:
+                # After 3 failed calls: passive wait
+                with self.db_manager.session_scope() as session:
+                    session.add(FinanceNote(
+                        invoice_id=invoice_id,
+                        lead_id=lead_id,
+                        note_type="follow_up",
+                        content="Max escalation attempts reached. Waiting for manual user approval.",
+                        created_by="system",
+                    ))
+                logger.info(f"Invoice {inv_number}: max escalation attempts reached")
+
+            logger.info(f"Invoice {inv_number} escalated (attempt {call_count + 1})")
 
             return {
                 "success": True,
@@ -246,6 +286,7 @@ class InvoiceApprovalEngine:
                     "invoice_id": invoice_id,
                     "invoice_number": inv_number,
                     "escalated": True,
+                    "call_count": min(call_count + 1, 3),
                 },
             }
 

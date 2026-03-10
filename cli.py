@@ -358,6 +358,12 @@ class AuraCLI:
         # Wire waterfall enrichment
         self.engines["enrichment"].apollo_engine = self.engines["apollo"]
         self.engines["enrichment"].hunter_engine = self.engines["hunter"]
+        self.engines["enrichment"].router_engine = self.engines["router"]
+
+        # Response formatter for structured CLI output
+        from core.response_formatter import ResponseFormatter, Platform
+        self.formatter = ResponseFormatter()
+        self._platform = Platform.CLI
 
         # Phase 13: Skill Registry
         from core.skill_registry import SkillRegistry
@@ -2366,6 +2372,36 @@ class AuraCLI:
             f.success(f"Exported to {args[1]}")
         else:
             f.error(result.get("error", "Export failed"))
+
+    @command("export-xlsx", "campaigns", "Export campaign to Excel",
+             "/export-xlsx <campaign_id> <output_path>")
+    def cmd_export_xlsx(self, args: list):
+        f = Formatter
+        if len(args) < 2:
+            f.error("Usage: /export-xlsx <campaign_id> <output_path>")
+            return
+        try:
+            from core.excel_export_engine import ExcelExportEngine
+            engine = ExcelExportEngine(self.db)
+            path = engine.export_campaign_xlsx(int(args[0]), args[1])
+            f.success(f"Excel exported to {path}")
+        except Exception as e:
+            f.error(f"Export failed: {e}")
+
+    @command("export-finance", "budget", "Export finance report to Excel",
+             "/export-finance <output_path>")
+    def cmd_export_finance(self, args: list):
+        f = Formatter
+        if len(args) < 1:
+            f.error("Usage: /export-finance <output_path>")
+            return
+        try:
+            from core.excel_export_engine import ExcelExportEngine
+            engine = ExcelExportEngine(self.db)
+            path = engine.export_finance_xlsx(args[0])
+            f.success(f"Finance report exported to {path}")
+        except Exception as e:
+            f.error(f"Export failed: {e}")
 
     @command("improvement", "fleet", "Run self-improvement cycle",
              "/improvement [--dry-run]")

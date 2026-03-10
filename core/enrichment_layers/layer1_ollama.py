@@ -59,6 +59,35 @@ async def enrich_layer1(html_content: str, business_name: str,
     return {}
 
 
+def enrich_layer1_sync(html_content: str, business_name: str,
+                       router_engine=None) -> dict:
+    """Synchronous Layer 1 enrichment using router_engine.route()."""
+    if not router_engine or not html_content:
+        return {}
+
+    content = html_content[:8000]
+    prompt = (
+        f"Analyze this business website content for '{business_name}' and extract:\n"
+        f"1. decision_maker_name: The name of the owner/CEO/decision maker (or null)\n"
+        f"2. decision_maker_title: Their title (or null)\n"
+        f"3. company_description: One-sentence description of what they do\n"
+        f"4. pain_points: JSON list of 2-4 business pain points they likely have\n"
+        f"5. icp_fit_score: 0-100 score of how well they fit as a B2B sales prospect\n\n"
+        f"Respond ONLY with valid JSON:\n"
+        f'{{"decision_maker_name": ..., "decision_maker_title": ..., '
+        f'"company_description": ..., "pain_points": [...], "icp_fit_score": ...}}\n\n'
+        f"Website content:\n{content}"
+    )
+    try:
+        response = router_engine.route("extract_structured_data", prompt)
+        if response and response.get("success"):
+            text = response.get("data", "") or response.get("result", "")
+            return _parse_extraction(text)
+    except Exception as e:
+        logger.debug(f"Layer 1 sync extraction failed: {e}")
+    return {}
+
+
 def _parse_extraction(text: str) -> dict:
     """Parse LLM JSON response into enrichment fields."""
     result = {}

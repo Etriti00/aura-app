@@ -196,6 +196,26 @@ class ExcelExportEngine:
 
             _auto_width(ws_cost)
 
+            # ─── Chart: Cost per Tier ───────────────────────
+            if tier_costs:
+                try:
+                    from openpyxl.chart import BarChart, Reference
+                    chart = BarChart()
+                    chart.title = "Cost per Tier"
+                    chart.y_axis.title = "USD"
+                    chart.x_axis.title = "Tier"
+                    chart.style = 10
+                    data_rows = len(tier_costs)
+                    data_ref = Reference(ws_cost, min_col=3, min_row=1, max_row=data_rows + 1)
+                    cats_ref = Reference(ws_cost, min_col=1, min_row=2, max_row=data_rows + 1)
+                    chart.add_data(data_ref, titles_from_data=True)
+                    chart.set_categories(cats_ref)
+                    chart.width = 20
+                    chart.height = 12
+                    ws_cost.add_chart(chart, "E2")
+                except Exception as e:
+                    logger.debug(f"Chart creation failed: {e}")
+
         wb.save(output_path)
         logger.debug(f"Campaign XLSX exported to {output_path}")
         return output_path

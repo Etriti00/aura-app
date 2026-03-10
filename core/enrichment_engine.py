@@ -4,6 +4,7 @@ Enriches leads with Google Maps data, domain age, social presence,
 and website screenshots using Playwright + httpx.
 """
 
+import json
 import os
 import re
 import hashlib
@@ -34,6 +35,8 @@ class EnrichmentEngine:
         self.hunter_engine = None
         self.lead_lifecycle_engine = None  # injected by main_window
         self.knowledge_graph_engine = None  # injected by main_window
+        self.router_engine = None  # injected by main_window
+        self.case_engine = None    # injected by main_window
         # Persistent browser for batch operations
         self._batch_playwright = None
         self._batch_browser = None
@@ -383,17 +386,12 @@ class EnrichmentEngine:
     # ─── Waterfall Enrichment ──────────────────────────────────────
 
     def waterfall_enrich_lead(self, lead_id: int) -> dict:
-        """
-        Waterfall enrichment: tries multiple sources in order until email is found.
-        Order: local enrichment → Apollo people search → Hunter domain search.
-        Returns combined enrichment result.
-        """
+        """5-layer waterfall enrichment. Each layer fills gaps left by previous ones."""
         try:
             with self.db_manager.session_scope() as session:
                 lead = session.query(Lead).filter_by(id=lead_id).first()
                 if not lead:
                     return {"success": False, "error": "Lead not found"}
-
                 lead_dict = {
                     "id": lead.id,
                     "business_name": lead.business_name or "",
@@ -401,23 +399,101 @@ class EnrichmentEngine:
                     "website_url": lead.website_url or "",
                     "email": lead.email or "",
                     "phone": lead.phone or "",
+                    "category": lead.category or "",
                 }
 
             sources_tried = []
+            enrichment_data = {}
             email_found = bool(lead_dict.get("email"))
+            domain = ""
+            if lead_dict.get("website_url"):
+                domain = re.sub(r'^https?://', '', lead_dict["website_url"]).split('/')[0].strip()
 
-            # Step 1: Local enrichment (GMaps, domain, social, screenshot)
+            # ── Layer 0: DNS/WHOIS/SSL/Tech Stack (free, instant) ──
+            if domain:
+                try:
+                    from core.enrichment_layers.layer0_dns import enrich_layer0
+                    homepage_html = ""
+                    try:
+                        with httpx.Client(timeout=10, follow_redirects=True) as client:
+                            resp = client.get(f"https://{domain}", headers={"User-Agent": "Mozilla/5.0"})
+                            if resp.status_code == 200:
+                                homepage_html = resp.text
+                    except Exception:
+                        pass
+                    layer0 = enrich_layer0(domain, homepage_html)
+                    enrichment_data.update(layer0)
+                    enrichment_data["_homepage_html"] = homepage_html
+                    sources_tried.append("layer0_dns")
+                    self._log_case_event(lead_id, "enrichment", f"Layer 0 completed: {list(layer0.keys())}")
+                except Exception as e:
+                    logger.warning(f"Layer 0 failed for lead {lead_id}: {e}")
+
+            # ── Layer 1: Ollama LLM extraction (free, local) ──
+            if domain and self.router_engine:
+                try:
+                    from core.enrichment_layers.layer1_ollama import enrich_layer1_sync
+                    homepage_html = enrichment_data.get("_homepage_html", "")
+                    if not homepage_html:
+                        try:
+                            with httpx.Client(timeout=10, follow_redirects=True) as client:
+                                resp = client.get(f"https://{domain}", headers={"User-Agent": "Mozilla/5.0"})
+                                if resp.status_code == 200:
+                                    homepage_html = resp.text
+                        except Exception:
+                            pass
+                    if homepage_html:
+                        layer1 = enrich_layer1_sync(homepage_html, lead_dict["business_name"], self.router_engine)
+                        enrichment_data.update(layer1)
+                        sources_tried.append("layer1_ollama")
+                        self._log_case_event(lead_id, "enrichment", f"Layer 1 completed: {list(layer1.keys())}")
+                except Exception as e:
+                    logger.warning(f"Layer 1 failed for lead {lead_id}: {e}")
+
+            # ── Layer 2: Free APIs (Google Maps, Clearbit) ──
+            if domain or lead_dict.get("business_name"):
+                try:
+                    from core.enrichment_layers.layer2_free_apis import enrich_layer2_sync
+                    gmaps_key = ""
+                    try:
+                        from database.schema import Settings
+                        with self.db_manager.session_scope() as session:
+                            settings = session.query(Settings).first()
+                            if settings and settings.gmaps_api_key_enc:
+                                gmaps_key = settings.gmaps_api_key_enc  # decrypt if needed
+                    except Exception:
+                        pass
+                    layer2 = enrich_layer2_sync(
+                        domain, lead_dict["business_name"], lead_dict.get("city", ""),
+                        gmaps_api_key=gmaps_key, db_manager=self.db_manager,
+                    )
+                    enrichment_data.update(layer2)
+                    sources_tried.append("layer2_free_apis")
+                    if layer2.get("gmaps_phone") and not lead_dict.get("phone"):
+                        with self.db_manager.session_scope() as session:
+                            db_lead = session.query(Lead).filter_by(id=lead_id).first()
+                            if db_lead:
+                                db_lead.phone = layer2["gmaps_phone"]
+                    self._log_case_event(lead_id, "enrichment", f"Layer 2 completed: {list(layer2.keys())}")
+                except Exception as e:
+                    logger.warning(f"Layer 2 failed for lead {lead_id}: {e}")
+
+            # ── Local enrichment (GMaps scrape, domain age, social, screenshot) ──
             local_result = self.enrich_lead(lead_dict)
+            enrichment_data.update({k: v for k, v in local_result.items() if v is not None})
             sources_tried.append("local")
-            self.save_enrichment(lead_id, local_result)
 
-            # Step 2: Apollo (if no email and engine available)
+            # Remove internal keys before saving
+            enrichment_data.pop("_homepage_html", None)
+
+            # Save enrichment data so far
+            self.save_enrichment(lead_id, enrichment_data)
+
+            # ── Layer 3: Paid APIs — Apollo then Hunter (only if no email) ──
             if not email_found and self.apollo_engine:
                 try:
                     apollo_result = self.apollo_engine.search_people(
-                        niche=lead_dict["business_name"],
-                        city=lead_dict["city"],
-                        limit=1,
+                        niche=lead_dict["business_name"], city=lead_dict["city"], limit=1,
                     )
                     sources_tried.append("apollo")
                     if apollo_result.get("success") and apollo_result.get("data"):
@@ -430,76 +506,107 @@ class EnrichmentEngine:
                                     if people[0].get("phone") and not db_lead.phone:
                                         db_lead.phone = people[0]["phone"]
                             email_found = True
-                            logger.info(f"Waterfall: Apollo found email for lead {lead_id}")
+                            enrichment_data["email_source"] = "apollo"
+                            self._log_case_event(lead_id, "enrichment", "Layer 3: Apollo found email")
                 except Exception as e:
-                    logger.warning(f"Waterfall Apollo step failed for lead {lead_id}: {e}")
+                    logger.warning(f"Layer 3 Apollo failed for lead {lead_id}: {e}")
 
-            # Step 3: Hunter (if still no email, has domain, and engine available)
-            if not email_found and self.hunter_engine and lead_dict.get("website_url"):
+            if not email_found and self.hunter_engine and domain:
                 try:
-                    domain = re.sub(r'^https?://', '', lead_dict["website_url"]).split('/')[0].strip()
-                    if domain:
-                        hunter_result = self.hunter_engine.domain_search(domain)
-                        sources_tried.append("hunter")
-                        if hunter_result.get("success") and hunter_result.get("data"):
-                            emails = hunter_result["data"]
-                            if emails:
-                                best = emails[0]
-                                with self.db_manager.session_scope() as session:
-                                    db_lead = session.query(Lead).filter_by(id=lead_id).first()
-                                    if db_lead:
-                                        db_lead.email = best.get("email", "")
-                                email_found = True
-                                logger.info(f"Waterfall: Hunter found email for lead {lead_id}")
+                    hunter_result = self.hunter_engine.domain_search(domain)
+                    sources_tried.append("hunter")
+                    if hunter_result.get("success") and hunter_result.get("data"):
+                        emails = hunter_result["data"]
+                        if emails:
+                            with self.db_manager.session_scope() as session:
+                                db_lead = session.query(Lead).filter_by(id=lead_id).first()
+                                if db_lead:
+                                    db_lead.email = emails[0].get("email", "")
+                            email_found = True
+                            enrichment_data["email_source"] = "hunter"
+                            self._log_case_event(lead_id, "enrichment", "Layer 3: Hunter found email")
                 except Exception as e:
-                    logger.warning(f"Waterfall Hunter step failed for lead {lead_id}: {e}")
+                    logger.warning(f"Layer 3 Hunter failed for lead {lead_id}: {e}")
+
+            # ── Calculate completeness score ──
+            from core.enrichment_scoring import calculate_completeness
+            score_input = dict(enrichment_data)
+            with self.db_manager.session_scope() as session:
+                db_lead = session.query(Lead).filter_by(id=lead_id).first()
+                if db_lead:
+                    score_input["email"] = db_lead.email or ""
+                    score_input["phone"] = db_lead.phone or ""
+            completeness = calculate_completeness(score_input)
+
+            # ── Layer 4: Deep crawl (only if score < threshold) ──
+            from config import ENRICHMENT_COMPLETENESS_THRESHOLD
+            if completeness < ENRICHMENT_COMPLETENESS_THRESHOLD and domain:
+                try:
+                    from core.enrichment_layers.layer4_deep_crawl import enrich_layer4_sync
+                    layer4 = enrich_layer4_sync(domain, completeness, self.router_engine)
+                    enrichment_data.update(layer4)
+                    sources_tried.append("layer4_deep_crawl")
+                    score_input.update(layer4)
+                    completeness = calculate_completeness(score_input)
+                    self._log_case_event(lead_id, "enrichment", f"Layer 4 deep crawl completed, score now {completeness}")
+                except Exception as e:
+                    logger.warning(f"Layer 4 failed for lead {lead_id}: {e}")
+
+            # ── Persist completeness score ──
+            with self.db_manager.session_scope() as session:
+                db_lead = session.query(Lead).filter_by(id=lead_id).first()
+                if db_lead:
+                    db_lead.data_completeness_score = completeness
+
+            # Save final enrichment data with data_sources
+            enrichment_data["data_sources"] = json.dumps(sources_tried)
+            self.save_enrichment(lead_id, enrichment_data)
 
             # ─── Post-enrichment hooks ───
-            # Lifecycle: transition to "researched"
             if self.lead_lifecycle_engine:
                 try:
                     self.lead_lifecycle_engine.transition(
-                        lead_id=lead_id,
-                        to_state="researched",
+                        lead_id=lead_id, to_state="researched",
                         triggered_by="enrichment_engine",
-                        metadata={"sources": sources_tried, "email_found": email_found},
+                        metadata={"sources": sources_tried, "email_found": email_found, "completeness": completeness},
                     )
-                except Exception as e:
-                    logger.debug(f"Lifecycle transition failed: {e}")
+                except Exception:
+                    pass
 
-            # Knowledge graph: populate company node with enrichment data
             if self.knowledge_graph_engine:
                 try:
                     node_key = lead_dict.get("business_name", "").lower().replace(" ", "_")
                     if node_key:
                         self.knowledge_graph_engine.upsert_node(
-                            node_type="company",
-                            node_key=node_key,
+                            node_type="company", node_key=node_key,
                             display_name=lead_dict.get("business_name", ""),
                             properties={
                                 "city": lead_dict.get("city", ""),
-                                "rating": local_result.get("google_maps_rating"),
-                                "reviews": local_result.get("google_maps_review_count"),
-                                "domain_age": local_result.get("domain_age_years"),
-                                "has_facebook": local_result.get("has_facebook"),
-                                "has_instagram": local_result.get("has_instagram"),
-                                "has_linkedin": local_result.get("has_linkedin"),
+                                "rating": enrichment_data.get("google_maps_rating"),
+                                "reviews": enrichment_data.get("google_maps_review_count"),
+                                "domain_age": enrichment_data.get("domain_age_years"),
+                                "completeness": completeness,
                             },
                         )
-                except Exception as e:
-                    logger.debug(f"Knowledge graph hook failed: {e}")
+                except Exception:
+                    pass
 
             return {
-                "success": True,
-                "lead_id": lead_id,
-                "email_found": email_found,
-                "sources_tried": sources_tried,
-                "local_enrichment": local_result,
+                "success": True, "lead_id": lead_id, "email_found": email_found,
+                "sources_tried": sources_tried, "completeness_score": completeness,
             }
 
         except Exception as e:
             logger.error(f"Waterfall enrichment failed for lead {lead_id}: {e}")
             return {"success": False, "error": str(e)}
+
+    def _log_case_event(self, lead_id: int, event_type: str, description: str):
+        """Log an enrichment event to case notes if case_engine is available."""
+        if self.case_engine:
+            try:
+                self.case_engine.add_note(lead_id=lead_id, note_type=event_type, content=description, created_by="Enricher")
+            except Exception:
+                pass
 
     def waterfall_enrich_campaign(self, campaign_id: int) -> dict:
         """

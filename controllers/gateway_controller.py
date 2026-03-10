@@ -53,7 +53,24 @@ class GatewayController(QObject):
             return
 
         try:
-            adapter = adapter_cls(bot_token, self._on_inbound_message)
+            # Pass db_manager and gateway_engine for server/notification integration
+            kwargs = {"bot_token": bot_token, "on_message_callback": self._on_inbound_message}
+            if platform == "discord":
+                kwargs["db_manager"] = self.gateway_engine.db_manager
+            elif platform == "telegram":
+                kwargs["db_manager"] = self.gateway_engine.db_manager
+                kwargs["gateway_engine"] = self.gateway_engine
+                # Get owner chat ID from settings
+                try:
+                    from database.schema import Settings
+                    with self.gateway_engine.db_manager.session_scope() as session:
+                        settings = session.query(Settings).first()
+                        if settings and settings.telegram_owner_chat_id:
+                            kwargs["owner_chat_id"] = settings.telegram_owner_chat_id
+                except Exception:
+                    pass
+
+            adapter = adapter_cls(**kwargs)
             adapter.start()
             self._adapters[platform] = adapter
 

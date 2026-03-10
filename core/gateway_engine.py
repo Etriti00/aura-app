@@ -10,6 +10,7 @@ from typing import Optional
 from database.db_manager import DatabaseManager
 from database.schema import GatewayConfig, AuthorizedUser
 from core.key_vault import KeyVault
+from core.response_formatter import ResponseFormatter, from_intent_result, Platform
 from config import GATEWAY_MAX_MESSAGE_LENGTH
 from utils.logger import get_logger
 
@@ -35,6 +36,7 @@ class GatewayEngine:
         self.engines = engines_dict or {}
         self._adapters = {}  # platform → adapter instance (set by controller)
         self.command_history = None  # injected by main_window
+        self._formatter = ResponseFormatter()
 
     # ─── Inbound message handling ──────────────────────────────────
 
@@ -124,71 +126,21 @@ class GatewayEngine:
 
     def _build_response_text(self, intent: str, result: dict,
                               fallback: str) -> str:
-        """Build a human-readable response from an execution result."""
-        if not result.get("success"):
-            error = result.get("error", "Unknown error")
-            return f"Action failed: {error}"
+        """Build a platform-appropriate response from an execution result."""
+        structured = from_intent_result(intent, result, fallback)
+        return self._formatter.render(structured, Platform.DISCORD)
 
-        data = result.get("data", {})
-
-        if intent == "show_stats":
-            if isinstance(data, dict):
-                lines = []
-                for k, v in data.items():
-                    if not k.startswith("_"):
-                        lines.append(f"{k}: {v}")
-                return "\n".join(lines) if lines else fallback
-            return str(data)
-
-        if intent == "start_campaign":
-            return (
-                f"Campaign created: {data.get('niche', '')} in "
-                f"{data.get('city', '')} (ID: {data.get('campaign_id', '')})"
-            )
-
-        if intent == "crm_sync":
-            return (
-                f"CRM sync complete: {data.get('synced', 0)} synced, "
-                f"{data.get('failed', 0)} failed"
-            )
-
-        if intent == "enrich_list":
-            return (
-                f"Enrichment complete: {data.get('emails_found', 0)} emails "
-                f"found out of {data.get('total_attempted', 0)} leads"
-            )
-
-        if intent == "inbox_triage":
-            return (
-                f"Triage complete: {data.get('total_emails', 0)} emails, "
-                f"{data.get('replies', 0)} replies, "
-                f"{data.get('bounces', 0)} bounces"
-            )
-
-        if intent == "export_report":
-            return f"Report ready for {data.get('campaign_name', 'campaign')}"
-
-        if intent == "set_budget":
-            return fallback or "Budget updated."
-
-        if intent == "show_budget":
-            if isinstance(data, dict):
-                return (
-                    f"Budget: ${data.get('budget_usd', 0):.2f} | "
-                    f"Spent: ${data.get('spent_usd', 0):.2f} | "
-                    f"Tier: {data.get('current_max_tier', 'N/A')} | "
-                    f"Status: {data.get('status', 'N/A')}"
-                )
-
-        # Fallback: use the AI-generated response text
-        if fallback:
-            return fallback
-
-        # Last resort: stringify data
-        if isinstance(data, dict) and data.get("answer"):
-            return data["answer"]
-
-        return "Done."
+    def _build_response_for_platform(self, intent: str, result: dict,
+                                      fallback: str, platform: str) -> str:
+        """Build a platform-specific response."""
+        structured = from_intent_result(intent, result, fallback)
+        platform_map = {
+            "telegram": Platform.TELEGRAM,
+            "discord": Platform.DISCORD,
+            "cli": Platform.CLI,
+        }
+        target = platform_map.get(platform, Platform.DISCORD)
+        return self._formatter.render(structured, target)
 
     # ─── Authorization ─────────────────────────────────────────────
 

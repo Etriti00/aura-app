@@ -17,11 +17,16 @@ logger = get_logger("discord_adapter")
 class DiscordAdapter(BaseAdapter):
     """Discord bot adapter using WebSocket gateway connection."""
 
-    def __init__(self, bot_token: str, on_message_callback: Callable):
+    def __init__(self, bot_token: str, on_message_callback: Callable,
+                 db_manager=None):
         super().__init__(bot_token, on_message_callback)
         self._client = None
+        self._tree = None
         self._thread: Optional[threading.Thread] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._db_manager = db_manager
+        self._server_manager = None
+        self.notification_router = None
 
     @property
     def platform(self) -> str:
@@ -42,6 +47,7 @@ class DiscordAdapter(BaseAdapter):
         """Run the Discord bot in a dedicated event loop."""
         try:
             import discord
+            from discord import app_commands
 
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
@@ -49,31 +55,55 @@ class DiscordAdapter(BaseAdapter):
             intents = discord.Intents.default()
             intents.message_content = True
             intents.dm_messages = True
+            intents.guilds = True
 
             self._client = discord.Client(intents=intents)
+            self._tree = app_commands.CommandTree(self._client)
+
+            # Initialize server manager and notification router
+            if self._db_manager:
+                try:
+                    from core.gateway_adapters.discord_server import DiscordServerManager
+                    from core.gateway_adapters.discord_notifications import DiscordNotificationRouter
+                    self._server_manager = DiscordServerManager(self._db_manager)
+                    self.notification_router = DiscordNotificationRouter(self._server_manager, self)
+                except ImportError as e:
+                    logger.debug(f"Discord server/notifications not available: {e}")
+
+            # Register slash commands
+            self._register_slash_commands()
 
             @self._client.event
             async def on_ready():
                 logger.info(f"Discord bot connected as {self._client.user}")
+                # Ensure Aura channels exist in all guilds
+                if self._server_manager:
+                    for guild in self._client.guilds:
+                        try:
+                            await self._server_manager.ensure_aura_server(guild, self._client.user)
+                        except Exception as e:
+                            logger.warning(f"Failed to setup guild {guild.name}: {e}")
+                # Sync slash commands
+                try:
+                    await self._tree.sync()
+                    logger.info("Discord slash commands synced")
+                except Exception as e:
+                    logger.warning(f"Slash command sync failed: {e}")
 
             @self._client.event
             async def on_message(message):
-                # Only process DMs, ignore own messages
                 if message.author == self._client.user:
                     return
-                if not isinstance(message.channel, discord.DMChannel):
-                    return
-
-                user_id = str(message.author.id)
-                text = message.content.strip()
-                if not text:
-                    return
-
-                logger.debug(f"Discord DM from {user_id}: {text[:50]}")
-                try:
-                    self.on_message("discord", user_id, text)
-                except Exception as e:
-                    logger.error(f"Callback error: {e}")
+                if isinstance(message.channel, discord.DMChannel):
+                    user_id = str(message.author.id)
+                    text = message.content.strip()
+                    if not text:
+                        return
+                    logger.debug(f"Discord DM from {user_id}: {text[:50]}")
+                    try:
+                        self.on_message("discord", user_id, text)
+                    except Exception as e:
+                        logger.error(f"Callback error: {e}")
 
             self._loop.run_until_complete(self._client.start(self.bot_token))
 
@@ -85,6 +115,42 @@ class DiscordAdapter(BaseAdapter):
         except Exception as e:
             logger.error(f"Discord bot error: {e}")
             self._running = False
+
+    def _register_slash_commands(self):
+        """Register /aura slash commands."""
+        if not self._tree:
+            return
+        try:
+            import discord
+            from discord import app_commands
+
+            @self._tree.command(name="hunt", description="Start a lead hunting campaign")
+            async def slash_hunt(interaction: discord.Interaction, niche: str, city: str, limit: int = 50):
+                await interaction.response.defer()
+                self.on_message("discord", str(interaction.user.id), f"hunt {niche} {city} -n {limit}")
+                await interaction.followup.send("Campaign started. Check #leads for updates.")
+
+            @self._tree.command(name="stats", description="Show campaign statistics")
+            async def slash_stats(interaction: discord.Interaction, campaign_id: int = None):
+                await interaction.response.defer()
+                cmd = f"stats {campaign_id}" if campaign_id else "stats"
+                self.on_message("discord", str(interaction.user.id), cmd)
+                await interaction.followup.send("Fetching stats...")
+
+            @self._tree.command(name="approve", description="Approve a pending invoice")
+            async def slash_approve(interaction: discord.Interaction, invoice_id: int):
+                await interaction.response.defer()
+                self.on_message("discord", str(interaction.user.id), f"invoice approve {invoice_id}")
+                await interaction.followup.send(f"Invoice #{invoice_id} approved.")
+
+            @self._tree.command(name="fleet", description="Show fleet status")
+            async def slash_fleet(interaction: discord.Interaction):
+                await interaction.response.defer()
+                self.on_message("discord", str(interaction.user.id), "fleet status")
+                await interaction.followup.send("Fetching fleet status...")
+
+        except Exception as e:
+            logger.warning(f"Failed to register slash commands: {e}")
 
     def stop(self):
         """Stop the Discord bot and clean up."""

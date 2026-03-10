@@ -223,3 +223,14 @@ class ReportEngine:
         except Exception as e:
             logger.error(f"All-campaigns CSV export failed: {e}")
             return {"success": False, "error": str(e)}
+
+    def export_campaign_xlsx(self, campaign_id: int, output_path: str) -> dict:
+        """Export campaign to Excel via ExcelExportEngine."""
+        try:
+            from core.excel_export_engine import ExcelExportEngine
+            engine = ExcelExportEngine(self.db_manager)
+            result_path = engine.export_campaign_xlsx(campaign_id, output_path)
+            return {"success": True, "data": {"path": result_path}}
+        except Exception as e:
+            logger.error(f"Campaign XLSX export failed: {e}")
+            return {"success": False, "error": str(e)}

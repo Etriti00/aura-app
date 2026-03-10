@@ -16,11 +16,17 @@ logger = get_logger("telegram_adapter")
 class TelegramAdapter(BaseAdapter):
     """Telegram Bot API adapter using long-polling."""
 
-    def __init__(self, bot_token: str, on_message_callback: Callable):
+    def __init__(self, bot_token: str, on_message_callback: Callable,
+                 db_manager=None, gateway_engine=None, owner_chat_id: str = ""):
         super().__init__(bot_token, on_message_callback)
         self._app = None
         self._thread: Optional[threading.Thread] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._db_manager = db_manager
+        self._gateway_engine = gateway_engine
+        self._owner_chat_id = owner_chat_id
+        self.notification_router = None
+        self._cmd_handler = None
 
     @property
     def platform(self) -> str:
@@ -40,7 +46,7 @@ class TelegramAdapter(BaseAdapter):
     def _run_polling(self):
         """Run the Telegram bot polling loop in a dedicated event loop."""
         try:
-            from telegram.ext import ApplicationBuilder, MessageHandler, filters
+            from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, CallbackQueryHandler, filters
 
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
@@ -50,6 +56,44 @@ class TelegramAdapter(BaseAdapter):
                 .token(self.bot_token)
                 .build()
             )
+
+            # Initialize command handler and notification router
+            try:
+                from core.gateway_adapters.telegram_commands import TelegramCommandRouter
+                from core.gateway_adapters.telegram_notifications import TelegramNotificationSender
+                from core.response_formatter import ResponseFormatter
+                self._cmd_handler = TelegramCommandRouter(
+                    gateway_engine=self._gateway_engine,
+                    response_formatter=ResponseFormatter(),
+                )
+                self.notification_router = TelegramNotificationSender(
+                    adapter=self,
+                    owner_chat_id=self._owner_chat_id,
+                )
+            except ImportError as e:
+                logger.debug(f"Telegram commands/notifications not available: {e}")
+
+            # Register command handlers
+            if self._cmd_handler:
+                for cmd_def in self._cmd_handler.get_command_list():
+                    name = cmd_def["command"]
+
+                    async def _handle_cmd(update, context, cmd_name=name):
+                        args = " ".join(context.args) if context.args else ""
+                        result = self._cmd_handler.handle_command(cmd_name, args, str(update.effective_chat.id))
+                        text = result.get("text", "Done")
+                        await update.message.reply_text(text, parse_mode="HTML")
+
+                    self._app.add_handler(CommandHandler(name, _handle_cmd))
+
+                # Callback query handler for inline keyboards
+                async def _handle_callback(update, context):
+                    query = update.callback_query
+                    await query.answer()
+                    result = self._cmd_handler.handle_callback(query.data, str(query.message.chat_id))
+                    await query.edit_message_text(result.get("text", "Done"), parse_mode="HTML")
+
+                self._app.add_handler(CallbackQueryHandler(_handle_callback))
 
             # Handle all text messages (private DMs)
             async def _handle_message(update, context):

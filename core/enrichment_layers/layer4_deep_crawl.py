@@ -17,6 +17,70 @@ _TARGET_PATHS = ["/about", "/contact", "/team", "/services", "/pricing",
                  "/about-us", "/our-team", "/our-services"]
 
 
+def enrich_layer4_sync(domain: str, completeness_score: float,
+                       router_engine=None) -> dict:
+    """Synchronous deep crawl using sync Playwright."""
+    if completeness_score >= ENRICHMENT_COMPLETENESS_THRESHOLD:
+        return {}
+
+    result = {}
+    page_contents = {}
+    base_url = f"https://{domain}"
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                page = browser.new_page(viewport={"width": 1280, "height": 800})
+                for path in _TARGET_PATHS:
+                    url = f"{base_url}{path}"
+                    try:
+                        resp = page.goto(url, wait_until="domcontentloaded", timeout=10000)
+                        if resp and resp.status == 200:
+                            text = page.evaluate("() => document.body.innerText")
+                            if text and len(text.strip()) > 50:
+                                page_contents[path] = text[:5000]
+                    except Exception:
+                        continue
+            finally:
+                browser.close()
+    except ImportError:
+        logger.debug("Playwright not available for Layer 4 deep crawl")
+        return result
+    except Exception as e:
+        logger.debug(f"Deep crawl browser failed: {e}")
+
+    if not page_contents:
+        return result
+
+    # Extract emails
+    all_text = "\n".join(page_contents.values())
+    emails = _extract_emails(all_text)
+    if emails:
+        result["email_source"] = f"deep_crawl:{','.join(page_contents.keys())}"
+
+    # LLM synthesis
+    if router_engine:
+        combined = ""
+        for path, content in page_contents.items():
+            combined += f"\n--- Page: {path} ---\n{content[:2000]}\n"
+        prompt = (
+            f"Summarize this business ({domain}) based on these pages:\n"
+            f"{combined[:6000]}\n\n"
+            f"Provide: 1) What the business does 2) Key decision makers 3) Services 4) Pain points"
+        )
+        try:
+            response = router_engine.route("summarize_webpage", prompt)
+            if response and response.get("success"):
+                result["deep_crawl_summary"] = (response.get("data", "") or response.get("result", ""))[:3000]
+        except Exception as e:
+            logger.debug(f"Layer 4 synthesis failed: {e}")
+
+    result["data_sources"] = json.dumps([f"crawl:{p}" for p in page_contents.keys()])
+    return result
+
+
 async def enrich_layer4(domain: str, completeness_score: float,
                         browser_page=None, router_engine=None) -> dict:
     """Deep crawl key pages and synthesize with LLM.

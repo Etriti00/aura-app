@@ -501,6 +501,20 @@ class MainWindow(QMainWindow):
         # Wire into enrichment engine
         self.enrichment_engine.lead_lifecycle_engine = self.lead_lifecycle_engine
         self.enrichment_engine.knowledge_graph_engine = self.knowledge_graph_engine
+        self.enrichment_engine.router_engine = self.router_engine
+        self.enrichment_engine.case_engine = getattr(self, 'case_engine', None)
+
+        # Wire deal stage callback for pricing when lead reaches negotiating/closed_won
+        def _on_deal_stage(lead_id, from_state, to_state):
+            if to_state in ("negotiating", "closed_won"):
+                try:
+                    if hasattr(self, 'fleet_ctrl') and self.fleet_ctrl:
+                        self.fleet_ctrl.dispatch_task("evaluate_pricing", {"lead_id": lead_id})
+                except Exception:
+                    pass
+
+        self.lead_lifecycle_engine.register_on_enter("negotiating", lambda lid, fs, ts: _on_deal_stage(lid, fs, ts))
+        self.lead_lifecycle_engine.register_on_enter("closed_won", lambda lid, fs, ts: _on_deal_stage(lid, fs, ts))
 
         # Wire AI + lifecycle into hunter controller for auto-qualification
         self.hunter_ctrl.ai_engine = self.outreach_ctrl.ai_engine
@@ -532,9 +546,10 @@ class MainWindow(QMainWindow):
         self.agent_engine.case_engine = self.case_engine
         self.agent_engine.subagent_engine = self.subagent_engine
 
-        # Inject case_engine into lifecycle + reflection for auto-note logging
+        # Inject case_engine into lifecycle + reflection + enrichment for auto-note logging
         self.lead_lifecycle_engine.case_engine = self.case_engine
         self.reflection_engine.case_engine = self.case_engine
+        self.enrichment_engine.case_engine = self.case_engine
 
         # Register new engines for orchestrator
         engines_dict["reflection"] = self.reflection_engine
