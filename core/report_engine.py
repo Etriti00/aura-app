@@ -224,6 +224,23 @@ class ReportEngine:
             logger.error(f"All-campaigns CSV export failed: {e}")
             return {"success": False, "error": str(e)}
 
+    def export_all_campaigns_csv(self, output_path: str) -> dict:
+        """Alias for export_all_campaigns_summary_csv."""
+        return self.export_all_campaigns_summary_csv(output_path)
+
+    def export_all_campaigns_pdf(self, output_path: str) -> dict:
+        """Export PDF for the most recent campaign (dashboard shortcut)."""
+        try:
+            with self.db_manager.session_scope() as session:
+                campaign = session.query(Campaign).order_by(Campaign.created_at.desc()).first()
+                if not campaign:
+                    return {"success": False, "error": "No campaigns found"}
+                campaign_id = campaign.id
+            return self.export_campaign_pdf(campaign_id, output_path)
+        except Exception as e:
+            logger.error(f"All-campaigns PDF export failed: {e}")
+            return {"success": False, "error": str(e)}
+
     def export_campaign_xlsx(self, campaign_id: int, output_path: str) -> dict:
         """Export campaign to Excel via ExcelExportEngine."""
         try:

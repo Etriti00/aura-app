@@ -353,12 +353,10 @@ class SetupWizard(QDialog):
         self.tier3_combo = QComboBox()
         self.tier3_combo.addItems([
             "anthropic/claude-sonnet-4-6",
-            "anthropic/claude-sonnet-4-5",
             "openai/gpt-4.1",
             "openai/gpt-4o",
             "gemini/gemini-2.5-pro-preview",
             "gemini/gemini-1.5-pro-latest",
-            "openrouter/anthropic/claude-sonnet-4-5",
             "openrouter/openai/gpt-4.1",
             "openrouter/auto",
             "ollama/llama3:70b",

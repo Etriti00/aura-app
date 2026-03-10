@@ -598,6 +598,19 @@ class MainWindow(QMainWindow):
         self.fleet_ctrl.voice_engine = self.voice_engine
         self.fleet_ctrl.autonomy_ctrl = self.autonomy_controller
 
+        # ─── Pricing + Invoice Approval Engines ──────────────
+        from core.pricing_engine import PricingEngine
+        from core.invoice_approval_engine import InvoiceApprovalEngine
+
+        self.pricing_engine = PricingEngine(self.db_manager, router_engine=self.router_engine)
+        self.invoice_approval_engine = InvoiceApprovalEngine(
+            self.db_manager,
+            gateway_engine=self.gateway_engine,
+            pricing_engine=self.pricing_engine,
+        )
+
+        engines_dict["pricing"] = self.pricing_engine
+        engines_dict["invoice_approval"] = self.invoice_approval_engine
         engines_dict["research"] = self.research_engine
         engines_dict["voice"] = self.voice_engine
         engines_dict["hunter_ctrl"] = self.hunter_ctrl
@@ -1537,7 +1550,7 @@ class MainWindow(QMainWindow):
                 self, "Export PDF Report", "aura_report.pdf", "PDF Files (*.pdf)"
             )
             if file_path:
-                result = self.report_engine.export_campaign_pdf(file_path)
+                result = self.report_engine.export_all_campaigns_pdf(file_path)
                 if result.get("success"):
                     show_toast(self, "PDF report exported!", "success")
                 else:

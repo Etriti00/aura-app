@@ -154,6 +154,8 @@ def migrate_schema(db_path):
     _add_col("enrichment_data", "industry_tag", "TEXT", "NULL")
     _add_col("enrichment_data", "linkedin_url", "TEXT", "NULL")
 
+    # ─── v2.0: Layer 3 (Apollo/Hunter): writes directly to leads.email — no EnrichmentData columns needed
+
     # ─── v2.0: EnrichmentData — Layer 4 (Deep crawl) ────────────────
     _add_col("enrichment_data", "email_source", "TEXT", "NULL")
     _add_col("enrichment_data", "data_sources", "TEXT", "'[]'")

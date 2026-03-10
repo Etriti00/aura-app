@@ -311,12 +311,10 @@ class SettingsPage(QWidget):
         self.tier3_combo = QComboBox()
         self.tier3_combo.addItems([
             "anthropic/claude-sonnet-4-6",
-            "anthropic/claude-sonnet-4-5",
             "openai/gpt-4.1",
             "openai/gpt-4o",
             "gemini/gemini-2.5-pro-preview",
             "gemini/gemini-1.5-pro-latest",
-            "openrouter/anthropic/claude-sonnet-4-5",
             "openrouter/openai/gpt-4.1",
             "openrouter/auto",
             "ollama/llama3:70b",
@@ -332,14 +330,12 @@ class SettingsPage(QWidget):
         self.chat_model_combo = QComboBox()
         self.chat_model_combo.addItems([
             "anthropic/claude-sonnet-4-6",
-            "anthropic/claude-sonnet-4-5",
             "anthropic/claude-haiku-4-5",
             "openai/gpt-4.1",
             "openai/gpt-4.1-mini",
             "openai/gpt-4o",
             "gemini/gemini-2.5-pro-preview",
             "gemini/gemini-2.0-flash",
-            "openrouter/anthropic/claude-sonnet-4-5",
             "openrouter/openai/gpt-4.1",
             "openrouter/auto",
         ])

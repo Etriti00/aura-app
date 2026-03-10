@@ -108,9 +108,8 @@ class RouterEngine:
                 if settings:
                     if settings.routing_haiku_model:
                         self._haiku_model = settings.routing_haiku_model
-                    if settings.tier2_model:
-                        # Tier 2 is the "cheap" model — map to haiku slot
-                        pass  # Keep haiku separate from the tier2/tier3 in ai_engine
+                    if settings.tier2_model and not settings.routing_haiku_model:
+                        self._haiku_model = settings.tier2_model
                     if settings.tier3_model:
                         self._sonnet_model = settings.tier3_model
         except Exception as e:

@@ -180,12 +180,12 @@ async def _synthesize(pages: dict, domain: str, router_engine) -> str:
     )
 
     try:
-        response = await router_engine.route_task(
-            task_type="summarize_webpage",
-            payload={"prompt": prompt},
+        import asyncio
+        response = await asyncio.to_thread(
+            router_engine.route, "summarize_webpage", prompt
         )
         if response and response.get("success"):
-            return response.get("result", "")[:3000]
+            return (response.get("data", "") or response.get("result", ""))[:3000]
     except Exception as e:
         logger.debug(f"Layer 4 synthesis failed: {e}")
 

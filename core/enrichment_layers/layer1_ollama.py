@@ -46,12 +46,12 @@ async def enrich_layer1(html_content: str, business_name: str,
     )
 
     try:
-        response = await router_engine.route_task(
-            task_type="extract_structured_data",
-            payload={"prompt": prompt},
+        import asyncio
+        response = await asyncio.to_thread(
+            router_engine.route, "extract_structured_data", prompt
         )
         if response and response.get("success"):
-            text = response.get("result", "")
+            text = response.get("data", "") or response.get("result", "")
             return _parse_extraction(text)
     except Exception as e:
         logger.debug(f"Layer 1 LLM extraction failed: {e}")
