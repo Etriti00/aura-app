@@ -8,6 +8,7 @@ Modal dialog that guides the user through initial setup:
 5. Done
 """
 
+import os
 import sys
 
 from PySide6.QtWidgets import (
@@ -176,8 +177,11 @@ class SetupWizard(QDialog):
         self._process.finished.connect(self._on_browser_install_finished)
         self._process.readyReadStandardOutput.connect(self._on_browser_output)
 
-        # Run: Aura.exe --install-browser (works for both script and frozen)
-        self._process.start(sys.executable, ["--install-browser"])
+        # Run: Aura.exe --install-browser (frozen) or python main.py --install-browser (dev)
+        if getattr(sys, 'frozen', False):
+            self._process.start(sys.executable, ["--install-browser"])
+        else:
+            self._process.start(sys.executable, [os.path.abspath(sys.argv[0]), "--install-browser"])
 
     def _on_browser_output(self):
         if self._process:
@@ -283,6 +287,12 @@ class SetupWizard(QDialog):
         anthropic_key = self.anthropic_input.get_value()
         openai_key = self.openai_input.get_value()
         openrouter_key = self.openrouter_input.get_value()
+
+        if not any([gemini_key, anthropic_key, openai_key, openrouter_key]):
+            from ui.components.toast_notification import show_toast
+            show_toast(self, "Please enter at least one API key, or click 'Skip Setup'.",
+                       toast_type="warning", duration=4000)
+            return
 
         with self.db_manager.session_scope() as session:
             from database.schema import Settings

@@ -38,6 +38,8 @@ class SettingsPage(QWidget):
     auth_mode_changed = Signal(str, str)
     autonomy_level_changed = Signal(str)
     save_business_requested = Signal(dict)
+    save_kb_entry_requested = Signal(str, str, str)   # category, key, value
+    delete_kb_entry_requested = Signal(str, str)       # category, key
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -71,6 +73,7 @@ class SettingsPage(QWidget):
         self.tabs.addTab(self._build_email_tab(), get_icon("tab_email_delivery", "dark"), "Email && Delivery")
         self.tabs.addTab(self._build_features_tab(), get_icon("tab_features", "dark"), "Features")
         self.tabs.addTab(self._build_business_tab(), get_icon("tab_business", "dark"), "Business && Invoicing")
+        self.tabs.addTab(self._build_knowledge_base_tab(), get_icon("tab_knowledge_base", "dark"), "Knowledge Base")
         self.tabs.addTab(self._build_appearance_tab(), get_icon("tab_appearance", "dark"), "Appearance")
 
     # ─── Tab Builders ─────────────────────────────────────────────────
@@ -878,7 +881,144 @@ class SettingsPage(QWidget):
         layout.addStretch()
         return self._make_scroll_tab(content)
 
-    # ── Tab 6: Appearance ─────────────────────────────────────────────
+    # ── Tab 6: Knowledge Base ──────────────────────────────────────────
+
+    def _build_knowledge_base_tab(self) -> QScrollArea:
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(0, 16, 0, 16)
+        layout.setSpacing(20)
+
+        # ─── Product Definition ──────────────────────────
+        prod_card = GlassCard()
+        pl = prod_card.get_layout()
+        self._icon_header("tab_knowledge_base", "Product / Service Definition", pl)
+
+        prod_hint = QLabel(
+            "Define what you sell. Agents use this to personalize outreach."
+        )
+        prod_hint.setObjectName("mutedText")
+        prod_hint.setWordWrap(True)
+        pl.addWidget(prod_hint)
+
+        self.kb_product_name = QLineEdit()
+        self.kb_product_name.setPlaceholderText("Product/service name")
+        pl.addWidget(self._field_label("Product Name"))
+        pl.addWidget(self.kb_product_name)
+
+        self.kb_product_description = QTextEdit()
+        self.kb_product_description.setPlaceholderText(
+            "Describe your product/service in 2-3 sentences..."
+        )
+        self.kb_product_description.setMaximumHeight(80)
+        pl.addWidget(self._field_label("Description"))
+        pl.addWidget(self.kb_product_description)
+
+        self.kb_product_value_prop = QLineEdit()
+        self.kb_product_value_prop.setPlaceholderText("Main value proposition")
+        pl.addWidget(self._field_label("Value Proposition"))
+        pl.addWidget(self.kb_product_value_prop)
+
+        self.kb_product_price_range = QLineEdit()
+        self.kb_product_price_range.setPlaceholderText("e.g. $500-$5,000/mo")
+        pl.addWidget(self._field_label("Price Range"))
+        pl.addWidget(self.kb_product_price_range)
+
+        save_prod_btn = ModernButton("Save Product Info", "primary")
+        save_prod_btn.setFixedHeight(36)
+        save_prod_btn.clicked.connect(self._on_save_kb_product)
+        pl.addWidget(save_prod_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(prod_card)
+
+        # ─── ICP Definition ──────────────────────────────
+        icp_card = GlassCard()
+        il = icp_card.get_layout()
+        self._icon_header("tab_knowledge_base", "Ideal Customer Profile (ICP)", il)
+
+        icp_hint = QLabel(
+            "Define your ideal customer. Used for lead scoring and qualification."
+        )
+        icp_hint.setObjectName("mutedText")
+        icp_hint.setWordWrap(True)
+        il.addWidget(icp_hint)
+
+        self.kb_icp_industry = QLineEdit()
+        self.kb_icp_industry.setPlaceholderText("e.g. SaaS, E-commerce, Healthcare")
+        il.addWidget(self._field_label("Target Industries"))
+        il.addWidget(self.kb_icp_industry)
+
+        self.kb_icp_company_size = QLineEdit()
+        self.kb_icp_company_size.setPlaceholderText("e.g. 10-200 employees")
+        il.addWidget(self._field_label("Company Size"))
+        il.addWidget(self.kb_icp_company_size)
+
+        self.kb_icp_decision_maker = QLineEdit()
+        self.kb_icp_decision_maker.setPlaceholderText("e.g. CEO, CTO, VP Marketing")
+        il.addWidget(self._field_label("Decision Maker Titles"))
+        il.addWidget(self.kb_icp_decision_maker)
+
+        self.kb_icp_pain_points = QTextEdit()
+        self.kb_icp_pain_points.setPlaceholderText(
+            "Pain points your product solves (one per line)..."
+        )
+        self.kb_icp_pain_points.setMaximumHeight(80)
+        il.addWidget(self._field_label("Pain Points"))
+        il.addWidget(self.kb_icp_pain_points)
+
+        self.kb_icp_disqualifiers = QLineEdit()
+        self.kb_icp_disqualifiers.setPlaceholderText("e.g. Non-profit, Government, <5 employees")
+        il.addWidget(self._field_label("Disqualifiers"))
+        il.addWidget(self.kb_icp_disqualifiers)
+
+        save_icp_btn = ModernButton("Save ICP", "primary")
+        save_icp_btn.setFixedHeight(36)
+        save_icp_btn.clicked.connect(self._on_save_kb_icp)
+        il.addWidget(save_icp_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(icp_card)
+
+        # ─── Sales Approach ──────────────────────────────
+        approach_card = GlassCard()
+        al = approach_card.get_layout()
+        self._icon_header("tab_knowledge_base", "Sales Approach", al)
+
+        approach_hint = QLabel(
+            "Define your preferred sales style. Guides email tone and conversation strategy."
+        )
+        approach_hint.setObjectName("mutedText")
+        approach_hint.setWordWrap(True)
+        al.addWidget(approach_hint)
+
+        self.kb_approach_tone = QComboBox()
+        self.kb_approach_tone.addItems([
+            "professional", "casual", "consultative", "direct", "friendly",
+        ])
+        al.addWidget(self._field_label("Email Tone"))
+        al.addWidget(self.kb_approach_tone)
+
+        self.kb_approach_style = QTextEdit()
+        self.kb_approach_style.setPlaceholderText(
+            "Describe your sales approach (e.g. 'Lead with value, avoid hard sells, "
+            "reference specific pain points')..."
+        )
+        self.kb_approach_style.setMaximumHeight(80)
+        al.addWidget(self._field_label("Approach Description"))
+        al.addWidget(self.kb_approach_style)
+
+        self.kb_approach_cta = QLineEdit()
+        self.kb_approach_cta.setPlaceholderText("e.g. Book a 15-min demo call")
+        al.addWidget(self._field_label("Default CTA"))
+        al.addWidget(self.kb_approach_cta)
+
+        save_approach_btn = ModernButton("Save Approach", "primary")
+        save_approach_btn.setFixedHeight(36)
+        save_approach_btn.clicked.connect(self._on_save_kb_approach)
+        al.addWidget(save_approach_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(approach_card)
+
+        layout.addStretch()
+        return self._make_scroll_tab(content)
+
+    # ── Tab 7: Appearance ─────────────────────────────────────────────
 
     def _build_appearance_tab(self) -> QScrollArea:
         content = QWidget()
@@ -1287,6 +1427,71 @@ class SettingsPage(QWidget):
         )
         if path:
             self.company_logo_path.setText(path)
+
+    # ── Knowledge Base tab handlers ───────────────────────────────────
+
+    def _on_save_kb_product(self):
+        fields = {
+            "name": self.kb_product_name.text().strip(),
+            "description": self.kb_product_description.toPlainText().strip(),
+            "value_proposition": self.kb_product_value_prop.text().strip(),
+            "price_range": self.kb_product_price_range.text().strip(),
+        }
+        for key, value in fields.items():
+            if value:
+                self.save_kb_entry_requested.emit("product", key, value)
+        show_toast(self.window(), "Product definition saved.", "success")
+
+    def _on_save_kb_icp(self):
+        fields = {
+            "industry": self.kb_icp_industry.text().strip(),
+            "company_size": self.kb_icp_company_size.text().strip(),
+            "decision_maker": self.kb_icp_decision_maker.text().strip(),
+            "pain_points": self.kb_icp_pain_points.toPlainText().strip(),
+            "disqualifiers": self.kb_icp_disqualifiers.text().strip(),
+        }
+        for key, value in fields.items():
+            if value:
+                self.save_kb_entry_requested.emit("icp", key, value)
+        show_toast(self.window(), "ICP definition saved.", "success")
+
+    def _on_save_kb_approach(self):
+        fields = {
+            "tone": self.kb_approach_tone.currentText(),
+            "style": self.kb_approach_style.toPlainText().strip(),
+            "default_cta": self.kb_approach_cta.text().strip(),
+        }
+        for key, value in fields.items():
+            if value:
+                self.save_kb_entry_requested.emit("approach", key, value)
+        show_toast(self.window(), "Sales approach saved.", "success")
+
+    def load_kb_entries(self, entries: list):
+        """Populate KB tab fields from a list of entry dicts."""
+        kb = {}
+        for e in entries:
+            kb[(e["category"], e["key"])] = e["value"]
+
+        # Product
+        self.kb_product_name.setText(kb.get(("product", "name"), ""))
+        self.kb_product_description.setPlainText(kb.get(("product", "description"), ""))
+        self.kb_product_value_prop.setText(kb.get(("product", "value_proposition"), ""))
+        self.kb_product_price_range.setText(kb.get(("product", "price_range"), ""))
+
+        # ICP
+        self.kb_icp_industry.setText(kb.get(("icp", "industry"), ""))
+        self.kb_icp_company_size.setText(kb.get(("icp", "company_size"), ""))
+        self.kb_icp_decision_maker.setText(kb.get(("icp", "decision_maker"), ""))
+        self.kb_icp_pain_points.setPlainText(kb.get(("icp", "pain_points"), ""))
+        self.kb_icp_disqualifiers.setText(kb.get(("icp", "disqualifiers"), ""))
+
+        # Approach
+        tone = kb.get(("approach", "tone"), "professional")
+        tone_idx = self.kb_approach_tone.findText(tone)
+        if tone_idx >= 0:
+            self.kb_approach_tone.setCurrentIndex(tone_idx)
+        self.kb_approach_style.setPlainText(kb.get(("approach", "style"), ""))
+        self.kb_approach_cta.setText(kb.get(("approach", "default_cta"), ""))
 
     def receive_context(self, context: dict):
         pass

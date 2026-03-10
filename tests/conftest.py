@@ -27,6 +27,7 @@ from database.schema import (
     CaseNote, CaseMemory, CachedSummary, SubagentTask,
     ResearchReport, VoiceCall,
     Service, Invoice, InvoiceLineItem, FinanceNote, DiscordServerConfig,
+    KnowledgeBase,
 )
 
 

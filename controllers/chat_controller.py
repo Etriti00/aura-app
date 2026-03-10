@@ -34,7 +34,9 @@ class ChatController(QObject):
         self.orchestrator = orchestrator
         self.engines = engines
         self.command_history = None  # Injected from main_window
+        self.correction_memory = None  # Injected from main_window
         self._worker = None
+        self._last_response_text = ""
 
     def send_message(self, message: str, context: dict = None):
         """
@@ -53,6 +55,16 @@ class ChatController(QObject):
                             source="chat", text=message,
                         )
                         root_cmd_id = cmd_entry.get("data", {}).get("id") if cmd_entry.get("success") else None
+                    except Exception:
+                        pass
+
+                # Detect corrections and store rules
+                if self.correction_memory:
+                    try:
+                        if self.correction_memory.looks_like_correction(message):
+                            self.correction_memory.extract_and_store(
+                                message, self._last_response_text,
+                            )
                     except Exception:
                         pass
 
@@ -92,6 +104,7 @@ class ChatController(QObject):
         def _on_done(result):
             self.thinking.emit(False)
             if result:
+                self._last_response_text = result.get("response_text", "")
                 self.response_ready.emit(result)
 
         def _on_error(error):

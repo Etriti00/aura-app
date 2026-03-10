@@ -64,6 +64,8 @@ hiddenimports = [
     'core.token_manager',
     'core.case_engine',
     'core.subagent_engine',
+    'core.correction_memory',
+    'core.knowledge_base_engine',
     'core.gateway_adapters',
     'core.gateway_adapters.base_adapter',
     'core.gateway_adapters.telegram_adapter',

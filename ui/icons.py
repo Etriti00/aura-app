@@ -147,6 +147,7 @@ ICONS = {
     "tab_email_delivery":    "mdi6.email-arrow-right-outline",
     "tab_features":          "mdi6.toggle-switch-outline",
     "tab_business":          "mdi6.domain",
+    "tab_knowledge_base":    "mdi6.book-open-page-variant-outline",
     "tab_appearance":        "mdi6.palette-outline",
     "section_company":       "mdi6.domain",
     "section_banking":       "mdi6.bank-outline",

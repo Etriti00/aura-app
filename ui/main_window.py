@@ -443,6 +443,19 @@ class MainWindow(QMainWindow):
         self.fleet_orchestrator.command_history = self.command_history_engine
         self.chat_ctrl.command_history = self.command_history_engine
 
+        # ─── Correction Memory ─────────────────────────────────
+        from core.correction_memory import CorrectionMemory
+        self.correction_memory = CorrectionMemory(self.db_manager, self.key_vault)
+        self.chat_ctrl.correction_memory = self.correction_memory
+        self.agent_engine.correction_memory = self.correction_memory
+        engines_dict["correction_memory"] = self.correction_memory
+
+        # ─── Knowledge Base Engine ─────────────────────────────
+        from core.knowledge_base_engine import KnowledgeBaseEngine
+        self.knowledge_base_engine = KnowledgeBaseEngine(self.db_manager)
+        self.agent_engine.knowledge_base_engine = self.knowledge_base_engine
+        engines_dict["knowledge_base"] = self.knowledge_base_engine
+
         # Register new engines for orchestrator
         engines_dict["agent"] = self.agent_engine
         engines_dict["fleet"] = self.fleet_orchestrator
@@ -549,6 +562,7 @@ class MainWindow(QMainWindow):
         # Inject case_engine into lifecycle + reflection + enrichment for auto-note logging
         self.lead_lifecycle_engine.case_engine = self.case_engine
         self.reflection_engine.case_engine = self.case_engine
+        self.reflection_engine.self_improvement_engine = self.self_improvement_engine
         self.enrichment_engine.case_engine = self.case_engine
 
         # Register new engines for orchestrator
@@ -775,6 +789,14 @@ class MainWindow(QMainWindow):
 
         self.settings_page.save_business_requested.connect(
             self.settings_ctrl.save_business_settings
+        )
+
+        # Knowledge Base signals
+        self.settings_page.save_kb_entry_requested.connect(
+            lambda cat, key, val: self.knowledge_base_engine.set_entry(cat, key, val)
+        )
+        self.settings_page.delete_kb_entry_requested.connect(
+            lambda cat, key: self.knowledge_base_engine.delete_entry(category=cat, key=key)
         )
 
         self.settings_ctrl.settings_saved.connect(
@@ -1107,6 +1129,9 @@ class MainWindow(QMainWindow):
         settings = self.settings_ctrl.get_settings()
         if settings:
             self.settings_page.load_settings(settings)
+        kb_result = self.knowledge_base_engine.get_entries()
+        if kb_result.get("success"):
+            self.settings_page.load_kb_entries(kb_result["data"])
 
         # Dashboard auto-refresh timer (60s, only when dashboard is active)
         self._dashboard_timer = _QTimer(self)
@@ -1193,6 +1218,9 @@ class MainWindow(QMainWindow):
             settings = self.settings_ctrl.get_settings()
             if settings:
                 self.settings_page.load_settings(settings)
+            kb_result = self.knowledge_base_engine.get_entries()
+            if kb_result.get("success"):
+                self.settings_page.load_kb_entries(kb_result["data"])
         elif index == 12:  # Research
             self.research_ctrl.load_reports()
             self.research_ctrl.check_providers()

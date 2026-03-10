@@ -59,6 +59,8 @@ class AgentEngine:
         self.token_manager = None  # injected by main_window
         self.case_engine = None  # injected by main_window
         self.subagent_engine = None  # injected by main_window
+        self.correction_memory = None  # injected by main_window
+        self.knowledge_base_engine = None  # injected by main_window
         # Per-agent hourly call counter: {agent_id: [(timestamp, ...)] }
         self._hourly_calls: dict[int, list] = {}
 
@@ -938,6 +940,25 @@ class AgentEngine:
                     parts_dict["case_context"] = case_ctx
             except Exception as e:
                 logger.debug(f"Case context injection failed: {e}")
+
+        # Correction memory: inject learned rules
+        if self.correction_memory:
+            try:
+                agent_name = getattr(agent, "name", None)
+                rules_ctx = self.correction_memory.get_rules_for_context(agent_name)
+                if rules_ctx:
+                    parts_dict["learned_rules"] = rules_ctx
+            except Exception:
+                pass
+
+        # Knowledge base: inject ICP, product, and approach context
+        if self.knowledge_base_engine:
+            try:
+                kb_ctx = self.knowledge_base_engine.build_context()
+                if kb_ctx:
+                    parts_dict["knowledge_base"] = kb_ctx
+            except Exception:
+                pass
 
         parts_dict["payload"] = f"TASK: {task_type}\nPAYLOAD: {json.dumps(payload)}"
 

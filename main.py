@@ -82,6 +82,20 @@ def main():
         if _migrated:
             logger.info("Migrated encrypted keys to new per-install salt")
 
+    # Detect hardware change (all encrypted keys fail to decrypt)
+    _hardware_change = False
+    _settings_check = db_manager.get_settings()
+    if _settings_check:
+        _enc_fields_check = [f for f in dir(_settings_check) if f.endswith("_enc") and getattr(_settings_check, f, None)]
+        if _enc_fields_check:
+            _all_failed = all(
+                not key_vault.decrypt(getattr(_settings_check, f))
+                for f in _enc_fields_check
+            )
+            if _all_failed:
+                logger.warning("All encrypted keys failed to decrypt — possible hardware change")
+                _hardware_change = True
+
     # Check first-run status
     settings = db_manager.get_settings()
 
@@ -106,6 +120,16 @@ def main():
     window._apply_theme(theme)
     window.show()
     logger.info("Main window launched.")
+
+    if _hardware_change:
+        from ui.components.toast_notification import show_toast
+        show_toast(
+            window,
+            "Hardware change detected. Your API keys could not be decrypted. "
+            "Please re-enter them in Settings → API Keys.",
+            toast_type="warning",
+            duration=8000,
+        )
 
     sys.exit(app.exec())
 

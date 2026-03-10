@@ -188,6 +188,7 @@ COMMAND_GROUPS = OrderedDict([
     ("suppression",   "Suppression"),
     ("integrations",  "Integrations"),
     ("history",       "History"),
+    ("knowledge",     "Knowledge & Memory"),
     ("config",        "Configuration"),
     ("system",        "System"),
 ])
@@ -2414,6 +2415,98 @@ class AuraCLI:
             f.success("Improvement cycle complete.")
             f.kv("Rules Extracted", data.get("rules_extracted", 0))
             f.kv("Underperformers", data.get("underperformers_found", 0))
+        else:
+            f.error(result.get("error", "Failed"))
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  KNOWLEDGE & MEMORY COMMANDS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    @command("kb-set", "knowledge", "Set a knowledge base entry",
+             "/kb-set <category> <key> <value>")
+    def cmd_kb_set(self, args: list):
+        f = Formatter
+        if len(args) < 3:
+            f.error("Usage: /kb-set <category> <key> <value>")
+            print("  Categories: product, icp, approach, general")
+            return
+        category, key = args[0], args[1]
+        value = " ".join(args[2:])
+        from core.knowledge_base_engine import KnowledgeBaseEngine
+        kb = KnowledgeBaseEngine(self.db)
+        result = kb.set_entry(category, key, value)
+        if result.get("success"):
+            action = result["data"]["action"]
+            f.success(f"KB entry {action}: [{category}] {key}")
+        else:
+            f.error(result.get("error", "Failed"))
+
+    @command("kb-list", "knowledge", "List knowledge base entries",
+             "/kb-list [category]")
+    def cmd_kb_list(self, args: list):
+        f = Formatter
+        category = args[0] if args else None
+        from core.knowledge_base_engine import KnowledgeBaseEngine
+        kb = KnowledgeBaseEngine(self.db)
+        result = kb.get_entries(category)
+        if not result.get("success"):
+            f.error(result.get("error", "Failed"))
+            return
+        entries = result["data"]
+        if not entries:
+            f.warn("No knowledge base entries found.")
+            return
+        f.header(f"Knowledge Base ({len(entries)} entries)")
+        for e in entries:
+            print(f"  [{f.cyan(e['category'])}] {f.bold(e['key'])}: {e['value'][:80]}")
+
+    @command("kb-delete", "knowledge", "Delete a knowledge base entry",
+             "/kb-delete <category> <key>")
+    def cmd_kb_delete(self, args: list):
+        f = Formatter
+        if len(args) < 2:
+            f.error("Usage: /kb-delete <category> <key>")
+            return
+        from core.knowledge_base_engine import KnowledgeBaseEngine
+        kb = KnowledgeBaseEngine(self.db)
+        result = kb.delete_entry(category=args[0], key=args[1])
+        if result.get("success"):
+            f.success(f"Deleted {result['data']['deleted']} entry(ies)")
+        else:
+            f.error(result.get("error", "Failed"))
+
+    @command("memory-list", "knowledge", "List learned rules (correction memory)",
+             "/memory-list [agent_name]")
+    def cmd_memory_list(self, args: list):
+        f = Formatter
+        agent_name = args[0] if args else None
+        from core.correction_memory import CorrectionMemory
+        cm = CorrectionMemory(self.db)
+        result = cm.list_rules(agent_name)
+        if not result.get("success"):
+            f.error(result.get("error", "Failed"))
+            return
+        rules = result["data"]
+        if not rules:
+            f.warn("No learned rules found.")
+            return
+        f.header(f"Learned Rules ({len(rules)})")
+        for r in rules:
+            agent = f" ({r['agent_name']})" if r.get("agent_name") else ""
+            print(f"  [{r['type']}]{agent} {r['text'][:80]}  "
+                  f"(conf={r['confidence']:.1f}, src={r['source']})")
+
+    @command("memory-clear", "knowledge", "Clear learned rules",
+             "/memory-clear [agent_name]")
+    def cmd_memory_clear(self, args: list):
+        f = Formatter
+        agent_name = args[0] if args else None
+        from core.correction_memory import CorrectionMemory
+        cm = CorrectionMemory(self.db)
+        result = cm.clear_rules(agent_name)
+        if result.get("success"):
+            scope = f" for agent '{agent_name}'" if agent_name else ""
+            f.success(f"Cleared {result['data']['cleared']} rule(s){scope}")
         else:
             f.error(result.get("error", "Failed"))
 

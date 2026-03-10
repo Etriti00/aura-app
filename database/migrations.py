@@ -272,6 +272,35 @@ def migrate_schema(db_path):
         )
     """)
 
+    # ─── v2.1: Knowledge Base table ───────────────────────────────────
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_base (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category VARCHAR(50) NOT NULL,
+                key VARCHAR(255) NOT NULL,
+                value TEXT NOT NULL,
+                priority INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("CREATE INDEX IF NOT EXISTS ix_kb_category ON knowledge_base(category)")
+    except sqlite3.OperationalError:
+        pass
+
+    # ─── v2.1: Agent-scoped learned rules ───────────────────────────
+    _add_col("agent_learned_rules", "agent_name", "VARCHAR(50)", "NULL")
+    try:
+        cursor.execute("CREATE INDEX IF NOT EXISTS ix_alr_agent_name ON agent_learned_rules(agent_name)")
+    except sqlite3.OperationalError:
+        pass
+
     # ─── Indexes for frequently queried columns ──────────────────────
     indexes = [
         ("ix_leads_campaign_id", "leads", "campaign_id"),

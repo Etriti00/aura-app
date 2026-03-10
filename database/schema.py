@@ -888,7 +888,8 @@ class AgentLearnedRule(Base):
     confidence = Column(Float, default=0.5)              # 0.0-1.0
     evidence_count = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    source = Column(String(50), default="auto")          # auto, manual, ab_test
+    source = Column(String(50), default="auto")          # auto, manual, ab_test, user_correction
+    agent_name = Column(String(50), nullable=True, index=True)  # null = applies to all agents
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1318,3 +1319,22 @@ class DiscordServerConfig(Base):
 
     def __repr__(self):
         return f"<DiscordServerConfig(guild='{self.guild_id}', name='{self.guild_name}')>"
+
+
+# ─── Knowledge Base (ICP Ground Truth) ────────────────────────────────────────
+
+class KnowledgeBase(Base):
+    """User-defined business knowledge — products, ICP, sales approach."""
+    __tablename__ = "knowledge_base"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String(50), nullable=False, index=True)
+    key = Column(String(255), nullable=False)
+    value = Column(Text, nullable=False)
+    priority = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<KnowledgeBase(id={self.id}, category='{self.category}', key='{self.key}')>"

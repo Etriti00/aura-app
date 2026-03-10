@@ -8,7 +8,7 @@ import json
 from datetime import datetime, timedelta
 
 from database.db_manager import DatabaseManager
-from database.schema import AgentReflection, PerformanceMetric, AgentLearnedRule, AgentTask
+from database.schema import Agent, AgentReflection, PerformanceMetric, AgentLearnedRule, AgentTask
 from config import REFLECTION_SCORE_THRESHOLD, REFLECTION_MAX_REVISIONS
 from utils.logger import get_logger
 
@@ -43,6 +43,7 @@ class ReflectionEngine:
         self.router_engine = router_engine
         self.command_history = None  # Injected from main_window
         self.case_engine = None  # Injected from main_window
+        self.self_improvement_engine = None  # Injected from main_window
 
     def reflect_on_task(self, agent_id: int, task_id: int, task_type: str,
                         output_text: str, context: str = "") -> dict:
@@ -127,6 +128,20 @@ class ReflectionEngine:
                                     agent_id=agent_id,
                                     metadata={"task_id": task_id, "score": score},
                                 )
+                except Exception:
+                    pass
+
+            # Auto-learn from low-score reflections
+            if self.self_improvement_engine and improvement_notes:
+                try:
+                    with self.db_manager.session_scope() as s3:
+                        agent_row = s3.query(Agent).filter_by(id=agent_id).first()
+                        agent_name = agent_row.name if agent_row else None
+                    if agent_name:
+                        self.auto_learn_from_reflection(
+                            agent_id, agent_name, score,
+                            improvement_notes, task_type,
+                        )
                 except Exception:
                     pass
 
@@ -293,3 +308,80 @@ class ReflectionEngine:
                 return existing.revision_count if existing else 0
         except Exception:
             return 0
+
+    def auto_learn_from_reflection(self, agent_id: int, agent_name: str,
+                                   score: int, improvement_notes: str,
+                                   task_type: str) -> dict:
+        """
+        After a reflection, auto-extract a learned rule from improvement notes
+        and store it scoped to the agent. Only triggers on low scores (<= 5)
+        with non-empty improvement notes.
+        """
+        if score > 5 or not improvement_notes or not improvement_notes.strip():
+            return {"success": True, "data": {"action": "skipped"}}
+
+        if not self.self_improvement_engine:
+            return {"success": False, "error": "No self_improvement_engine available"}
+
+        try:
+            # Extract a concise rule from improvement notes
+            rule_text = improvement_notes.strip()
+            if len(rule_text) > 200:
+                rule_text = rule_text[:200]
+
+            # Use LLM to extract a better rule if router available
+            if self.router_engine:
+                try:
+                    prompt = (
+                        f"Extract one concise imperative rule from this feedback "
+                        f"for a '{task_type}' task:\n\n{improvement_notes[:500]}\n\n"
+                        f"Respond with ONLY the rule as a single sentence, e.g. "
+                        f"'Always include a specific CTA in outreach emails'."
+                    )
+                    result = self.router_engine.route("qualify_lead_basic", prompt)
+                    if result.get("success") and result.get("data"):
+                        extracted = result["data"].strip().strip('"').strip("'")
+                        if 10 < len(extracted) < 200:
+                            rule_text = extracted
+                except Exception:
+                    pass  # Fall back to raw improvement_notes
+
+            # Check for duplicate before storing
+            with self.db_manager.session_scope() as session:
+                existing = session.query(AgentLearnedRule).filter_by(
+                    rule_text=rule_text, is_active=True,
+                ).first()
+                if existing:
+                    existing.evidence_count += 1
+                    existing.confidence = min(1.0, existing.confidence + 0.1)
+                    return {"success": True, "data": {"action": "reinforced", "rule_id": existing.id}}
+
+            result = self.self_improvement_engine.store_learned_rule(
+                rule_type=task_type,
+                rule_text=rule_text,
+                confidence=max(0.3, (10 - score) / 10),
+                evidence_count=1,
+                agent_id=agent_id,
+            )
+
+            # Set agent_name on the rule
+            if result.get("success") and result.get("data", {}).get("rule_id"):
+                try:
+                    with self.db_manager.session_scope() as session:
+                        rule = session.query(AgentLearnedRule).filter_by(
+                            id=result["data"]["rule_id"]
+                        ).first()
+                        if rule:
+                            rule.agent_name = agent_name
+                            rule.source = "auto_reflection"
+                except Exception:
+                    pass
+
+            logger.info(
+                f"Auto-learned rule for agent '{agent_name}': {rule_text[:60]}"
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f"auto_learn_from_reflection failed: {e}")
+            return {"success": False, "error": str(e)}
