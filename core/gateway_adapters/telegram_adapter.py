@@ -81,7 +81,7 @@ class TelegramAdapter(BaseAdapter):
                     async def _handle_cmd(update, context, cmd_name=name):
                         args = " ".join(context.args) if context.args else ""
                         result = self._cmd_handler.handle_command(cmd_name, args, str(update.effective_chat.id))
-                        text = result.get("text", "Done")
+                        text = result.get("response", result.get("text", "Done"))
                         await update.message.reply_text(text, parse_mode="HTML")
 
                     self._app.add_handler(CommandHandler(name, _handle_cmd))

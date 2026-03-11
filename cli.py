@@ -844,7 +844,7 @@ class AuraCLI:
 
         f.info(f"Enriching {len(lead_ids)} leads…")
         for i, lid in enumerate(lead_ids):
-            result = self.engines["enrichment"].enrich_lead(lid)
+            result = self.engines["enrichment"].waterfall_enrich_lead(lid)
             if result.get("success"):
                 f.success(f"Lead {lid}: enriched")
             else:

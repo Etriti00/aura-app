@@ -4,6 +4,7 @@ Speech-to-text using faster-whisper (local) or OpenAI Whisper API.
 """
 
 import io
+import os
 import tempfile
 
 from utils.logger import get_logger
@@ -66,16 +67,24 @@ class WhisperSTT:
         """Transcribe using local faster-whisper."""
         if not self._local_model:
             return ""
+        tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                tmp_path = f.name
                 f.write(audio_bytes)
                 f.flush()
-                segments, _ = self._local_model.transcribe(f.name, beam_size=5)
-                text_parts = [segment.text for segment in segments]
-                return " ".join(text_parts).strip()
+            segments, _ = self._local_model.transcribe(tmp_path, beam_size=5)
+            text_parts = [segment.text for segment in segments]
+            return " ".join(text_parts).strip()
         except Exception as e:
             logger.error(f"Local Whisper transcribe failed: {e}")
             return ""
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     def _transcribe_api(self, audio_bytes: bytes) -> str:
         """Transcribe using OpenAI Whisper API."""

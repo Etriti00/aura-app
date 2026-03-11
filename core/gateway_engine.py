@@ -87,7 +87,7 @@ class GatewayEngine:
             if not intent_dict.get("clarification_needed") and confidence >= 0.5:
                 result = self.orchestrator.execute_intent(intent_dict, self.engines)
                 # Build a response from the execution result
-                response_text = self._build_response_text(intent, result, response_text)
+                response_text = self._build_response_for_platform(intent, result, response_text, platform)
 
             # Step 4: Format for platform
             formatted = self._format_response(platform, response_text)

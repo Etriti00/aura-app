@@ -27,6 +27,8 @@ INTENTS = [
     # Advanced engine intents
     "set_goal", "show_goals", "show_reflections", "set_autonomy",
     "show_conversations", "show_approvals", "approve_action", "deny_action",
+    # Invoicing intents
+    "create_invoice", "show_invoices",
 ]
 
 SYSTEM_PROMPT = """You are the AI assistant for Aura, an AI-powered sales outreach tool.
@@ -63,6 +65,8 @@ Available actions and their parameter schemas:
 - "show_approvals": {}  // show pending approval requests
 - "approve_action": {"approval_id": int}  // approve a pending action
 - "deny_action": {"approval_id": int}  // deny a pending action
+- "create_invoice": {"lead_id": int|null, "service_name": str|null, "amount": float|null}  // create an invoice
+- "show_invoices": {"status": str|null, "lead_id": int|null}  // show invoices
 
 Current app context will be provided. Use it to resolve ambiguous references like "this campaign" or "run it again".
 

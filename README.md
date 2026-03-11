@@ -65,7 +65,7 @@ After installation, the `aura` command is available globally:
 
 ```bash
 $ aura status
-Aura v2.0.0 — System Status
+Aura v2.1.0 — System Status
 ───────────────────────────────
   Campaigns          0
   Leads              0
@@ -193,13 +193,13 @@ aura config-api-keys
 
 ## CLI Reference
 
-The CLI provides **75 commands** across **16 groups** with full feature parity to the GUI. Run `aura` to start the interactive REPL, or `aura <command>` for one-shot execution.
+The CLI provides **81 commands** across **17 groups** with full feature parity to the GUI. Run `aura` to start the interactive REPL, or `aura <command>` for one-shot execution.
 
 ### REPL Mode
 
 ```
 $ aura
-Aura v2.0.0 — AI Sales Agent
+Aura v2.1.0 — AI Sales Agent
 Type /help for commands, or type naturally.
 
 aura> /hunt plumber --city "Austin TX" --limit 20
@@ -228,6 +228,7 @@ aura> find me SaaS leads in healthcare    ← natural language works too
 | **Integrations** | `/gateway-status`, `/gateway-connect`, `/gateway-disconnect`, `/crm-sync`, `/gateway-auth` | Telegram, Discord, CRM |
 | **History** | `/history`, `/history-detail`, `/history-tree` | Command audit trail |
 | **Config** | `/config`, `/config-set`, `/config-api-keys`, `/config-smtp` | Settings management |
+| **Knowledge** | `/knowledge-add`, `/knowledge-list`, `/knowledge-remove`, `/memory-rules`, `/memory-stats`, `/memory-clear` | Knowledge base & correction memory |
 | **System** | `/help`, `/status`, `/version`, `/clear`, `/exit` | System utilities |
 
 ### One-Shot Commands
@@ -345,7 +346,7 @@ aura-app/
 │   ├── build_icns.sh        # macOS icon generation
 │   └── linux/               # Linux desktop entry + installer
 │
-└── tests/                   # 1200 tests across 40+ files
+└── tests/                   # 1250+ tests across 50+ files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
 ```
@@ -441,7 +442,7 @@ venv\Scripts\python.exe -m pytest tests/test_agent_engine.py -v
 venv\Scripts\python.exe -m pytest tests/ -k "test_stalled" -v
 ```
 
-**Current status**: 1200 tests across 40+ files — 100% passing.
+**Current status**: 1250+ tests across 50+ files — 100% passing.
 
 ---
 
@@ -493,6 +494,17 @@ Please ensure all tests pass before submitting.
 ---
 
 ## Changelog
+
+### v2.1.0 — Intelligence & Audit Hardening
+
+- **Correction Memory Engine** — Detects user corrections ("no, I meant X") and learns rules that persist across conversations. Agents automatically inject learned rules into their context
+- **Knowledge Base Engine** — Store and retrieve business knowledge entries (products, competitors, pricing, processes). New Settings tab for managing entries with search
+- **Per-Agent Auto-Memory** — Each agent automatically stores and retrieves learned behaviors in per-agent memory logs, injected into agent context during task execution
+- **Knowledge CLI commands** — `/knowledge-add`, `/knowledge-list`, `/knowledge-remove`, `/memory-rules`, `/memory-stats`, `/memory-clear`
+- **Audit fixes** — Fixed CLI `/enrich` crash (int→dict), gateway platform hardcoding, Telegram key mismatch, GMaps API key decryption, missing orchestrator intents, Whisper temp file leak
+- **Missing PyInstaller imports** — Added `skill_registry`, `hubspot_engine`, `linkedin_engine`, `icons`, `command_palette` to `aura.spec`
+- **Version**: 2.0.0 → 2.1.0 across `config.py`, `pyproject.toml`, `aura.spec`
+- **Tests**: 1200 → 1250+ tests (50+ new tests across 2 new test files)
 
 ### v2.0.0 — Enterprise Features + Settings Overhaul
 
@@ -576,5 +588,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v2.0.0</sub>
+  <sub>Aura v2.1.0</sub>
 </p>

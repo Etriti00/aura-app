@@ -37,6 +37,7 @@ class EnrichmentEngine:
         self.knowledge_graph_engine = None  # injected by main_window
         self.router_engine = None  # injected by main_window
         self.case_engine = None    # injected by main_window
+        self.key_vault = None      # injected by main_window
         # Persistent browser for batch operations
         self._batch_playwright = None
         self._batch_browser = None
@@ -459,8 +460,8 @@ class EnrichmentEngine:
                         from database.schema import Settings
                         with self.db_manager.session_scope() as session:
                             settings = session.query(Settings).first()
-                            if settings and settings.gmaps_api_key_enc:
-                                gmaps_key = settings.gmaps_api_key_enc  # decrypt if needed
+                            if settings and settings.gmaps_api_key_enc and self.key_vault:
+                                gmaps_key = self.key_vault.decrypt(settings.gmaps_api_key_enc) or ""
                     except Exception:
                         pass
                     layer2 = enrich_layer2_sync(

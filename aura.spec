@@ -172,6 +172,12 @@ hiddenimports = [
     'core.gateway_adapters.discord_notifications',
     'core.gateway_adapters.telegram_commands',
     'core.gateway_adapters.telegram_notifications',
+    # v2.1: Missing modules
+    'core.skill_registry',
+    'core.hubspot_engine',
+    'core.linkedin_engine',
+    'ui.icons',
+    'ui.components.command_palette',
 ]
 
 # Collect all playwright dependencies
@@ -238,8 +244,8 @@ if sys.platform == "darwin":
         info_plist={
             'CFBundleName': 'Aura',
             'CFBundleDisplayName': 'Aura — AI Sales Agent',
-            'CFBundleVersion': '2.0.0',
-            'CFBundleShortVersionString': '2.0.0',
+            'CFBundleVersion': '2.1.0',
+            'CFBundleShortVersionString': '2.1.0',
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '11.0',
         },
