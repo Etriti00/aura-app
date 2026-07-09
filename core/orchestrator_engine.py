@@ -111,6 +111,7 @@ class OrchestratorEngine:
             claude_sub_mode = getattr(settings, "anthropic_auth_mode", "none") == "subscription" \
                 and not api_keys.get("anthropic")
             gemini_sub_mode = getattr(settings, "gemini_auth_mode", "none") == "subscription"
+            openai_sub_mode = getattr(settings, "openai_auth_mode", "none") == "subscription"
 
             for provider, key in api_keys.items():
                 if provider == "gemini":
@@ -138,6 +139,7 @@ class OrchestratorEngine:
             # Route through CLI for subscription modes
             is_anthropic = model.startswith("anthropic/") or model.startswith("claude")
             is_gemini = model.startswith("gemini/") or model.startswith("gemini-")
+            is_openai = model.startswith("openai/") or model.startswith("gpt")
 
             if claude_sub_mode and is_anthropic:
                 raw = self._call_claude_cli(messages, model)
@@ -147,6 +149,10 @@ class OrchestratorEngine:
                 raw = self._call_gemini_cli(messages, model)
                 if raw is None:
                     raise RuntimeError("Gemini CLI call failed — is 'gemini' installed and logged in?")
+            elif openai_sub_mode and is_openai:
+                raw = self._call_codex_cli(messages, model)
+                if raw is None:
+                    raise RuntimeError("Codex CLI call failed — is 'codex' installed and logged in?")
             else:
                 import litellm
                 litellm.drop_params = True
@@ -1211,104 +1217,26 @@ class OrchestratorEngine:
                     keys["anthropic"] = self.key_vault.decrypt(enc)
                 except Exception:
                     pass
-        if "openai" not in keys:
-            enc = getattr(settings, "openai_sub_token_enc", "")
-            if enc:
-                try:
-                    keys["openai"] = self.key_vault.decrypt(enc)
-                except Exception:
-                    pass
+        # NOTE: no OpenAI fallback — ChatGPT OAuth tokens are not valid API
+        # keys; OpenAI subscription access goes through the Codex CLI.
         return keys
 
     # ─── CLI subprocess methods for subscription modes ─────────────
 
-    # Map LiteLLM model names → Claude CLI aliases
-    _CLAUDE_CLI_MODEL_MAP = {
-        "anthropic/claude-sonnet-4-6": "sonnet",
-        "anthropic/claude-sonnet-4-5": "sonnet",
-        "anthropic/claude-haiku-4-5": "haiku",
-        "anthropic/claude-opus-4-6": "opus",
-    }
-
     def _call_claude_cli(self, messages: list, model: str) -> Optional[str]:
         """Route an LLM call through the Claude Code CLI (subscription mode)."""
-        import subprocess
-
-        parts, system_parts = [], []
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                system_parts.append(content)
-            else:
-                parts.append(content)
-        full_prompt = "\n\n".join(parts)
-
-        cli_model = self._CLAUDE_CLI_MODEL_MAP.get(model, "sonnet")
-        cmd = [
-            "claude", "-p",
-            "--model", cli_model,
-            "--output-format", "text",
-            "--no-session-persistence",
-        ]
-        if system_parts:
-            cmd.extend(["--append-system-prompt", "\n\n".join(system_parts)])
-        cmd.append(full_prompt)
-
-        try:
-            logger.debug(f"Claude CLI call: model={cli_model}")
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-            if result.stderr.strip():
-                logger.error(f"claude CLI error: {result.stderr.strip()}")
-            return None
-        except FileNotFoundError:
-            logger.error("claude CLI not found — install Claude Code and run 'claude login'")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.error("claude CLI timed out after 120s")
-            return None
-        except Exception as e:
-            logger.error(f"claude CLI call failed: {e}")
-            return None
+        from core.cli_llm import call_claude_cli
+        return call_claude_cli(messages, model)
 
     def _call_gemini_cli(self, messages: list, model: str) -> Optional[str]:
         """Route an LLM call through the Gemini CLI (subscription mode)."""
-        import subprocess
+        from core.cli_llm import call_gemini_cli
+        return call_gemini_cli(messages, model)
 
-        parts = []
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                parts.append(f"[Instructions]\n{content}")
-            else:
-                parts.append(content)
-        full_prompt = "\n\n".join(parts)
-
-        cli_model = model.removeprefix("gemini/") if model.startswith("gemini/") else model
-        try:
-            result = subprocess.run(
-                ["gemini", "--model", cli_model, "--yolo", full_prompt],
-                capture_output=True, text=True, timeout=120,
-                env={**__import__("os").environ, "GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""},
-            )
-            if result.returncode == 0:
-                return result.stdout.strip()
-            logger.error(f"gemini CLI error: {result.stderr.strip()}")
-            return None
-        except FileNotFoundError:
-            logger.error("gemini CLI not found")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.error("gemini CLI timed out after 120s")
-            return None
-        except Exception as e:
-            logger.error(f"gemini CLI call failed: {e}")
-            return None
+    def _call_codex_cli(self, messages: list, model: str) -> Optional[str]:
+        """Route an LLM call through the OpenAI Codex CLI (ChatGPT subscription)."""
+        from core.cli_llm import call_codex_cli
+        return call_codex_cli(messages, model)
 
     def get_history(self) -> list:
         """Return conversation history for display."""

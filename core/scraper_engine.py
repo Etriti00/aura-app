@@ -56,11 +56,19 @@ class ScraperEngine:
 
     def _get_headers(self) -> dict:
         """Generate realistic browser headers."""
+        # Only advertise brotli when we can actually decode it — otherwise
+        # servers that prefer br (e.g. DuckDuckGo) send bytes httpx cannot
+        # decompress and every page parses as empty.
+        try:
+            import brotli  # noqa: F401
+            accept_encoding = "gzip, deflate, br"
+        except ImportError:
+            accept_encoding = "gzip, deflate"
         return {
             "User-Agent": self._user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Encoding": accept_encoding,
             "DNT": "1",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",

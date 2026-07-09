@@ -39,6 +39,7 @@ hiddenimports = [
     'config',
     # Core engines
     'core.ai_engine',
+    'core.cli_llm',
     'core.scraper_engine',
     'core.delivery_engine',
     'core.sequence_engine',
@@ -115,7 +116,6 @@ hiddenimports = [
     'core.agent_engine',
     'core.fleet_orchestrator',
     'core.observer_engine',
-    'core.subscription_auth',
     'core.trends_engine',
     'controllers.fleet_controller',
     'controllers.trends_controller',
@@ -250,8 +250,8 @@ if sys.platform == "darwin":
         info_plist={
             'CFBundleName': 'Aura',
             'CFBundleDisplayName': 'Aura — AI Sales Agent',
-            'CFBundleVersion': '2.2.0',
-            'CFBundleShortVersionString': '2.2.0',
+            'CFBundleVersion': '2.3.0',
+            'CFBundleShortVersionString': '2.3.0',
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '11.0',
         },

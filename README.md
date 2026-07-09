@@ -66,7 +66,7 @@ After installation, the `aura` command is available globally:
 
 ```bash
 $ aura status
-Aura v2.2.0 — System Status
+Aura v2.3.0 — System Status
 ───────────────────────────────
   Campaigns          0
   Leads              0
@@ -202,7 +202,7 @@ The CLI provides **82 commands** across **17 groups** with full feature parity t
 
 ```
 $ aura
-Aura v2.2.0 — AI Sales Agent
+Aura v2.3.0 — AI Sales Agent
 Type /help for commands, or type naturally.
 
 aura> /hunt plumber --city "Austin TX" --limit 20
@@ -349,7 +349,7 @@ aura-app/
 │   ├── build_icns.sh        # macOS icon generation
 │   └── linux/               # Linux desktop entry + installer
 │
-└── tests/                   # 1,345 tests across 54 files
+└── tests/                   # 1,362 tests across 55 files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
 ```
@@ -445,7 +445,7 @@ venv\Scripts\python.exe -m pytest tests/test_agent_engine.py -v
 venv\Scripts\python.exe -m pytest tests/ -k "test_stalled" -v
 ```
 
-**Current status**: 1,345 tests across 54 files — 100% passing.
+**Current status**: 1,362 tests across 55 files — 100% passing.
 
 ---
 
@@ -478,7 +478,7 @@ Tier 1 (Local)  →  Tier 2 (Haiku/Flash)  →  Tier 3 (Sonnet/GPT-4o)  →  Tie
 
 Budget pacing automatically downgrades tiers when daily spend approaches limits.
 
-> **No API key?** Aura can also run on an existing **Claude Pro/Max** or **Google** subscription by routing calls through the official `claude` / `gemini` CLIs — enable it in **Settings → API Keys → Subscription Auth**.
+> **No API key?** Aura can also run on an existing **Claude Pro/Max**, **ChatGPT Plus/Pro**, or **Google** subscription by routing calls through the official `claude` / `codex` / `gemini` CLIs — enable it in **Settings → API Keys → Subscription Auth**.
 
 ---
 
@@ -499,6 +499,16 @@ Please ensure all tests pass before submitting.
 ---
 
 ## Changelog
+
+### v2.3.0 — ChatGPT Subscription via Codex CLI
+
+- **ChatGPT subscription auth** — OpenAI models can now run on a ChatGPT Plus/Pro subscription through the official OpenAI Codex CLI (`npm install -g @openai/codex`, then `codex login`). Enable in Settings → API Keys → Subscription Auth
+- **Removed the broken OAuth sign-in** — the previous "Sign in with ChatGPT" flow acquired an OAuth token that is not valid for the OpenAI API, so it could never work; it has been replaced by the Codex CLI route and the dead OAuth module was deleted
+- **Shared CLI transport** — new `core/cli_llm.py` consolidates the claude / gemini / codex subprocess transports that were previously duplicated across engines
+- **Subscription-aware router** — the 4-tier router now routes subscription-mode calls through the provider CLIs too (it previously bypassed subscription mode entirely) and correctly reports tier availability based on installed CLIs
+- **Fixed dead lead scraping** — the scraper advertised brotli compression without being able to decode it, so DuckDuckGo responded with brotli and every page parsed as empty; `brotli` is now bundled and the Accept-Encoding header adapts to what is actually decodable (live-verified: real leads scraped and saved)
+- **Fixed CLI subscription on Windows** — npm installs `claude`/`gemini`/`codex` as `.cmd` shims that `subprocess` cannot resolve bare; all CLI launches now resolve through `shutil.which`, making subscription mode actually work on Windows (live-verified end-to-end through the chat orchestrator)
+- **Tests**: 1,345 → 1,362 (17 new tests covering the CLI transports and dispatch)
 
 ### v2.2.0 — Subscription Auth, Chat Upgrades & Campaign Manager
 
@@ -606,5 +616,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v2.2.0</sub>
+  <sub>Aura v2.3.0</sub>
 </p>

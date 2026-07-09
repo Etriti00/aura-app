@@ -110,6 +110,11 @@ class OutreachController(QObject):
             sub_tokens["claude_sub"] = True
             api_keys.pop("anthropic", None)
 
+        # ChatGPT subscription: use the Codex CLI instead of an API key
+        if getattr(settings, "openai_auth_mode", "none") == "subscription":
+            sub_tokens["openai_sub_cli"] = True
+            api_keys.pop("openai", None)
+
         self.ai_engine.configure(api_keys, models, sub_tokens=sub_tokens)
 
         # Configure delivery

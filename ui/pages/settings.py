@@ -33,8 +33,6 @@ class SettingsPage(QWidget):
     save_toggles_requested = Signal(dict)
     theme_change_requested = Signal(str)
     save_anthropic_sub_requested = Signal(str)
-    openai_oauth_requested = Signal()
-    openai_disconnect_requested = Signal()
     auth_mode_changed = Signal(str, str)
     autonomy_level_changed = Signal(str)
     save_business_requested = Signal(dict)
@@ -230,28 +228,35 @@ class SettingsPage(QWidget):
         self.anthropic_sub_status.setObjectName("mutedText")
         sub_layout.addWidget(self.anthropic_sub_status)
 
-        # OpenAI subscription
+        # OpenAI subscription (Codex CLI)
         openai_sub_label = QLabel("OpenAI — ChatGPT Subscription")
         openai_sub_label.setObjectName("formLabel")
         sub_layout.addWidget(openai_sub_label)
         openai_sub_info = QLabel(
-            "Sign in with your ChatGPT account to use your subscription. "
-            "A browser window will open for authentication."
+            "Uses your ChatGPT Plus/Pro subscription via the OpenAI Codex CLI. "
+            "Requires: 1) Install the Codex CLI (npm install -g @openai/codex), "
+            "2) Run 'codex login' and sign in with your ChatGPT account."
         )
         openai_sub_info.setObjectName("mutedText")
         openai_sub_info.setWordWrap(True)
         sub_layout.addWidget(openai_sub_info)
 
         openai_sub_row = QHBoxLayout()
-        self.openai_sign_in_btn = ModernButton("Sign in with ChatGPT", "primary")
-        self.openai_sign_in_btn.setFixedHeight(40)
-        self.openai_sign_in_btn.clicked.connect(self._on_openai_sign_in)
-        openai_sub_row.addWidget(self.openai_sign_in_btn)
-        self.openai_disconnect_btn = ModernButton("Disconnect", "danger")
-        self.openai_disconnect_btn.setFixedHeight(40)
-        self.openai_disconnect_btn.clicked.connect(self._on_openai_disconnect)
-        self.openai_disconnect_btn.hide()
-        openai_sub_row.addWidget(self.openai_disconnect_btn)
+        self.verify_codex_cli_btn = ModernButton("Verify Codex CLI", "secondary")
+        self.verify_codex_cli_btn.setFixedHeight(40)
+        self.verify_codex_cli_btn.setMinimumWidth(150)
+        self.verify_codex_cli_btn.clicked.connect(self._on_verify_codex_cli)
+        openai_sub_row.addWidget(self.verify_codex_cli_btn)
+        self.enable_openai_sub_btn = ModernButton("Enable Subscription", "primary")
+        self.enable_openai_sub_btn.setFixedHeight(40)
+        self.enable_openai_sub_btn.setMinimumWidth(150)
+        self.enable_openai_sub_btn.clicked.connect(self._on_enable_openai_sub)
+        openai_sub_row.addWidget(self.enable_openai_sub_btn)
+        self.disable_openai_sub_btn = ModernButton("Disable", "danger")
+        self.disable_openai_sub_btn.setFixedHeight(40)
+        self.disable_openai_sub_btn.clicked.connect(self._on_disable_openai_sub)
+        self.disable_openai_sub_btn.hide()
+        openai_sub_row.addWidget(self.disable_openai_sub_btn)
         openai_sub_row.addStretch()
         sub_layout.addLayout(openai_sub_row)
 
@@ -1258,17 +1263,17 @@ class SettingsPage(QWidget):
         else:
             self.anthropic_sub_status.setText("")
 
-        if settings.get("has_openai_sub"):
-            self.openai_sub_status.setText("Connected (ChatGPT subscription active)")
+        if settings.get("openai_auth_mode") == "subscription":
+            self.openai_sub_status.setText("Subscription mode enabled (using Codex CLI)")
             self.openai_sub_status.setObjectName("statusTextSuccess")
             self.openai_sub_status.style().unpolish(self.openai_sub_status)
             self.openai_sub_status.style().polish(self.openai_sub_status)
-            self.openai_sign_in_btn.hide()
-            self.openai_disconnect_btn.show()
+            self.enable_openai_sub_btn.hide()
+            self.disable_openai_sub_btn.show()
         else:
             self.openai_sub_status.setText("")
-            self.openai_sign_in_btn.show()
-            self.openai_disconnect_btn.hide()
+            self.enable_openai_sub_btn.show()
+            self.disable_openai_sub_btn.hide()
 
         if settings.get("gemini_auth_mode") == "subscription":
             self.gemini_sub_status.setText("Active — using gemini CLI")
@@ -1369,8 +1374,12 @@ class SettingsPage(QWidget):
         import subprocess
         self.save_anthropic_sub_btn.set_loading(True, "Checking...")
         try:
+            import shutil
+            exe = shutil.which("claude")
+            if not exe:
+                raise FileNotFoundError
             result = subprocess.run(
-                ["claude", "-p", "--model", "haiku",
+                [exe, "-p", "--model", "haiku",
                  "--output-format", "text", "--no-session-persistence",
                  "respond with just the word OK"],
                 capture_output=True, text=True, timeout=30,
@@ -1420,38 +1429,84 @@ class SettingsPage(QWidget):
             "success",
         )
 
-    def _on_openai_sign_in(self):
-        self.openai_sign_in_btn.setEnabled(False)
-        self.openai_sign_in_btn.setText("Waiting for browser...")
-        self.openai_oauth_requested.emit()
+    def _on_verify_codex_cli(self):
+        """Verify that the Codex CLI is installed and authenticated."""
+        import subprocess
+        self.verify_codex_cli_btn.set_loading(True, "Checking...")
+        try:
+            import shutil
+            exe = shutil.which("codex")
+            if not exe:
+                raise FileNotFoundError
+            result = subprocess.run(
+                [exe, "login", "status"],
+                capture_output=True, text=True, timeout=15,
+            )
+            output = (result.stdout + result.stderr).strip()
+            if result.returncode == 0:
+                self.openai_sub_status.setText(
+                    f"Codex CLI verified ({output[:60] or 'logged in'})"
+                )
+                self.openai_sub_status.setObjectName("statusTextSuccess")
+                self.openai_sub_status.style().unpolish(self.openai_sub_status)
+                self.openai_sub_status.style().polish(self.openai_sub_status)
+                show_toast(self.window(), "Codex CLI is working!", "success")
+            else:
+                self.openai_sub_status.setText(f"Not logged in: {output[:80]}")
+                show_toast(
+                    self.window(),
+                    "Codex CLI found but not logged in. Run 'codex login' in your terminal.",
+                    "warning",
+                )
+        except FileNotFoundError:
+            self.openai_sub_status.setText("Codex CLI not found")
+            show_toast(
+                self.window(),
+                "Codex CLI not installed. Run: npm install -g @openai/codex",
+                "error",
+            )
+        except subprocess.TimeoutExpired:
+            self.openai_sub_status.setText("CLI timed out")
+            show_toast(self.window(), "Codex CLI timed out — try again.", "warning")
+        except Exception as e:
+            self.openai_sub_status.setText(f"Error: {str(e)[:60]}")
+            show_toast(self.window(), f"CLI check error: {e}", "error")
+        finally:
+            self.verify_codex_cli_btn.set_loading(False)
 
-    def _on_openai_disconnect(self):
-        self.openai_disconnect_requested.emit()
+    def _on_enable_openai_sub(self):
+        """Enable ChatGPT subscription mode (uses the Codex CLI, no API key)."""
+        self.auth_mode_changed.emit("openai", "subscription")
+        self.openai_sub_status.setText("Subscription mode enabled (using Codex CLI)")
+        self.openai_sub_status.setObjectName("statusTextSuccess")
+        self.openai_sub_status.style().unpolish(self.openai_sub_status)
+        self.openai_sub_status.style().polish(self.openai_sub_status)
+        self.enable_openai_sub_btn.hide()
+        self.disable_openai_sub_btn.show()
+        show_toast(
+            self.window(),
+            "ChatGPT subscription enabled! OpenAI models will use your Codex CLI auth.",
+            "success",
+        )
+
+    def _on_disable_openai_sub(self):
+        """Disable ChatGPT subscription mode, fall back to API key."""
+        self.auth_mode_changed.emit("openai", "none")
         self.openai_sub_status.setText("")
-        self.openai_sign_in_btn.show()
-        self.openai_disconnect_btn.hide()
-        show_toast(self.window(), "OpenAI subscription disconnected.", "info")
-
-    def on_openai_oauth_complete(self, success: bool, error: str = ""):
-        self.openai_sign_in_btn.setEnabled(True)
-        self.openai_sign_in_btn.setText("Sign in with ChatGPT")
-        if success:
-            self.openai_sub_status.setText("Connected (ChatGPT subscription)")
-            self.openai_sub_status.setObjectName("statusTextSuccess")
-            self.openai_sub_status.style().unpolish(self.openai_sub_status)
-            self.openai_sub_status.style().polish(self.openai_sub_status)
-            self.openai_sign_in_btn.hide()
-            self.openai_disconnect_btn.show()
-            show_toast(self.window(), "ChatGPT subscription connected!", "success")
-        else:
-            show_toast(self.window(), f"OAuth failed: {error}", "error")
+        self.enable_openai_sub_btn.show()
+        self.disable_openai_sub_btn.hide()
+        show_toast(self.window(), "ChatGPT subscription disabled.", "info")
 
     def _on_gemini_enable_sub(self):
         """Enable Gemini subscription mode (gemini CLI)."""
         import subprocess
         try:
+            import shutil
+            exe = shutil.which("gemini")
+            if not exe:
+                raise FileNotFoundError
             result = subprocess.run(
-                ["gemini", "--version"], capture_output=True, text=True, timeout=5
+                [exe, "--version"], capture_output=True, text=True, timeout=5
             )
             if result.returncode != 0:
                 raise FileNotFoundError

@@ -150,14 +150,16 @@ class RouterEngine:
                     if anthropic_mode == "api":
                         return bool(settings.anthropic_key_enc)
                     if anthropic_mode == "subscription":
-                        return bool(getattr(settings, "anthropic_sub_token_enc", ""))
+                        from core.cli_llm import claude_cli_available
+                        return bool(getattr(settings, "anthropic_sub_token_enc", "")) or claude_cli_available()
                     return False
 
                 def _has_openai():
                     if openai_mode == "api":
                         return bool(settings.openai_key_enc)
                     if openai_mode == "subscription":
-                        return bool(getattr(settings, "openai_sub_token_enc", ""))
+                        from core.cli_llm import codex_cli_available
+                        return codex_cli_available()
                     return False
 
                 if tier == "haiku":
@@ -298,6 +300,33 @@ class RouterEngine:
             if context.get("system"):
                 messages.insert(0, {"role": "system", "content": context["system"]})
 
+            # Subscription modes route through official provider CLIs
+            from core import cli_llm
+            cli_text = None
+            if getattr(self, "_claude_cli_mode", False) and (
+                model.startswith("anthropic/") or model.startswith("claude")
+            ):
+                cli_text = cli_llm.call_claude_cli(messages, model)
+                if cli_text is None:
+                    raise RuntimeError("Claude CLI call failed — is 'claude' installed and logged in?")
+            elif getattr(self, "_gemini_cli_mode", False) and (
+                model.startswith("gemini/") or model.startswith("gemini-")
+            ):
+                cli_text = cli_llm.call_gemini_cli(messages, model)
+                if cli_text is None:
+                    raise RuntimeError("Gemini CLI call failed — is 'gemini' installed and logged in?")
+            elif getattr(self, "_codex_cli_mode", False) and (
+                model.startswith("openai/") or model.startswith("gpt")
+            ):
+                cli_text = cli_llm.call_codex_cli(messages, model)
+                if cli_text is None:
+                    raise RuntimeError("Codex CLI call failed — is 'codex' installed and logged in?")
+            if cli_text is not None:
+                return {
+                    "success": True, "data": cli_text, "model_used": model,
+                    "tokens": 0, "cost_usd": 0.0, "tier": tier, "error": None,
+                }
+
             temperature = context.get("temperature", 0.7)
             # Use task-specific output token budget, then context override, then default
             from config import TASK_OUTPUT_TOKENS
@@ -351,23 +380,31 @@ class RouterEngine:
                 if not settings:
                     return
 
-                # Gemini (API-key only, no subscription mode)
-                if settings.gemini_key_enc:
+                # Gemini — API key or CLI subscription
+                self._gemini_cli_mode = getattr(settings, "gemini_auth_mode", "none") == "subscription"
+                if settings.gemini_key_enc and not self._gemini_cli_mode:
                     os.environ["GEMINI_API_KEY"] = self.key_vault.decrypt(settings.gemini_key_enc)
 
                 # Anthropic — strict auth mode
                 anthropic_mode = getattr(settings, "anthropic_auth_mode", "none")
+                self._claude_cli_mode = False
                 if anthropic_mode == "api" and settings.anthropic_key_enc:
                     os.environ["ANTHROPIC_API_KEY"] = self.key_vault.decrypt(settings.anthropic_key_enc)
-                elif anthropic_mode == "subscription" and getattr(settings, "anthropic_sub_token_enc", ""):
-                    os.environ["ANTHROPIC_API_KEY"] = self.key_vault.decrypt(settings.anthropic_sub_token_enc)
+                elif anthropic_mode == "subscription":
+                    legacy_token = getattr(settings, "anthropic_sub_token_enc", "")
+                    if legacy_token:
+                        # Legacy setup-token — still a valid API credential
+                        os.environ["ANTHROPIC_API_KEY"] = self.key_vault.decrypt(legacy_token)
+                    else:
+                        self._claude_cli_mode = True
 
                 # OpenAI — strict auth mode
                 openai_mode = getattr(settings, "openai_auth_mode", "none")
+                self._codex_cli_mode = openai_mode == "subscription"
                 if openai_mode == "api" and settings.openai_key_enc:
                     os.environ["OPENAI_API_KEY"] = self.key_vault.decrypt(settings.openai_key_enc)
-                elif openai_mode == "subscription" and getattr(settings, "openai_sub_token_enc", ""):
-                    os.environ["OPENAI_API_KEY"] = self.key_vault.decrypt(settings.openai_sub_token_enc)
+                # ChatGPT OAuth tokens are not valid API keys — subscription
+                # calls route through the Codex CLI in _run_llm instead.
 
                 # OpenRouter (API-key only)
                 if getattr(settings, "openrouter_key_enc", ""):

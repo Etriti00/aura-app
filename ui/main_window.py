@@ -806,10 +806,6 @@ class MainWindow(QMainWindow):
         self.settings_page.save_anthropic_sub_requested.connect(
             self.settings_ctrl.save_anthropic_sub_token
         )
-        self.settings_page.openai_oauth_requested.connect(self._on_openai_oauth)
-        self.settings_page.openai_disconnect_requested.connect(
-            lambda: self.settings_ctrl.clear_sub_token("openai")
-        )
 
         self.settings_page.save_business_requested.connect(
             self.settings_ctrl.save_business_settings
@@ -1445,36 +1441,6 @@ class MainWindow(QMainWindow):
         worker.signals.result.connect(_done)
         worker.signals.error.connect(lambda e: show_toast(self, f"Triage failed: {e}", "error"))
         self._triage_worker = worker
-        worker.start()
-
-    # ─── OpenAI OAuth handler ────────────────────────────────
-
-    def _on_openai_oauth(self):
-        """Run OpenAI OAuth PKCE flow in a background thread."""
-        from utils.thread_worker import ThreadWorker
-        from core.subscription_auth import start_openai_oauth
-
-        def _work():
-            return start_openai_oauth()
-
-        def _done(result):
-            if result.get("success"):
-                self.settings_ctrl.save_openai_sub_tokens(
-                    result["access_token"],
-                    result.get("refresh_token", ""),
-                )
-                self.settings_page.on_openai_oauth_complete(True)
-            else:
-                self.settings_page.on_openai_oauth_complete(
-                    False, result.get("error", "Unknown error")
-                )
-
-        worker = ThreadWorker(_work)
-        worker.signals.result.connect(_done)
-        worker.signals.error.connect(
-            lambda e: self.settings_page.on_openai_oauth_complete(False, str(e))
-        )
-        self._oauth_worker = worker
         worker.start()
 
     # ─── Pipeline handler ──────────────────────────────────

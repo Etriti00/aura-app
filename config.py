@@ -11,7 +11,7 @@ from pathlib import Path
 
 # ─── App Identity ──────────────────────────────────────────────────────────────
 APP_NAME = "Aura"
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 APP_TAGLINE = "Your Local AI Sales Agent"
 GITHUB_REPO = "Etriti00/aura-app"
 

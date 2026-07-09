@@ -1,7 +1,7 @@
 # Aura — User Manual
 
 > **Your Local AI Sales Agent**
-> Version 2.2.0
+> Version 2.3.0
 
 ---
 
@@ -667,7 +667,7 @@ Each key field shows a masked preview (e.g., `sk-proj-****6789`). Click the eye 
 
 **Authentication Modes**: For Anthropic and OpenAI, choose between API Key or Subscription mode. Subscription lets you use your existing Claude Pro/Max or ChatGPT Plus account.
 
-**Subscription Auth**: Anthropic requires a setup-token from Claude Code CLI. OpenAI uses an OAuth browser sign-in flow. Gemini keys are free at aistudio.google.com.
+**Subscription Auth**: each provider routes through its official CLI — Anthropic via `claude` (Claude Code, `claude login`), OpenAI via `codex` (`codex login` with a ChatGPT account), Google via `gemini` (`gemini auth login`). Install the CLI, log in once, then click Enable Subscription.
 
 ### 12.2 AI Config Tab
 
@@ -1118,5 +1118,5 @@ Check the log file at `~/.aura/aura.log` for detailed error information. The log
 
 ---
 
-*Aura v2.2.0 — Your Local AI Sales Agent*
+*Aura v2.3.0 — Your Local AI Sales Agent*
 *Last updated: 2026-07-09*

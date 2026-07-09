@@ -28,6 +28,7 @@ class AIEngine:
     # instances degrade safely to standard LiteLLM routing)
     _gemini_sub_mode = False  # True -> route Gemini calls through the gemini CLI
     _claude_sub_mode = False  # True -> route Anthropic calls through the claude CLI
+    _openai_sub_mode = False  # True -> route OpenAI calls through the codex CLI
 
     def __init__(self, safety_guard: SafetyGuard = None):
         self.safety = safety_guard or SafetyGuard()
@@ -100,6 +101,9 @@ class AIEngine:
         # Claude subscription mode: route Anthropic model calls through the claude CLI
         self._claude_sub_mode = bool(sub_tokens.get("claude_sub"))
 
+        # ChatGPT subscription mode: route OpenAI model calls through the Codex CLI
+        self._openai_sub_mode = bool(sub_tokens.get("openai_sub_cli"))
+
         # Set environment variables for LiteLLM
         import os
         if "gemini" in api_keys and api_keys["gemini"]:
@@ -110,8 +114,8 @@ class AIEngine:
             os.environ["ANTHROPIC_API_KEY"] = sub_tokens["anthropic_sub"]
         if "openai" in api_keys and api_keys["openai"]:
             os.environ["OPENAI_API_KEY"] = api_keys["openai"]
-        elif sub_tokens.get("openai_sub"):
-            os.environ["OPENAI_API_KEY"] = sub_tokens["openai_sub"]
+        # ChatGPT OAuth tokens are NOT valid api.openai.com keys, so OpenAI
+        # subscription access routes through the Codex CLI (never env vars).
         if "openrouter" in api_keys and api_keys["openrouter"]:
             os.environ["OPENROUTER_API_KEY"] = api_keys["openrouter"]
 
@@ -121,125 +125,19 @@ class AIEngine:
     _TRANSIENT_ERRORS = ("429", "rate_limit", "timeout", "502", "503", "529", "overloaded")
 
     def _call_gemini_cli(self, messages: list, model: str) -> Optional[str]:
-        """
-        Call the Gemini CLI subprocess for subscription mode.
-        Requires `gemini` CLI to be installed and authenticated via 'gemini auth login'.
-        """
-        import subprocess
-
-        # Build a single prompt from the messages list
-        parts = []
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                parts.append(f"[Instructions]\n{content}")
-            else:
-                parts.append(content)
-        full_prompt = "\n\n".join(parts)
-
-        # Strip "gemini/" prefix if present — CLI takes bare model name
-        cli_model = model.removeprefix("gemini/") if model.startswith("gemini/") else model
-
-        try:
-            result = subprocess.run(
-                ["gemini", "--model", cli_model, "--yolo", full_prompt],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                env={**__import__("os").environ, "GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""},
-            )
-            if result.returncode == 0:
-                return result.stdout.strip()
-            logger.error(f"gemini CLI error: {result.stderr.strip()}")
-            return None
-        except FileNotFoundError:
-            logger.error("gemini CLI not found. Install it and run 'gemini auth login'.")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.error("gemini CLI timed out after 120s")
-            return None
-        except Exception as e:
-            logger.error(f"gemini CLI call failed: {e}")
-            return None
-
-    # ─── Claude CLI: subscription mode ──────────────────────────────
-
-    # Map from LiteLLM model names to Claude CLI aliases
-    _CLAUDE_CLI_MODEL_MAP = {
-        "anthropic/claude-sonnet-4-6": "sonnet",
-        "anthropic/claude-sonnet-4-5": "sonnet",
-        "anthropic/claude-haiku-4-5": "haiku",
-        "anthropic/claude-opus-4-6": "opus",
-        "claude-sonnet-4-6": "sonnet",
-        "claude-sonnet-4-5": "sonnet",
-        "claude-haiku-4-5": "haiku",
-        "claude-opus-4-6": "opus",
-    }
+        """Route an LLM call through the Gemini CLI (subscription mode)."""
+        from core.cli_llm import call_gemini_cli
+        return call_gemini_cli(messages, model)
 
     def _call_claude_cli(self, messages: list, model: str) -> Optional[str]:
-        """
-        Call the Claude Code CLI subprocess for subscription mode.
-        Requires `claude` CLI to be installed and authenticated (claude login).
-        Uses -p (print) mode for non-interactive single-shot calls.
-        """
-        import subprocess
+        """Route an LLM call through the Claude Code CLI (subscription mode)."""
+        from core.cli_llm import call_claude_cli
+        return call_claude_cli(messages, model)
 
-        # Build a single prompt from the messages list
-        parts = []
-        system_parts = []
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                system_parts.append(content)
-            else:
-                parts.append(content)
-        full_prompt = "\n\n".join(parts)
-
-        # Map model name to CLI alias
-        cli_model = self._CLAUDE_CLI_MODEL_MAP.get(model, "sonnet")
-
-        cmd = [
-            "claude", "-p",
-            "--model", cli_model,
-            "--output-format", "text",
-            "--no-session-persistence",
-        ]
-
-        # Append system prompt if present
-        if system_parts:
-            cmd.extend(["--append-system-prompt", "\n\n".join(system_parts)])
-
-        cmd.append(full_prompt)
-
-        try:
-            logger.debug(f"Claude CLI call: model={cli_model}, prompt_len={len(full_prompt)}")
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-            stderr = result.stderr.strip()
-            if stderr:
-                logger.error(f"claude CLI error: {stderr}")
-            elif result.returncode != 0:
-                logger.error(f"claude CLI exited with code {result.returncode}")
-            return None
-        except FileNotFoundError:
-            logger.error(
-                "claude CLI not found. Install Claude Code and run 'claude login'."
-            )
-            return None
-        except subprocess.TimeoutExpired:
-            logger.error("claude CLI timed out after 120s")
-            return None
-        except Exception as e:
-            logger.error(f"claude CLI call failed: {e}")
-            return None
+    def _call_codex_cli(self, messages: list, model: str) -> Optional[str]:
+        """Route an LLM call through the OpenAI Codex CLI (ChatGPT subscription)."""
+        from core.cli_llm import call_codex_cli
+        return call_codex_cli(messages, model)
 
     # ─── Unified LLM dispatch ────────────────────────────────────
 
@@ -261,6 +159,12 @@ class AIEngine:
             model.startswith("anthropic/") or model.startswith("claude")
         ):
             return self._call_claude_cli(messages, model)
+
+        # ChatGPT subscription: bypass LiteLLM, use the Codex CLI
+        if self._openai_sub_mode and (
+            model.startswith("openai/") or model.startswith("gpt")
+        ):
+            return self._call_codex_cli(messages, model)
 
         import time as _time
         import litellm
