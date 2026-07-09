@@ -12,6 +12,7 @@
   <a href="https://github.com/Etriti00/aura-app/stargazers"><img src="https://img.shields.io/github/stars/Etriti00/aura-app?style=for-the-badge&color=4E5BF2" alt="Stars"></a>
   <a href="https://github.com/Etriti00/aura-app/issues"><img src="https://img.shields.io/github/issues/Etriti00/aura-app?style=for-the-badge" alt="Issues"></a>
   <a href="https://github.com/Etriti00/aura-app/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Etriti00/aura-app?style=for-the-badge" alt="License"></a>
+  <a href="https://github.com/Etriti00/aura-app/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/Etriti00/aura-app/tests.yml?style=for-the-badge&label=tests" alt="Tests"></a>
   <img src="https://img.shields.io/badge/python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Platform">
 </p>
@@ -65,7 +66,7 @@ After installation, the `aura` command is available globally:
 
 ```bash
 $ aura status
-Aura v2.1.0 — System Status
+Aura v2.2.0 — System Status
 ───────────────────────────────
   Campaigns          0
   Leads              0
@@ -129,6 +130,7 @@ aura config-api-keys
 - **CSV imports** — LinkedIn Sales Navigator exports, batch files
 - **Auto-enrichment** — Email finder, phone lookup, website analysis
 - **AI qualification** — Automatic lead scoring with LLM-powered assessment
+- **Campaign manager** — Campaigns tab with per-campaign lead drill-down, one-click enrichment, and CSV export
 
 ### Deep Research
 - **Multi-provider intelligence** — Tavily, Firecrawl, Apify
@@ -181,6 +183,7 @@ aura config-api-keys
 - **Telegram bot** — Control Aura from Telegram with natural language commands
 - **Discord bot** — Same capabilities via Discord server
 - **Command palette** — `Ctrl+K` fuzzy search across all 14 pages
+- **Chat copilot** — Dockable chat with file attachments, stop generation, streamed responses, and natural-language lead queries
 - **Cross-page navigation** — Deep links between pages with context passing
 
 ### Analytics & Intelligence
@@ -193,13 +196,13 @@ aura config-api-keys
 
 ## CLI Reference
 
-The CLI provides **81 commands** across **17 groups** with full feature parity to the GUI. Run `aura` to start the interactive REPL, or `aura <command>` for one-shot execution.
+The CLI provides **82 commands** across **17 groups** with full feature parity to the GUI. Run `aura` to start the interactive REPL, or `aura <command>` for one-shot execution.
 
 ### REPL Mode
 
 ```
 $ aura
-Aura v2.1.0 — AI Sales Agent
+Aura v2.2.0 — AI Sales Agent
 Type /help for commands, or type naturally.
 
 aura> /hunt plumber --city "Austin TX" --limit 20
@@ -258,10 +261,10 @@ aura --verbose status
 ┌─────────────────────────────────────────────────────────┐
 │              Interface Layer (GUI or CLI)                 │
 │   GUI: PySide6 (14 Pages, Chat Panel, Sidebar)          │
-│   CLI: REPL + 81 commands (no PySide6 required)         │
+│   CLI: REPL + 82 commands (no PySide6 required)         │
 ├─────────────────────────────────────────────────────────┤
 │                   Controller Layer                       │
-│   GUI: 19 QObject controllers with Signal/Slot wiring   │
+│   GUI: 18 QObject controllers with Signal/Slot wiring   │
 │   CLI: Direct engine calls (bypasses controllers)       │
 ├─────────────────────────────────────────────────────────┤
 │                   Core Engine Layer                      │
@@ -280,7 +283,7 @@ aura --verbose status
 ```
 aura-app/
 ├── main.py                  # GUI entry point
-├── cli.py                   # CLI entry point (81 commands, REPL)
+├── cli.py                   # CLI entry point (82 commands, REPL)
 ├── config.py                # All constants, paths, design tokens
 ├── aura.spec                # PyInstaller build configuration (cross-platform)
 ├── pyproject.toml           # Python packaging (pip install -e .)
@@ -303,7 +306,7 @@ aura-app/
 │   ├── enrichment_layers/   # DNS, Ollama, free APIs, deep crawl enrichment
 │   └── ...                  # 40+ more engines
 │
-├── controllers/             # 19 signal-based UI controllers
+├── controllers/             # 18 signal-based UI controllers
 │   ├── hunter_controller.py
 │   ├── outreach_controller.py
 │   ├── fleet_controller.py
@@ -346,7 +349,7 @@ aura-app/
 │   ├── build_icns.sh        # macOS icon generation
 │   └── linux/               # Linux desktop entry + installer
 │
-└── tests/                   # 1250+ tests across 50+ files
+└── tests/                   # 1,345 tests across 54 files
     ├── conftest.py          # Fixtures (in-memory DB, QApp)
     └── test_*.py            # Comprehensive coverage
 ```
@@ -364,7 +367,7 @@ aura-app/
 | TTS | ElevenLabs, OpenAI, Piper (local) |
 | STT | Whisper (local via faster-whisper, or API) |
 | Encryption | AES-256 via `cryptography` (machine-bound, per-install salt) |
-| CLI | 81 commands, REPL, natural language fallback |
+| CLI | 82 commands, REPL, natural language fallback |
 | Packaging | PyInstaller (OneDir), cross-platform (Win/macOS/Linux) |
 
 ---
@@ -442,7 +445,7 @@ venv\Scripts\python.exe -m pytest tests/test_agent_engine.py -v
 venv\Scripts\python.exe -m pytest tests/ -k "test_stalled" -v
 ```
 
-**Current status**: 1250+ tests across 50+ files — 100% passing.
+**Current status**: 1,345 tests across 54 files — 100% passing.
 
 ---
 
@@ -475,6 +478,8 @@ Tier 1 (Local)  →  Tier 2 (Haiku/Flash)  →  Tier 3 (Sonnet/GPT-4o)  →  Tie
 
 Budget pacing automatically downgrades tiers when daily spend approaches limits.
 
+> **No API key?** Aura can also run on an existing **Claude Pro/Max** or **Google** subscription by routing calls through the official `claude` / `gemini` CLIs — enable it in **Settings → API Keys → Subscription Auth**.
+
 ---
 
 ## Contributing
@@ -494,6 +499,18 @@ Please ensure all tests pass before submitting.
 ---
 
 ## Changelog
+
+### v2.2.0 — Subscription Auth, Chat Upgrades & Campaign Manager
+
+- **Subscription auth** — Run Aura on an existing Claude Pro/Max or Google account instead of per-token API keys: calls route through the official `claude` / `gemini` CLIs when subscription mode is enabled (Settings → API Keys → Subscription Auth)
+- **Chat attachments & stop** — Attach text files to chat messages (contents are inlined into the AI context), stop generation mid-flight, animated thinking indicator, word-streamed responses, and file download cards
+- **Campaign manager** — New Campaigns tab on the Hunter page: campaign list with live stats, per-campaign lead detail view with enrichment columns, one-click single-lead or whole-campaign waterfall enrichment, and CSV export
+- **Chat lead intents** — "list my leads" / "show lead X" natural-language queries backed by new `list_leads` and `show_lead_detail` orchestrator actions
+- **Reliability** — Fixed background-worker signal wiring across chat, replies, budget, gateways, sequences, CRM sync, imports, and triage (results and errors were silently dropped); fixed the graceful-shutdown logger crash so cleanup always runs; enrichment results are now persisted to the database
+- **Discord status callback** — The Integrations page now reflects the adapter's real connect/failure state instead of assuming success at thread start
+- **Friendly AI errors** — Authentication, rate-limit, and timeout failures surface actionable messages instead of raw tracebacks
+- **Packaging & CI** — `python-telegram-bot` ships in requirements (the Telegram gateway is plug-and-play), tiktoken encodings are bundled into PyInstaller builds, a Tests workflow runs the full suite on every push, and tagged releases publish Windows/macOS/Linux binaries automatically
+- **Tests**: 1,250 → 1,345 (95 new tests across 2 new test files)
 
 ### v2.1.0 — Intelligence & Audit Hardening
 
@@ -589,5 +606,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v2.1.0</sub>
+  <sub>Aura v2.2.0</sub>
 </p>

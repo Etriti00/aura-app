@@ -1,7 +1,7 @@
 # Aura — User Manual
 
 > **Your Local AI Sales Agent**
-> Version 2.1.0
+> Version 2.2.0
 
 ---
 
@@ -1118,5 +1118,5 @@ Check the log file at `~/.aura/aura.log` for detailed error information. The log
 
 ---
 
-*Aura v2.1.0 — Your Local AI Sales Agent*
-*Last updated: 2026-03-14*
+*Aura v2.2.0 — Your Local AI Sales Agent*
+*Last updated: 2026-07-09*
