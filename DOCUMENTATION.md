@@ -1,6 +1,6 @@
 # Aura — Technical Documentation
 
-> **Version**: 2.4.0
+> **Version**: 2.5.0
 > **Stack**: Python 3.14 | PySide6 | SQLAlchemy | SQLite | LiteLLM
 > **Platform**: Windows | macOS | Linux (packaged via PyInstaller)
 
@@ -75,6 +75,8 @@ AuraApp/
 │
 ├── core/                      # 50+ business logic engines
 │   ├── ai_engine.py           # Universal LiteLLM adapter (2-tier routing)
+│   ├── model_fleet.py         # Provider + model registry (10 providers, custom IDs)
+│   ├── model_verifier.py      # Two-step model validation (auth + live round trip)
 │   ├── router_engine.py       # 4-tier LLM router (local → ollama → haiku → sonnet)
 │   ├── scraper_engine.py      # Multi-source web scraper (DDG → GMaps → Yelp)
 │   ├── agent_engine.py        # Agent lifecycle, task execution, delegation

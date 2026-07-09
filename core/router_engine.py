@@ -178,7 +178,7 @@ class RouterEngine:
     # ─── Core routing ──────────────────────────────────────────────
 
     def route(self, task_type: str, prompt: str, context: dict = None,
-              tier_override: str = None) -> dict:
+              tier_override: str = None, model_override: str = None) -> dict:
         """
         Route a task to the cheapest capable tier.
 
@@ -194,6 +194,13 @@ class RouterEngine:
             }
         """
         context = context or {}
+
+        # Explicit per-agent model assignment bypasses tier selection
+        if model_override:
+            result = self._run_llm(model_override, "custom", prompt, context, task_type)
+            self._log_usage("custom", task_type, result)
+            return result
+
         target_tier = tier_override or ROUTER_TASK_TIER_MAP.get(task_type, "sonnet")
 
         # ── Pacing constraint: limit tiers to budget-allowed maximum ──
@@ -405,6 +412,10 @@ class RouterEngine:
                     os.environ["OPENAI_API_KEY"] = self.key_vault.decrypt(settings.openai_key_enc)
                 # ChatGPT OAuth tokens are not valid API keys — subscription
                 # calls route through the Codex CLI in _run_llm instead.
+
+                # Extended provider fleet (Grok, GLM, Kimi, Qwen, MiniMax, NIM)
+                from core.model_fleet import inject_extended_provider_env
+                inject_extended_provider_env(settings, self.key_vault)
 
                 # OpenRouter (API-key only)
                 if getattr(settings, "openrouter_key_enc", ""):

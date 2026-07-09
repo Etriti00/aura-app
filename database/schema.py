@@ -154,6 +154,16 @@ class Settings(Base):
     openai_auth_mode = Column(String(20), default="none")
     gemini_auth_mode = Column(String(20), default="none")
 
+    # Extended model fleet provider keys (see core/model_fleet.py)
+    xai_key_enc = Column(String(500), default="")
+    zai_key_enc = Column(String(500), default="")
+    moonshot_key_enc = Column(String(500), default="")
+    dashscope_key_enc = Column(String(500), default="")
+    minimax_key_enc = Column(String(500), default="")
+    nvidia_nim_key_enc = Column(String(500), default="")
+    # User registered custom model IDs (JSON list or comma separated)
+    custom_models = Column(Text, default="")
+
     smtp_password_enc = Column(String(500), default="")
 
     # AI model defaults
@@ -557,6 +567,8 @@ class Agent(Base):
     memory_today = Column(Text, nullable=True)          # daily working notes, reset at midnight
     long_term_memory = Column(Text, nullable=True)      # curated cross-session memory
     model_tier = Column(String(20), default="haiku")    # local/ollama/haiku/sonnet
+    # Optional explicit model for this agent — overrides tier routing
+    model_override = Column(String(120), default=None, nullable=True)
     tasks_completed = Column(Integer, default=0)
     tasks_failed = Column(Integer, default=0)
     total_cost_usd = Column(Float, default=0.0)

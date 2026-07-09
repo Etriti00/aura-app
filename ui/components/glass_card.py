@@ -49,6 +49,7 @@ ACCENT_PRESETS = {
     "red":    ("#EF4444", "#F87171"),  # Rose
     "cyan":   ("#06B6D4", "#22D3EE"),  # Cyan
     "pink":   ("#EC4899", "#F472B6"),  # Fuschia
+    "yellow": ("#FFD60A", "#FDE047"),  # Neon Yellow
 }
 
 

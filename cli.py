@@ -2121,7 +2121,8 @@ class AuraCLI:
             return
         key, value = args[0], " ".join(args[1:])
 
-        allowed = ["sender_name", "sender_email", "tier2_model", "tier3_model"]
+        allowed = ["sender_name", "sender_email", "tier2_model", "tier3_model",
+                   "chat_model", "custom_models"]
         if key not in allowed:
             f.error(f"Key must be one of: {', '.join(allowed)}")
             return
@@ -2428,6 +2429,54 @@ class AuraCLI:
     # ═══════════════════════════════════════════════════════════════════════════
     #  KNOWLEDGE & MEMORY COMMANDS
     # ═══════════════════════════════════════════════════════════════════════════
+
+    @command("models", "config", "List the model fleet",
+             "/models")
+    def cmd_models(self, args: list):
+        f = Formatter
+        from core.model_fleet import PROVIDERS, custom_models
+        settings = self.db.get_settings()
+        f.header("Model Fleet")
+        for key, provider in PROVIDERS.items():
+            keyed = "local" if not provider["key_field"] else (
+                "key set" if getattr(settings, provider["key_field"], "") else "no key"
+            )
+            print(f"  {f.bold(provider['label'])}  [{keyed}]")
+            for m in provider["models"]:
+                print(f"    {f.cyan(m)}")
+        extra = custom_models(settings)
+        if extra:
+            print(f"  {f.bold('Custom')}")
+            for m in extra:
+                print(f"    {f.cyan(m)}")
+        f.info('Verify any model with /model-verify <model_id>. '
+               'Register custom IDs: /config-set custom_models "id1, id2"')
+
+    @command("model-verify", "config",
+             "Verify a model authenticates and answers a test prompt",
+             "/model-verify <model_id>")
+    def cmd_model_verify(self, args: list):
+        f = Formatter
+        if not args:
+            f.error("Usage: /model-verify <model_id>")
+            return
+        model_id = args[0]
+        from core.model_verifier import ModelVerifier
+        f.info(f"Step 1/2: authenticating {model_id}…")
+        verifier = ModelVerifier(self.db, self.key_vault)
+        result = verifier.verify(model_id)
+        if result.get("auth_ok"):
+            f.success("Step 1/2: authentication OK")
+        else:
+            f.error(f"Step 1/2 failed: {result.get('error', 'unknown error')}")
+            return
+        if result.get("roundtrip_ok"):
+            f.success(
+                f"Step 2/2: round trip OK ({result.get('latency_ms', 0)}ms) "
+                f"— response: {result.get('response', '')[:60]}"
+            )
+        else:
+            f.error(f"Step 2/2 failed: {result.get('error', 'no response')}")
 
     @command("kb-set", "knowledge", "Set a knowledge base entry",
              "/kb-set <category> <key> <value>")

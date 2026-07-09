@@ -115,6 +115,10 @@ class OutreachController(QObject):
             sub_tokens["openai_sub_cli"] = True
             api_keys.pop("openai", None)
 
+        # Extended provider fleet keys (Grok, GLM, Kimi, Qwen, MiniMax, NIM)
+        from core.model_fleet import inject_extended_provider_env
+        inject_extended_provider_env(settings, self.key_vault)
+
         self.ai_engine.configure(api_keys, models, sub_tokens=sub_tokens)
 
         # Configure delivery

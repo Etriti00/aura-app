@@ -40,6 +40,8 @@ hiddenimports = [
     # Core engines
     'core.ai_engine',
     'core.cli_llm',
+    'core.model_fleet',
+    'core.model_verifier',
     'core.scraper_engine',
     'core.delivery_engine',
     'core.sequence_engine',
@@ -250,8 +252,8 @@ if sys.platform == "darwin":
         info_plist={
             'CFBundleName': 'Aura',
             'CFBundleDisplayName': 'Aura — AI Sales Agent',
-            'CFBundleVersion': '2.4.0',
-            'CFBundleShortVersionString': '2.4.0',
+            'CFBundleVersion': '2.5.0',
+            'CFBundleShortVersionString': '2.5.0',
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '11.0',
         },

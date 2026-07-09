@@ -34,6 +34,7 @@ class FleetController(QObject):
     dispatch_result = Signal(dict)
     pipeline_complete = Signal(dict)
     triage_result = Signal(dict)
+    model_verified = Signal(int, bool, str)  # agent_id, ok, message
     agent_updated = Signal(int)  # agent_id
     escalation_triggered = Signal(dict)
     ticket_request_processed = Signal(dict)
@@ -220,6 +221,18 @@ class FleetController(QObject):
 
     def update_agent_field(self, agent_id: int, field: str, value: str):
         """Update an agent configuration field."""
+        # Per-agent model assignments must pass the two-step verification
+        # (authenticate, then a live round trip) before they are finalized.
+        if field == "model_override":
+            cleaned = (value or "").strip()
+            if cleaned in ("", "(tier default)"):
+                self._apply_field(agent_id, field, "")
+                return
+            self._verify_and_assign(agent_id, cleaned)
+            return
+        self._apply_field(agent_id, field, value)
+
+    def _apply_field(self, agent_id: int, field: str, value: str):
         try:
             result = self.agent_engine.update_agent_field(agent_id, field, value)
             if result.get("success"):
@@ -228,6 +241,48 @@ class FleetController(QObject):
                 self.error.emit(result.get("error", "Unknown error"))
         except Exception as e:
             self.error.emit(str(e))
+
+    def _verify_and_assign(self, agent_id: int, model_id: str):
+        """Two-step model verification, then persist the assignment."""
+        from utils.thread_worker import ThreadWorker
+        from core.model_verifier import ModelVerifier
+
+        def _work(**kwargs):
+            verifier = ModelVerifier(
+                self.agent_engine.db_manager,
+                getattr(self.agent_engine, "key_vault", None),
+            )
+            return verifier.verify(model_id)
+
+        def _done(res):
+            res = res or {}
+            if res.get("success"):
+                result = self.agent_engine.update_agent_field(
+                    agent_id, "model_override", model_id
+                )
+                if result.get("success"):
+                    self.model_verified.emit(
+                        agent_id, True,
+                        f"{model_id} verified ({res.get('latency_ms', 0)}ms) and assigned",
+                    )
+                    self.agent_updated.emit(agent_id)
+                else:
+                    self.model_verified.emit(
+                        agent_id, False, result.get("error", "Save failed")
+                    )
+            else:
+                self.model_verified.emit(
+                    agent_id, False,
+                    f"{model_id}: {res.get('error', 'verification failed')} — assignment not saved",
+                )
+
+        worker = ThreadWorker(_work)
+        worker.signals.result.connect(_done)
+        worker.signals.error.connect(
+            lambda e: self.model_verified.emit(agent_id, False, str(e))
+        )
+        self._verify_worker = worker
+        worker.start()
 
     # ─── Dispatch ─────────────────────────────────────────────────────
 

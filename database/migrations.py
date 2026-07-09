@@ -80,6 +80,16 @@ def migrate_schema(db_path):
     _add_col("settings", "openai_auth_mode", "TEXT", "'none'")
     _add_col("settings", "gemini_auth_mode", "TEXT", "'none'")
 
+    # Extended model fleet (v2.5)
+    _add_col("settings", "xai_key_enc", "TEXT", "''")
+    _add_col("settings", "zai_key_enc", "TEXT", "''")
+    _add_col("settings", "moonshot_key_enc", "TEXT", "''")
+    _add_col("settings", "dashscope_key_enc", "TEXT", "''")
+    _add_col("settings", "minimax_key_enc", "TEXT", "''")
+    _add_col("settings", "nvidia_nim_key_enc", "TEXT", "''")
+    _add_col("settings", "custom_models", "TEXT", "''")
+    _add_col("agents", "model_override", "TEXT", "NULL")
+
     # Agent hierarchy
     _add_col("agents", "rank", "INTEGER", "3")
     _add_col("agents", "reports_to_id", "INTEGER", "NULL")

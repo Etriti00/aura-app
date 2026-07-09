@@ -178,6 +178,7 @@ class AgentEngine:
                 )
                 agent_name = agent.name
                 model_tier = agent.model_tier
+                model_override = getattr(agent, "model_override", None)
 
             # Record call for rate limiting
             self._record_call(agent_id)
@@ -317,7 +318,8 @@ class AgentEngine:
                 if not used_cache:
                     try:
                         route_result = self.router_engine.route(
-                            task_type, context, tier_override=effective_tier
+                            task_type, context, tier_override=effective_tier,
+                            model_override=model_override,
                         )
                         if route_result.get("success"):
                             result_data = route_result.get("data", "")
@@ -641,6 +643,7 @@ class AgentEngine:
                         "status": agent.status,
                         "current_task": agent.current_task,
                         "model_tier": agent.model_tier,
+                        "model_override": getattr(agent, "model_override", None),
                         "heartbeat_last": agent.heartbeat_last.isoformat() if agent.heartbeat_last else None,
                         "heartbeat_interval_mins": agent.heartbeat_interval_mins,
                         "tasks_completed": agent.tasks_completed or 0,
@@ -670,6 +673,7 @@ class AgentEngine:
                         "status": a.status,
                         "current_task": a.current_task,
                         "model_tier": a.model_tier,
+                        "model_override": getattr(a, "model_override", None),
                         "heartbeat_last": a.heartbeat_last.isoformat() if a.heartbeat_last else None,
                         "tasks_completed": a.tasks_completed or 0,
                         "tasks_failed": a.tasks_failed or 0,
@@ -684,7 +688,7 @@ class AgentEngine:
         """Update a specific agent configuration field."""
         allowed = {
             "soul", "mission", "playbook", "boundaries", "boot_script",
-            "long_term_memory", "model_tier", "heartbeat_interval_mins",
+            "long_term_memory", "model_tier", "model_override", "heartbeat_interval_mins",
             "name", "identity_emoji",
         }
         if field not in allowed:

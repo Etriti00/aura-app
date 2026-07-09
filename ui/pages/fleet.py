@@ -224,6 +224,25 @@ class AgentDetailDialog(QDialog):
         tier_col.addWidget(self._tier_combo)
         config_row.addLayout(tier_col)
 
+        override_col = QVBoxLayout()
+        override_col.setSpacing(4)
+        override_lbl = QLabel("Model Override")
+        override_lbl.setObjectName("formLabel")
+        override_col.addWidget(override_lbl)
+        self._override_combo = QComboBox()
+        self._override_combo.setEditable(True)
+        from core.model_fleet import all_models
+        self._override_combo.addItem("(tier default)")
+        self._override_combo.addItems(all_models())
+        self._override_combo.setMinimumHeight(34)
+        self._override_combo.setMinimumWidth(230)
+        self._override_combo.setToolTip(
+            "Pin this agent to one exact model (verified before saving), "
+            "or type any custom model ID"
+        )
+        override_col.addWidget(self._override_combo)
+        config_row.addLayout(override_col)
+
         hb_col = QVBoxLayout()
         hb_col.setSpacing(4)
         hb_lbl = QLabel("Heartbeat (min)")
@@ -411,6 +430,9 @@ class AgentDetailDialog(QDialog):
             return
         self.edit_field.emit(self._agent_id, "model_tier", self._tier_combo.currentText())
         self.edit_field.emit(
+            self._agent_id, "model_override", self._override_combo.currentText()
+        )
+        self.edit_field.emit(
             self._agent_id, "heartbeat_interval_mins", str(self._hb_spin.value())
         )
 
@@ -473,6 +495,9 @@ class AgentDetailDialog(QDialog):
         if idx >= 0:
             self._tier_combo.setCurrentIndex(idx)
         self._hb_spin.setValue(info.get("heartbeat_interval_mins", 30))
+        self._override_combo.setEditText(
+            info.get("model_override") or "(tier default)"
+        )
 
         # Skills
         skills = info.get("skills", [])

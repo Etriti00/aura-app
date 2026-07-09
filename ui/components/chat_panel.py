@@ -8,6 +8,7 @@ import os
 import random
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QScrollArea, QFrame, QPushButton, QGraphicsDropShadowEffect,
     QSizePolicy, QTextEdit, QProgressBar, QFileDialog, QApplication,
@@ -521,6 +522,7 @@ class ChatInput(QTextEdit):
 class ChatPanel(QWidget):
     """Advanced slide-in chat panel with streaming, stop, files, and fun animations."""
 
+    model_changed = Signal(str)  # chat model picked in the header
     message_sent = Signal(str)
     message_sent_with_files = Signal(str, list)  # text, [file_paths]
     stop_requested = Signal()
@@ -569,6 +571,29 @@ class ChatPanel(QWidget):
         header_layout.addWidget(title_icon)
         header_layout.addWidget(title)
         header_layout.addStretch()
+
+        # Model selector — full fleet plus free-typed custom IDs
+        self.model_combo = QComboBox()
+        self.model_combo.setObjectName("chatModelCombo")
+        self.model_combo.setEditable(True)
+        try:
+            from core.model_fleet import all_models
+            self.model_combo.addItems(all_models())
+        except Exception:
+            pass
+        self.model_combo.setFixedHeight(30)
+        self.model_combo.setMinimumWidth(150)
+        self.model_combo.setMaximumWidth(185)
+        self.model_combo.setToolTip(
+            "Chat model — pick from the fleet or type any model ID"
+        )
+        self.model_combo.activated.connect(
+            lambda _i: self.model_changed.emit(self.model_combo.currentText())
+        )
+        self.model_combo.lineEdit().returnPressed.connect(
+            lambda: self.model_changed.emit(self.model_combo.currentText())
+        )
+        header_layout.addWidget(self.model_combo)
         header_layout.addWidget(close_btn)
         layout.addWidget(header)
 
@@ -814,6 +839,11 @@ class ChatPanel(QWidget):
     # Legacy alias
     def show_typing(self, show: bool):
         self.show_thinking(show)
+
+    def set_current_model(self, model_id: str):
+        """Reflect the configured chat model in the header selector."""
+        if model_id:
+            self.model_combo.setEditText(model_id)
 
     def toggle(self):
         if self._is_visible:

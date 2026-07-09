@@ -1862,3 +1862,491 @@ QTextEdit#callTranscriptPanel {
     font-family: "JetBrains Mono", monospace;
     font-size: 12px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASS THEME v3 — reference-matched translucency
+   Vivid indigo-violet canvas with a diagonal light band; panels float as
+   darker translucent navy glass above it (the reference look).
+     canvas      #4750C4 → #3A3F9D → light band #4C4FA8 → #37398B → #453D9C
+     panel       rgba(16, 20, 58, 0.52)
+     elevated    rgba(22, 26, 68, 0.55)
+     inset       rgba(10, 12, 40, 0.55)
+     hairline    rgba(255, 255, 255, 0.10)
+     selection   #5A64F2 → #6E76F7 (bright indigo pill)
+     chart gold  #E8C15A     line purple #8F86F0
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+QWidget {
+    background-color: transparent;
+    color: #FFFFFF;
+}
+
+QMainWindow, QDialog {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #4750C4, stop:0.35 #3A3F9D, stop:0.50 #4C4FA8,
+        stop:0.65 #37398B, stop:1 #453D9C);
+}
+
+QMenu, QComboBox QAbstractItemView, QToolTip, QCalendarWidget {
+    background-color: #23285F;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 6px;
+}
+QMenu::item, QComboBox QAbstractItemView::item {
+    background: transparent;
+    padding: 7px 14px;
+    border-radius: 8px;
+}
+QMenu::item:selected, QComboBox QAbstractItemView::item:selected {
+    background: rgba(110, 118, 247, 0.40);
+}
+
+QWidget#centralWidget, QWidget#scrollContent,
+QScrollArea#dashboardScroll, QScrollArea#dashboardScroll > QWidget {
+    background: transparent;
+}
+
+/* ─── Top bar + status bar ─── */
+QFrame#topBar, QWidget#topBar {
+    background-color: rgba(16, 20, 58, 0.45);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+QWidget#statusBar, QFrame#statusBar {
+    background-color: rgba(16, 20, 58, 0.45);
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* ─── Sidebar: floating navy glass rail ─── */
+QWidget#sidebar {
+    background-color: rgba(16, 20, 58, 0.52);
+    border-right: 1px solid rgba(255, 255, 255, 0.10);
+}
+QPushButton#sidebarButton {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.65);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 9px 14px;
+    text-align: left;
+    font-weight: 600;
+}
+QPushButton#sidebarButton:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+}
+QPushButton#sidebarButton:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #5A64F2, stop:1 #6E76F7);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #FFFFFF;
+}
+QLabel#navSectionLabel { color: rgba(255, 255, 255, 0.40); }
+QLabel#versionLabel { color: rgba(255, 255, 255, 0.35); }
+
+/* ─── Cards: darker navy glass over the bright canvas ─── */
+QFrame#glassCard, QFrame#statCard {
+    background-color: rgba(16, 20, 58, 0.52);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 16px;
+}
+QFrame#glassCard:hover { border: 1px solid rgba(255, 255, 255, 0.18); }
+QLabel#cardHeader { color: #FFFFFF; font-weight: 700; }
+QLabel#mutedText { color: rgba(255, 255, 255, 0.55); }
+QLabel#statValue { color: #FFFFFF; }
+QLabel#statLabel { color: rgba(255, 255, 255, 0.58); letter-spacing: 1.2px; }
+
+/* ─── Inputs ─── */
+QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox {
+    background-color: rgba(10, 12, 40, 0.55);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    padding: 8px 12px;
+    selection-background-color: rgba(110, 118, 247, 0.50);
+}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 1px solid rgba(140, 148, 255, 0.75);
+    background-color: rgba(10, 12, 40, 0.70);
+}
+QComboBox {
+    background-color: rgba(10, 12, 40, 0.55);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    padding: 6px 12px;
+}
+QComboBox:hover { border: 1px solid rgba(255, 255, 255, 0.20); }
+QComboBox:focus { border: 1px solid rgba(140, 148, 255, 0.75); }
+QComboBox::drop-down { border: none; width: 26px; }
+
+/* ─── Buttons ─── */
+QPushButton#primaryButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #5A64F2, stop:1 #6E76F7);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    padding: 9px 20px;
+    font-weight: 700;
+}
+QPushButton#primaryButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #6B74F6, stop:1 #8189F9);
+}
+QPushButton#secondaryButton {
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 9px 18px;
+    font-weight: 600;
+}
+QPushButton#secondaryButton:hover { background: rgba(255, 255, 255, 0.13); }
+
+/* ─── Data views ─── */
+QAbstractItemView {
+    background-color: rgba(10, 12, 40, 0.45);
+    alternate-background-color: rgba(255, 255, 255, 0.03);
+    color: #FFFFFF;
+    selection-background-color: rgba(110, 118, 247, 0.38);
+    selection-color: #FFFFFF;
+}
+QTableWidget, QTableView {
+    background-color: rgba(10, 12, 40, 0.45);
+    alternate-background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    gridline-color: rgba(255, 255, 255, 0.05);
+}
+QTableWidget#campaignListTable, QTableWidget#campaignDetailTable {
+    background-color: rgba(10, 12, 40, 0.45);
+    alternate-background-color: rgba(255, 255, 255, 0.03);
+    selection-background-color: rgba(110, 118, 247, 0.38);
+    selection-color: #FFFFFF;
+}
+QTableWidget#campaignListTable::item, QTableWidget#campaignDetailTable::item {
+    background: transparent;
+    color: #FFFFFF;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+QHeaderView::section {
+    background-color: rgba(22, 26, 68, 0.60);
+    color: rgba(255, 255, 255, 0.60);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    padding: 8px 10px;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+}
+QTableCornerButton::section { background: rgba(22, 26, 68, 0.60); border: none; }
+QComboBox QAbstractItemView {
+    background-color: #23285F;
+    alternate-background-color: #23285F;
+}
+
+/* ─── Tabs: gold accent like the reference charts ─── */
+QTabBar::tab {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    padding: 9px 22px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-weight: 600;
+}
+QTabBar::tab:selected { color: #E8C15A; border-bottom: 2px solid #E8C15A; }
+QTabBar::tab:hover:!selected {
+    color: rgba(255, 255, 255, 0.85);
+    border-bottom: 2px solid rgba(232, 193, 90, 0.40);
+}
+QTabWidget::pane { border: none; background: transparent; }
+
+/* ─── Scrollbars ─── */
+QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
+QScrollBar::handle:vertical {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 5px; min-height: 30px;
+}
+QScrollBar::handle:vertical:hover { background: rgba(110, 118, 247, 0.65); }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
+QScrollBar::handle:horizontal {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 5px; min-width: 30px;
+}
+
+/* ═══ CHAT — its own floating glass column ═══ */
+QFrame#chatPanel, QWidget#chatPanel {
+    background-color: rgba(13, 16, 48, 0.62);
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+QFrame#chatHeader {
+    background-color: rgba(22, 26, 68, 0.60);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+QLabel#chatTitle { color: #FFFFFF; font-weight: 700; background: transparent; }
+QComboBox#chatModelCombo {
+    background-color: rgba(10, 12, 40, 0.60);
+    border: 1px solid rgba(110, 118, 247, 0.40);
+    border-radius: 10px;
+    font-size: 11px;
+    padding: 4px 10px;
+    color: rgba(255, 255, 255, 0.88);
+}
+QComboBox#chatModelCombo:hover { border: 1px solid rgba(140, 148, 255, 0.70); }
+QScrollArea#chatScrollArea, QWidget#chatMessagesWidget { background: transparent; }
+
+QFrame#chatBubbleUser {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #5A64F2, stop:1 #6E76F7);
+    border: none;
+    border-radius: 16px;
+    margin-left: 44px;
+}
+QFrame#chatBubbleUser QLabel { color: #FFFFFF; background: transparent; }
+QFrame#chatBubbleAI {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 16px;
+    margin-right: 44px;
+}
+QFrame#chatBubbleAI QLabel { color: rgba(255, 255, 255, 0.94); background: transparent; }
+
+QFrame#chatInputBar {
+    background-color: rgba(22, 26, 68, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+QTextEdit#chatInput, QLineEdit#chatInput {
+    background: rgba(10, 12, 40, 0.60);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 8px 16px;
+    font-size: 13px;
+}
+QTextEdit#chatInput:focus, QLineEdit#chatInput:focus {
+    border: 1px solid rgba(140, 148, 255, 0.75);
+    background: rgba(10, 12, 40, 0.75);
+}
+QPushButton#chatSendButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #5A64F2, stop:1 #6E76F7);
+    border: none;
+    border-radius: 19px;
+}
+QPushButton#chatSendButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #6B74F6, stop:1 #8189F9);
+}
+QPushButton#chatAttachButton {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 17px;
+}
+QPushButton#chatAttachButton:hover {
+    background: rgba(110, 118, 247, 0.28);
+    border-color: rgba(140, 148, 255, 0.55);
+}
+QPushButton#chatCloseButton {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 15px;
+}
+QPushButton#chatCloseButton:hover { background: rgba(239, 68, 68, 0.30); }
+QWidget#chatChipsBar, QFrame#chatChipsBar { background: transparent; }
+QPushButton#chipButton {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 5px 14px;
+    font-size: 11px;
+    font-weight: 600;
+}
+QPushButton#chipButton:hover {
+    background: rgba(110, 118, 247, 0.30);
+    border-color: rgba(140, 148, 255, 0.55);
+    color: #FFFFFF;
+}
+QFrame#thinkingWidget {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(140, 148, 255, 0.35);
+    border-radius: 16px;
+    margin-right: 44px;
+}
+QLabel#thinkingSpinner { color: #8F86F0; background: transparent; }
+QLabel#thinkingPhrase { color: rgba(255, 255, 255, 0.62); background: transparent; }
+QFrame#chatFileBar {
+    background: rgba(16, 20, 58, 0.40);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+QFrame#fileChip {
+    background: rgba(110, 118, 247, 0.22);
+    border: 1px solid rgba(140, 148, 255, 0.45);
+    border-radius: 12px;
+}
+
+/* ─── Badges ─── */
+QLabel#badgeInfo {
+    background: rgba(110, 118, 247, 0.20);
+    color: #C7CBFF;
+    border: 1px solid rgba(140, 148, 255, 0.40);
+    border-radius: 10px; padding: 3px 10px; font-weight: 700;
+}
+QLabel#badgeSuccess {
+    background: rgba(52, 211, 153, 0.16);
+    color: #7BEFC3;
+    border: 1px solid rgba(52, 211, 153, 0.38);
+    border-radius: 10px; padding: 3px 10px; font-weight: 700;
+}
+QLabel#badgeWarning {
+    background: rgba(232, 193, 90, 0.16);
+    color: #F2D488;
+    border: 1px solid rgba(232, 193, 90, 0.40);
+    border-radius: 10px; padding: 3px 10px; font-weight: 700;
+}
+QLabel#badgeDanger {
+    background: rgba(248, 113, 113, 0.16);
+    color: #FFB4B4;
+    border: 1px solid rgba(248, 113, 113, 0.38);
+    border-radius: 10px; padding: 3px 10px; font-weight: 700;
+}
+
+/* ─── Misc ─── */
+QFrame#kanbanColumn {
+    background-color: rgba(16, 20, 58, 0.48);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 16px;
+}
+QProgressBar {
+    background: rgba(10, 12, 40, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.75);
+}
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #E8C15A, stop:1 #8F86F0);
+    border-radius: 7px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASS v4 POLISH — craft pass (Apple materials + design-eng principles)
+   Material weight encodes hierarchy: structural rails are heavier than
+   content cards; small chips are lightest. Bright top edges suggest light
+   catching each pane. Text over translucency is cool-tinted, never gray.
+   Every interactive surface has hover, pressed, focus, and disabled states.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Vibrancy text: cool-tinted hierarchy over translucent surfaces */
+QWidget { color: rgba(238, 241, 255, 0.94); }
+QLabel#cardHeader {
+    color: #FFFFFF;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+QLabel#mutedText {
+    color: rgba(214, 220, 250, 0.62);
+    letter-spacing: 0.2px;
+}
+QLabel#statLabel {
+    color: rgba(214, 220, 250, 0.66);
+    font-weight: 700;
+    letter-spacing: 1.4px;
+}
+QLabel#navSectionLabel {
+    color: rgba(214, 220, 250, 0.45);
+    letter-spacing: 1.6px;
+    font-weight: 700;
+}
+
+/* Structural rails: heaviest material (deepest, most separated) */
+QWidget#sidebar {
+    background-color: rgba(11, 14, 42, 0.66);
+    border-right: 1px solid rgba(255, 255, 255, 0.10);
+}
+QFrame#chatPanel, QWidget#chatPanel {
+    background-color: rgba(11, 14, 42, 0.70);
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+QFrame#topBar, QWidget#topBar {
+    background-color: rgba(13, 16, 48, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+QWidget#statusBar, QFrame#statusBar {
+    background-color: rgba(13, 16, 48, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+/* Content cards: lighter material, bright top edge catches the light */
+QFrame#glassCard, QFrame#statCard {
+    background-color: rgba(16, 20, 58, 0.48);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-top: 1px solid rgba(255, 255, 255, 0.17);
+    border-radius: 16px;
+}
+QFrame#glassCard:hover {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-top: 1px solid rgba(255, 255, 255, 0.24);
+}
+QFrame#chatHeader {
+    background-color: rgba(16, 20, 58, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+QFrame#kanbanColumn {
+    background-color: rgba(16, 20, 58, 0.44);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+}
+
+/* Tactile pressed states (scale is unavailable in QSS; weight shift instead) */
+QPushButton#primaryButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #4A53D8, stop:1 #5B63E0);
+}
+QPushButton#secondaryButton:pressed { background: rgba(255, 255, 255, 0.045); }
+QPushButton#sidebarButton:pressed { background: rgba(255, 255, 255, 0.045); }
+QPushButton#chipButton:pressed {
+    background: rgba(110, 118, 247, 0.40);
+    border-color: rgba(140, 148, 255, 0.65);
+}
+QPushButton#chatSendButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #4A53D8, stop:1 #5B63E0);
+}
+QPushButton#chatAttachButton:pressed,
+QPushButton#chatCloseButton:pressed { background: rgba(255, 255, 255, 0.045); }
+
+/* Disabled states: recede without disappearing */
+QPushButton:disabled {
+    color: rgba(238, 241, 255, 0.32);
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+QLineEdit:disabled, QTextEdit:disabled, QComboBox:disabled, QSpinBox:disabled {
+    color: rgba(238, 241, 255, 0.32);
+    background: rgba(10, 12, 40, 0.30);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Data sheets: slightly brighter body text for legibility over glass */
+QTableWidget, QTableView, QAbstractItemView { color: rgba(238, 241, 255, 0.92); }
+QHeaderView::section {
+    color: rgba(214, 220, 250, 0.62);
+    letter-spacing: 0.8px;
+}
+
+/* Small chips are the lightest material */
+QLabel#badgeInfo, QLabel#badgeSuccess, QLabel#badgeWarning, QLabel#badgeDanger {
+    font-size: 11px;
+    letter-spacing: 0.3px;
+}

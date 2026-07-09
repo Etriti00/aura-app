@@ -117,9 +117,16 @@ class SettingsPage(QWidget):
         self.twilio_sid_input = self._add_key_row(key_layout, "Twilio Account SID", "twilio_sid")
         self.twilio_token_input = self._add_key_row(key_layout, "Twilio Auth Token", "twilio_token")
         self.elevenlabs_input = self._add_key_row(key_layout, "ElevenLabs (TTS)", "elevenlabs")
+        self.xai_input = self._add_key_row(key_layout, "xAI (Grok)", "xai")
+        self.zai_input = self._add_key_row(key_layout, "Z.ai (GLM)", "zai")
+        self.moonshot_input = self._add_key_row(key_layout, "Moonshot (Kimi)", "moonshot")
+        self.dashscope_input = self._add_key_row(key_layout, "Alibaba (Qwen)", "dashscope")
+        self.minimax_input = self._add_key_row(key_layout, "MiniMax", "minimax")
+        self.nvidia_nim_input = self._add_key_row(key_layout, "NVIDIA NIM (Nemotron)", "nvidia_nim")
         or_info = QLabel(
             "Don't have individual API keys? Use OpenRouter for one-key access "
-            "to all models (OpenAI, Anthropic, Google) at openrouter.ai"
+            "to the whole fleet (Grok, GLM, Kimi, Qwen, MiniMax, Nemotron and "
+            "more) at openrouter.ai"
         )
         or_info.setObjectName("mutedText")
         or_info.setWordWrap(True)
@@ -319,6 +326,7 @@ class SettingsPage(QWidget):
         t2_label.setObjectName("formLabel")
         t2_col.addWidget(t2_label)
         self.tier2_combo = QComboBox()
+        self.tier2_combo.setEditable(True)  # custom model IDs welcome
         self.tier2_combo.addItems([
             "gemini/gemini-3.5-flash",
             "gemini/gemini-3.1-flash-lite",
@@ -344,6 +352,7 @@ class SettingsPage(QWidget):
         t3_label.setObjectName("formLabel")
         t3_col.addWidget(t3_label)
         self.tier3_combo = QComboBox()
+        self.tier3_combo.setEditable(True)  # custom model IDs welcome
         self.tier3_combo.addItems([
             "anthropic/claude-sonnet-5",
             "anthropic/claude-opus-4-8",
@@ -369,6 +378,7 @@ class SettingsPage(QWidget):
         chat_label.setObjectName("formLabel")
         chat_col.addWidget(chat_label)
         self.chat_model_combo = QComboBox()
+        self.chat_model_combo.setEditable(True)  # custom model IDs welcome
         self.chat_model_combo.addItems([
             "anthropic/claude-sonnet-5",
             "anthropic/claude-haiku-4-5",

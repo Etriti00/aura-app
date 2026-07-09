@@ -113,6 +113,9 @@ class OrchestratorEngine:
             gemini_sub_mode = getattr(settings, "gemini_auth_mode", "none") == "subscription"
             openai_sub_mode = getattr(settings, "openai_auth_mode", "none") == "subscription"
 
+            from core.model_fleet import inject_extended_provider_env
+            inject_extended_provider_env(settings, self.key_vault)
+
             for provider, key in api_keys.items():
                 if provider == "gemini":
                     os.environ["GEMINI_API_KEY"] = key

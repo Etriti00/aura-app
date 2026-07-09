@@ -900,6 +900,9 @@ class MainWindow(QMainWindow):
         self.fleet_page.agent_selected.connect(self.fleet_ctrl.get_agent_status)
         self.fleet_ctrl.agent_status_ready.connect(self.fleet_page.show_agent_detail)
         self.fleet_page.detail_dialog.edit_field.connect(self.fleet_ctrl.update_agent_field)
+        self.fleet_ctrl.model_verified.connect(
+            lambda aid, ok, msg: show_toast(self, msg, "success" if ok else "error")
+        )
         self.fleet_page.detail_dialog.boot_requested.connect(self.fleet_ctrl.boot_agent)
         self.fleet_page.detail_dialog.shutdown_requested.connect(self.fleet_ctrl.shutdown_agent)
 
@@ -1061,6 +1064,13 @@ class MainWindow(QMainWindow):
 
         # ─── Chat signals ────────────────────────────────────
         self.chat_panel.message_sent.connect(self._on_chat_message)
+        self.chat_panel.model_changed.connect(self._on_chat_model_changed)
+        try:
+            _s = self.db_manager.get_settings()
+            if _s and _s.chat_model:
+                self.chat_panel.set_current_model(_s.chat_model)
+        except Exception:
+            pass
         self.chat_panel.message_sent_with_files.connect(self._on_chat_message_with_files)
         self.chat_panel.stop_requested.connect(self._on_chat_stop)
         self.chat_ctrl.response_ready.connect(self._on_chat_response)
@@ -1516,6 +1526,21 @@ class MainWindow(QMainWindow):
         """Close chat panel if it's open (Escape key)."""
         if self.chat_panel.is_panel_visible:
             self.chat_panel.toggle()
+
+    def _on_chat_model_changed(self, model_id: str):
+        """Persist the chat model chosen from the chat panel header."""
+        model_id = (model_id or "").strip()
+        if not model_id:
+            return
+        try:
+            from database.schema import Settings
+            with self.db_manager.session_scope() as session:
+                s = session.query(Settings).first()
+                if s:
+                    s.chat_model = model_id
+            show_toast(self, f"Chat model set to {model_id}", "success")
+        except Exception as e:
+            show_toast(self, f"Could not set chat model: {e}", "error")
 
     def _on_chat_message(self, message: str):
         """Handle a chat message from the user."""
