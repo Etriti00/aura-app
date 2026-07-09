@@ -10,17 +10,17 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 dependencies = [
-    "SQLAlchemy==2.0.40",
-    "litellm==1.72.5",
-    "playwright==1.52.0",
-    "beautifulsoup4==4.13.4",
+    "SQLAlchemy==2.0.46",
+    "litellm==1.81.13",
+    "playwright==1.58.0",
+    "beautifulsoup4==4.14.3",
     "httpx==0.28.1",
-    "cryptography==45.0.3",
-    "py-machineid==0.6.0",
-    "resend==2.7.0",
-    "packaging==24.2",
-    "lxml==5.4.0",
-    "pytrends==4.9.4",
+    "cryptography==46.0.5",
+    "py-machineid==1.0.0",
+    "resend==2.22.0",
+    "packaging==26.0",
+    "lxml==6.0.2",
+    "pytrends==4.9.2",
     "playwright-stealth==1.0.6",
     "openpyxl==3.1.5",
     "python-whois==0.9.4",
@@ -29,10 +29,10 @@ dependencies = [
 
 [project.optional-dependencies]
 gui = [
-    "PySide6==6.8.3",
-    "qtawesome==1.4.0",
+    "PySide6==6.10.2",
+    "qtawesome==1.4.1",
 ]
-discord = ["discord.py==2.4.0"]
+discord = ["discord.py==2.6.4"]
 telegram = ["python-telegram-bot>=21.0"]
 voice = [
     "twilio>=9.0.0",
@@ -41,9 +41,9 @@ voice = [
 ]
 pdf = ["reportlab>=4.0.0"]
 all = [
-    "PySide6==6.8.3",
-    "qtawesome==1.4.0",
-    "discord.py==2.4.0",
+    "PySide6==6.10.2",
+    "qtawesome==1.4.1",
+    "discord.py==2.6.4",
     "python-telegram-bot>=21.0",
     "twilio>=9.0.0",
     "elevenlabs>=1.0.0",
