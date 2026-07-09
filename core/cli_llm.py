@@ -32,8 +32,16 @@ def _resolve_cli(name: str) -> Optional[str]:
     """
     return shutil.which(name)
 
-# Map LiteLLM model names → Claude CLI aliases
+# Map LiteLLM model names → Claude CLI model names/aliases
 CLAUDE_CLI_MODEL_MAP = {
+    "anthropic/claude-fable-5": "claude-fable-5",
+    "anthropic/claude-opus-4-8": "claude-opus-4-8",
+    "anthropic/claude-opus-4-7": "claude-opus-4-7",
+    "anthropic/claude-sonnet-5": "claude-sonnet-5",
+    "claude-fable-5": "claude-fable-5",
+    "claude-opus-4-8": "claude-opus-4-8",
+    "claude-opus-4-7": "claude-opus-4-7",
+    "claude-sonnet-5": "claude-sonnet-5",
     "anthropic/claude-sonnet-4-6": "sonnet",
     "anthropic/claude-sonnet-4-5": "sonnet",
     "anthropic/claude-haiku-4-5": "haiku",
@@ -56,6 +64,47 @@ def _split_messages(messages: list) -> tuple:
         else:
             parts.append(content)
     return "\n\n".join(system_parts), "\n\n".join(parts)
+
+
+def strip_code_fences(text: str) -> str:
+    """Strip a single markdown code fence wrapping, if present."""
+    t = text.strip()
+    if t.startswith("```"):
+        lines = t.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        t = "\n".join(lines).strip()
+    return t
+
+
+def try_subscription_route(settings, model: str, messages: list):
+    """
+    Route through a provider CLI when that provider's auth mode is
+    "subscription". Returns (handled, text): handled=False means the
+    caller should proceed with its normal LiteLLM path; text may be
+    None when handled but the CLI call failed.
+    """
+    if settings is None:
+        return False, None
+
+    def _sub(attr):
+        return getattr(settings, attr, "none") == "subscription"
+
+    if _sub("anthropic_auth_mode") and (
+        model.startswith("anthropic/") or model.startswith("claude")
+    ):
+        return True, call_claude_cli(messages, model)
+    if _sub("gemini_auth_mode") and (
+        model.startswith("gemini/") or model.startswith("gemini-")
+    ):
+        return True, call_gemini_cli(messages, model)
+    if _sub("openai_auth_mode") and (
+        model.startswith("openai/") or model.startswith("gpt")
+    ):
+        return True, call_codex_cli(messages, model)
+    return False, None
 
 
 def claude_cli_available() -> bool:

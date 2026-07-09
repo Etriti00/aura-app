@@ -11,7 +11,7 @@ from pathlib import Path
 
 # ─── App Identity ──────────────────────────────────────────────────────────────
 APP_NAME = "Aura"
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 APP_TAGLINE = "Your Local AI Sales Agent"
 GITHUB_REPO = "Etriti00/aura-app"
 
@@ -167,8 +167,8 @@ LEAD_STATE_TRANSITIONS = {
 LEAD_TERMINAL_STATES = {"closed_won", "disqualified"}
 
 # ─── AI Engine Defaults ───────────────────────────────────────────────────────
-DEFAULT_TIER2_MODEL = "gemini/gemini-2.0-flash"
-DEFAULT_TIER3_MODEL = "anthropic/claude-sonnet-4-6"
+DEFAULT_TIER2_MODEL = "gemini/gemini-3.5-flash"
+DEFAULT_TIER3_MODEL = "anthropic/claude-sonnet-5"
 
 # ─── Scraper Safety Settings ───────────────────────────────────────────────────
 # Human jitter delays (seconds)

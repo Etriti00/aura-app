@@ -320,20 +320,19 @@ class SettingsPage(QWidget):
         t2_col.addWidget(t2_label)
         self.tier2_combo = QComboBox()
         self.tier2_combo.addItems([
+            "gemini/gemini-3.5-flash",
+            "gemini/gemini-3.1-flash-lite",
+            "gemini/gemini-3-flash",
+            "anthropic/claude-haiku-4-5",
+            "openai/gpt-4.1-mini",
+            "openai/o4-mini",
             "ollama/llama3.1",
             "ollama/llama3",
             "ollama/mistral",
             "ollama/qwen2",
             "ollama/gemma2",
             "ollama/phi3",
-            "gemini/gemini-2.5-flash-preview-09-2025",
-            "gemini/gemini-2.5-flash-lite-preview-09-2025",
-            "gemini/gemini-2.0-flash",
-            "openai/gpt-4.1-mini",
-            "openai/gpt-4.1-nano",
-            "openai/o4-mini",
-            "anthropic/claude-haiku-4-5",
-            "openrouter/google/gemini-2.5-flash-preview-09-2025",
+            "openrouter/google/gemini-3.5-flash",
             "openrouter/openai/gpt-4.1-mini",
         ])
         t2_col.addWidget(self.tier2_combo)
@@ -346,18 +345,19 @@ class SettingsPage(QWidget):
         t3_col.addWidget(t3_label)
         self.tier3_combo = QComboBox()
         self.tier3_combo.addItems([
+            "anthropic/claude-sonnet-5",
+            "anthropic/claude-opus-4-8",
+            "anthropic/claude-fable-5",
+            "anthropic/claude-sonnet-4-6",
+            "openai/gpt-5.5",
+            "openai/gpt-5.2",
+            "openai/gpt-4.1",
+            "gemini/gemini-3.5-flash",
+            "gemini/gemini-3-flash",
             "ollama/llama3.1",
             "ollama/llama3:70b",
             "ollama/mixtral",
-            "ollama/qwen2",
-            "anthropic/claude-sonnet-4-6",
-            "anthropic/claude-opus-4-5",
-            "openai/gpt-4.1",
-            "openai/o3",
-            "openai/o4-mini",
-            "gemini/gemini-2.5-pro-preview-06-05",
-            "gemini/gemini-2.5-flash-preview-09-2025",
-            "openrouter/openai/gpt-4.1",
+            "openrouter/openai/gpt-5.5",
             "openrouter/auto",
         ])
         t3_col.addWidget(self.tier3_combo)
@@ -370,18 +370,18 @@ class SettingsPage(QWidget):
         chat_col.addWidget(chat_label)
         self.chat_model_combo = QComboBox()
         self.chat_model_combo.addItems([
+            "anthropic/claude-sonnet-5",
+            "anthropic/claude-haiku-4-5",
+            "anthropic/claude-opus-4-8",
+            "anthropic/claude-fable-5",
+            "openai/gpt-5.5",
+            "openai/gpt-4.1-mini",
+            "gemini/gemini-3.5-flash",
+            "gemini/gemini-3-flash",
             "ollama/llama3.1",
             "ollama/llama3",
             "ollama/mistral",
-            "ollama/qwen2",
-            "anthropic/claude-sonnet-4-6",
-            "anthropic/claude-haiku-4-5",
-            "openai/gpt-4.1",
-            "openai/gpt-4.1-mini",
-            "openai/o4-mini",
-            "gemini/gemini-2.5-flash-preview-09-2025",
-            "gemini/gemini-2.0-flash",
-            "openrouter/openai/gpt-4.1",
+            "openrouter/openai/gpt-5.5",
             "openrouter/auto",
         ])
         chat_col.addWidget(self.chat_model_combo)

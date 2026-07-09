@@ -1730,13 +1730,20 @@ class AuraCLI:
             return
         result = self.engines["trends"].find_opportunity_niches(args)
         if result.get("success"):
-            opps = result.get("data", [])
+            data = result.get("data", {})
+            opps = data.get("opportunities", []) if isinstance(data, dict) else data
             if not opps:
                 f.info("No opportunities found.")
                 return
             f.header("Niche Opportunities")
             for o in opps:
-                print(f"  {f.cyan(o.get('keyword', '?'))}  Score: {o.get('score', 0)}")
+                niche = o.get("niche", "?")
+                score = o.get("trend_score", 0)
+                reason = o.get("reason", "")
+                line = f"  {f.cyan(niche)}  Score: {score}"
+                if reason:
+                    line += f"  ({reason})"
+                print(line)
         else:
             f.error(result.get("error", "Failed"))
 
@@ -1879,8 +1886,8 @@ class AuraCLI:
              "/unsuppress <entry_id>")
     def cmd_unsuppress(self, args: list):
         f = Formatter
-        if not args:
-            f.error("Usage: /unsuppress <entry_id>")
+        if not args or not args[0].isdigit():
+            f.error("Usage: /unsuppress <entry_id>  (find IDs with /suppression-list)")
             return
         result = self.engines["suppression"].remove_suppression(int(args[0]))
         if result.get("success"):
@@ -2588,7 +2595,14 @@ class AuraCLI:
 
         while True:
             try:
+                # Piped input on Windows may carry a UTF-8 BOM — strip it so
+                # commands like "/status" still dispatch correctly
                 user_input = input(f"{f.cyan('aura')}> ").strip()
+                # A UTF-8 BOM decodes as \ufeff (utf-8 stdin) or "\xef\xbb\xbf"
+                # (cp1252 stdin) — drop either so "/commands" still dispatch
+                for _bom in ("\ufeff", "\xef\xbb\xbf"):
+                    if user_input.startswith(_bom):
+                        user_input = user_input[len(_bom):].strip()
             except (EOFError, KeyboardInterrupt):
                 print()
                 break

@@ -250,8 +250,8 @@ if sys.platform == "darwin":
         info_plist={
             'CFBundleName': 'Aura',
             'CFBundleDisplayName': 'Aura — AI Sales Agent',
-            'CFBundleVersion': '2.3.0',
-            'CFBundleShortVersionString': '2.3.0',
+            'CFBundleVersion': '2.4.0',
+            'CFBundleShortVersionString': '2.4.0',
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '11.0',
         },

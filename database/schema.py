@@ -157,8 +157,8 @@ class Settings(Base):
     smtp_password_enc = Column(String(500), default="")
 
     # AI model defaults
-    tier2_model = Column(String(100), default="gemini/gemini-2.0-flash")
-    tier3_model = Column(String(100), default="anthropic/claude-sonnet-4-6")
+    tier2_model = Column(String(100), default="gemini/gemini-3.5-flash")
+    tier3_model = Column(String(100), default="anthropic/claude-sonnet-5")
 
     # Email delivery
     email_delivery_method = Column(String(20), default="resend")  # "smtp" or "resend"
@@ -194,7 +194,7 @@ class Settings(Base):
     suppression_enabled = Column(Boolean, default=True)
 
     # ─── Expansion: Chat model ─────────────────────────────────────────
-    chat_model = Column(String(100), default="anthropic/claude-sonnet-4-6")
+    chat_model = Column(String(100), default="anthropic/claude-sonnet-5")
 
     # ─── Expansion: Apollo & Hunter API keys ─────────────────────────
     apollo_key_enc = Column(String(500), default="")

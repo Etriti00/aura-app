@@ -140,6 +140,22 @@ class AnalystEngine:
                 f"DATA:\n{json.dumps(context, indent=2, default=str)}"
             )
 
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question},
+            ]
+
+            # Subscription modes route through provider CLIs (no API key)
+            from core.cli_llm import try_subscription_route
+            handled, text = try_subscription_route(settings, model, messages)
+            if handled:
+                if text:
+                    return text
+                return (
+                    "I couldn't analyze that right now: the provider CLI "
+                    "call failed — is it installed and logged in?"
+                )
+
             import litellm
             for provider, key in api_keys.items():
                 if provider == "gemini":
@@ -154,10 +170,7 @@ class AnalystEngine:
 
             response = litellm.completion(
                 model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": question},
-                ],
+                messages=messages,
                 max_tokens=500,
                 temperature=0.3,
             )

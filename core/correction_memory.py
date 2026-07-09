@@ -80,7 +80,11 @@ class CorrectionMemory:
                         if val:
                             api_keys[provider] = val
 
-            if not api_keys:
+            _sub_available = any(
+                getattr(settings, m, "none") == "subscription"
+                for m in ("anthropic_auth_mode", "gemini_auth_mode", "openai_auth_mode")
+            )
+            if not api_keys and not _sub_available:
                 return self._store_raw_rule(message, agent_name)
 
             # Set env vars for litellm
@@ -102,16 +106,25 @@ class CorrectionMemory:
                 prev_response=(prev_response or "")[:300],
             )
 
-            import litellm
-            response = litellm.completion(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=200,
-                temperature=0.0,
-                response_format={"type": "json_object"},
-            )
+            # Subscription modes route through provider CLIs (no API key)
+            from core.cli_llm import strip_code_fences, try_subscription_route
+            _messages = [{"role": "user", "content": prompt}]
+            handled, raw = try_subscription_route(settings, model, _messages)
+            if handled:
+                if not raw:
+                    return self._store_raw_rule(message, agent_name)
+                raw = strip_code_fences(raw)
+            else:
+                import litellm
+                response = litellm.completion(
+                    model=model,
+                    messages=_messages,
+                    max_tokens=200,
+                    temperature=0.0,
+                    response_format={"type": "json_object"},
+                )
 
-            raw = response.choices[0].message.content.strip()
+                raw = response.choices[0].message.content.strip()
             data = json.loads(raw)
 
             if not data.get("is_correction"):

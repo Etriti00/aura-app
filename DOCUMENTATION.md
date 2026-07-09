@@ -1,6 +1,6 @@
 # Aura — Technical Documentation
 
-> **Version**: 2.3.0
+> **Version**: 2.4.0
 > **Stack**: Python 3.14 | PySide6 | SQLAlchemy | SQLite | LiteLLM
 > **Platform**: Windows | macOS | Linux (packaged via PyInstaller)
 

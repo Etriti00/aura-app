@@ -66,7 +66,7 @@ After installation, the `aura` command is available globally:
 
 ```bash
 $ aura status
-Aura v2.3.0 — System Status
+Aura v2.4.0 — System Status
 ───────────────────────────────
   Campaigns          0
   Leads              0
@@ -202,7 +202,7 @@ The CLI provides **82 commands** across **17 groups** with full feature parity t
 
 ```
 $ aura
-Aura v2.3.0 — AI Sales Agent
+Aura v2.4.0 — AI Sales Agent
 Type /help for commands, or type naturally.
 
 aura> /hunt plumber --city "Austin TX" --limit 20
@@ -231,7 +231,7 @@ aura> find me SaaS leads in healthcare    ← natural language works too
 | **Integrations** | `/gateway-status`, `/gateway-connect`, `/gateway-disconnect`, `/crm-sync`, `/gateway-auth` | Telegram, Discord, CRM |
 | **History** | `/history`, `/history-detail`, `/history-tree` | Command audit trail |
 | **Config** | `/config`, `/config-set`, `/config-api-keys`, `/config-smtp` | Settings management |
-| **Knowledge** | `/knowledge-add`, `/knowledge-list`, `/knowledge-remove`, `/memory-rules`, `/memory-stats`, `/memory-clear` | Knowledge base & correction memory |
+| **Knowledge** | `/kb-set`, `/kb-list`, `/kb-delete`, `/memory-list`, `/memory-clear` | Knowledge base & correction memory |
 | **System** | `/help`, `/status`, `/version`, `/clear`, `/exit` | System utilities |
 
 ### One-Shot Commands
@@ -464,16 +464,16 @@ Aura works with any combination of these LLM providers:
 
 | Provider | Models | Use Case |
 |----------|--------|----------|
-| **Anthropic** | Claude Haiku, Sonnet | Primary (recommended) |
-| **OpenAI** | GPT-4o, GPT-4o-mini | Alternative |
-| **Google** | Gemini Pro, Flash | Alternative |
+| **Anthropic** | Claude Fable 5, Opus 4.8, Sonnet 5, Haiku 4.5 | Primary (recommended) |
+| **OpenAI** | GPT-5.5, GPT-5.2, GPT-4.1 | Alternative |
+| **Google** | Gemini 3.5 Flash, 3 Flash, 3.1 Flash-Lite | Alternative |
 | **Ollama** | Any local model | Privacy-first, free tier |
 
 The **4-tier router** automatically selects the optimal model based on task complexity and budget:
 
 ```
-Tier 1 (Local)  →  Tier 2 (Haiku/Flash)  →  Tier 3 (Sonnet/GPT-4o)  →  Tier 4 (Opus)
-   Free              ~$0.001/task              ~$0.01/task               ~$0.10/task
+Tier 1 (Local)  →  Tier 2 (Haiku/Gemini Flash)  →  Tier 3 (Sonnet 5/GPT-5.5)  →  Tier 4 (Opus 4.8/Fable 5)
+   Free                ~$0.001/task                    ~$0.01/task                  ~$0.10/task
 ```
 
 Budget pacing automatically downgrades tiers when daily spend approaches limits.
@@ -499,6 +499,16 @@ Please ensure all tests pass before submitting.
 ---
 
 ## Changelog
+
+### v2.4.0 — Latest Models + Full E2E Hardening
+
+- **Latest model generation everywhere** — Claude Fable 5, Claude Opus 4.8, and Claude Sonnet 5 (new quality-tier default), GPT-5.5/GPT-5.2, and Gemini 3.5 Flash / 3 Flash / 3.1 Flash-Lite (new fast-tier default) across the tier router, chat model picker, and Claude CLI subscription map
+- **End-to-end verified** — every CLI command group and every GUI page exercised against a live sandbox, including real AI qualification, AI email drafting, chat intents, analyst Q&A, and Google Trends fetches
+- **Fixed `/trends-opportunities`** — the CLI handler read the wrong response shape and crashed; now renders niches with scores and reasons (live-verified)
+- **Fixed `/ask` and correction memory under subscription auth** — both engines called LiteLLM directly and demanded an API key even in CLI-subscription mode; they now route through the shared CLI transport
+- **Fixed `/unsuppress` crash** on non-numeric input
+- **REPL handles piped input** — a Windows pipe's UTF-8 BOM no longer breaks `/command` dispatch
+- **Docs corrected** — knowledge commands are `/kb-set`, `/kb-list`, `/kb-delete`, `/memory-list`, `/memory-clear`
 
 ### v2.3.0 — ChatGPT Subscription via Codex CLI
 
@@ -616,5 +626,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="center">
   Built with <a href="https://www.python.org/">Python</a> and a fleet of AI agents.<br>
-  <sub>Aura v2.3.0</sub>
+  <sub>Aura v2.4.0</sub>
 </p>

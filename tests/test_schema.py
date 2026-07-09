@@ -111,8 +111,8 @@ class TestSettingsModel:
             s.flush()
             assert settings.theme == "light"
             assert settings.first_run_complete is False
-            assert settings.tier2_model == "gemini/gemini-2.0-flash"
-            assert settings.tier3_model == "anthropic/claude-sonnet-4-6"
+            assert settings.tier2_model == "gemini/gemini-3.5-flash"
+            assert settings.tier3_model == "anthropic/claude-sonnet-5"
             assert settings.email_delivery_method == "resend"
             assert settings.enrichment_enabled is True
             assert settings.suppression_enabled is True
