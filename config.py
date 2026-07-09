@@ -11,7 +11,7 @@ from pathlib import Path
 
 # ─── App Identity ──────────────────────────────────────────────────────────────
 APP_NAME = "Aura"
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 APP_TAGLINE = "Your Local AI Sales Agent"
 GITHUB_REPO = "Etriti00/aura-app"
 
@@ -81,32 +81,6 @@ def _load_or_create_salt() -> str:
 
 ENCRYPTION_SALT = _load_or_create_salt()
 
-# ─── Color Palette (Cupertino Light) ───────────────────────────────────────────
-class Colors:
-    BG_PRIMARY = "#F5F5F7"
-    BG_SURFACE = "#FFFFFF"
-    ACCENT = "#007AFF"
-    ACCENT_HOVER = "#0066CC"
-    SUCCESS = "#34C759"
-    WARNING = "#FF9500"
-    DANGER = "#FF3B30"
-    TEXT_PRIMARY = "#1D1D1F"
-    TEXT_SECONDARY = "#86868B"
-    BORDER = "#E5E5EA"
-
-# ─── Dark Mode Palette ────────────────────────────────────────────────────────
-class DarkColors:
-    BG_PRIMARY = "#1C1C1E"
-    BG_SURFACE = "#2C2C2E"
-    ACCENT = "#0A84FF"
-    ACCENT_HOVER = "#409CFF"
-    SUCCESS = "#30D158"
-    WARNING = "#FF9F0A"
-    DANGER = "#FF453A"
-    TEXT_PRIMARY = "#F5F5F7"
-    TEXT_SECONDARY = "#98989D"
-    BORDER = "#38383A"
-
 # ─── Geometry ──────────────────────────────────────────────────────────────────
 class Geometry:
     CARD_RADIUS = 12
@@ -117,12 +91,6 @@ class Geometry:
     TOPBAR_HEIGHT = 56
     WINDOW_MIN = (1024, 680)
     WINDOW_DEFAULT = (1280, 800)
-
-# ─── Shadows ───────────────────────────────────────────────────────────────────
-class Shadows:
-    CARD = "0px 4px 12px rgba(0, 0, 0, 0.05)"
-    MODAL = "0px 8px 32px rgba(0, 0, 0, 0.12)"
-    TOAST = "0px 4px 16px rgba(0, 0, 0, 0.10)"
 
 # ─── Autonomy ──────────────────────────────────────────────────────────────────
 class AutonomyLevel(str, enum.Enum):
@@ -287,12 +255,6 @@ SCHEDULE_CHECK_INTERVAL_MS = 5 * 60 * 1000     # 5 minutes
 # ─── Chat Panel ────────────────────────────────────────────────────────────────
 CHAT_PANEL_WIDTH = 400
 
-# ─── Typography ────────────────────────────────────────────────────────────────
-FONT_FAMILY = "Inter"
-FONT_WEIGHT_REGULAR = 400
-FONT_WEIGHT_SEMIBOLD = 600
-FONT_MONO = "JetBrains Mono"
-
 # ─── API Rate Limits ──────────────────────────────────────────────────────────
 APOLLO_RATE_PER_MINUTE = 50
 APOLLO_RATE_PER_HOUR = 200
@@ -430,7 +392,6 @@ REFLECTION_MAX_REVISIONS = 2          # max re-execution attempts
 REFLECTION_ENABLED = True             # master toggle
 
 # ─── Self-Improvement Engine ────────────────────────────────────────────────
-IMPROVEMENT_CYCLE_INTERVAL_MS = 24 * 60 * 60 * 1000  # daily
 IMPROVEMENT_MIN_SAMPLES = 10
 IMPROVEMENT_REPLY_RATE_THRESHOLD = 0.05
 IMPROVEMENT_QUALITY_THRESHOLD = 5

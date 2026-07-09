@@ -33,6 +33,8 @@ from ui.pages.research import ResearchPage
 from ui.pages.calls import CallsPage
 from ui.components.chat_panel import ChatPanel
 
+from utils.logger import get_logger
+
 from controllers.hunter_controller import HunterController
 from controllers.dashboard_controller import DashboardController
 from controllers.forge_controller import ForgeController
@@ -90,6 +92,9 @@ from controllers.voice_controller import VoiceController
 from ui.components.command_palette import CommandPalette
 from ui.components.toast_notification import show_toast
 from ui.icons import get_icon
+
+
+logger = get_logger("main_window")
 
 
 class MainWindow(QMainWindow):
@@ -176,20 +181,20 @@ class MainWindow(QMainWindow):
         self.research_page = ResearchPage()
         self.calls_page = CallsPage()
 
-        self.page_stack.addWidget(self.dashboard_page)     # 0
-        self.page_stack.addWidget(self.hunter_page)         # 1
-        self.page_stack.addWidget(self.forge_page)          # 2
-        self.page_stack.addWidget(self.outreach_page)       # 3
-        self.page_stack.addWidget(self.fleet_page)          # 4
-        self.page_stack.addWidget(self.kanban_page)         # 5
-        self.page_stack.addWidget(self.history_page)        # 6
-        self.page_stack.addWidget(self.trends_page)         # 7
-        self.page_stack.addWidget(self.budget_page)         # 8
-        self.page_stack.addWidget(self.integrations_page)   # 9
-        self.page_stack.addWidget(self.settings_page)       # 10
-        self.page_stack.addWidget(self.suppression_page)    # 11
-        self.page_stack.addWidget(self.research_page)       # 12
-        self.page_stack.addWidget(self.calls_page)          # 13
+        self.page_stack.addWidget(self.dashboard_page)      # 0
+        self.page_stack.addWidget(self.hunter_page)          # 1
+        self.page_stack.addWidget(self.forge_page)           # 2
+        self.page_stack.addWidget(self.outreach_page)        # 3
+        self.page_stack.addWidget(self.fleet_page)           # 4
+        self.page_stack.addWidget(self.kanban_page)          # 5
+        self.page_stack.addWidget(self.history_page)         # 6
+        self.page_stack.addWidget(self.trends_page)          # 7
+        self.page_stack.addWidget(self.budget_page)          # 8
+        self.page_stack.addWidget(self.integrations_page)    # 9
+        self.page_stack.addWidget(self.settings_page)        # 10
+        self.page_stack.addWidget(self.suppression_page)     # 11
+        self.page_stack.addWidget(self.research_page)        # 12
+        self.page_stack.addWidget(self.calls_page)           # 13
 
         page_chat_layout.addWidget(self.page_stack, stretch=1)
 
@@ -637,7 +642,6 @@ class MainWindow(QMainWindow):
 
     def _wire_signals(self):
         """Connect all controller-page signal wiring."""
-
         # ─── Hunter signals ───────────────────────────────────
         self.hunter_page.start_requested.connect(self.hunter_ctrl.start_scrape)
         self.hunter_page.stop_requested.connect(self.hunter_ctrl.stop_scrape)
@@ -693,6 +697,26 @@ class MainWindow(QMainWindow):
         )
         self.hunter_ctrl.linkedin_import_finished.connect(
             self.hunter_page.on_linkedin_import_finished
+        )
+
+        # ─── Campaign & Enrichment signals ──────────────────────
+        self.hunter_page.load_campaigns_requested.connect(
+            self._on_load_campaigns
+        )
+        self.hunter_page.enrich_lead_requested.connect(
+            self.hunter_ctrl.enrich_single_lead
+        )
+        self.hunter_page.enrich_campaign_requested.connect(
+            self.hunter_ctrl.enrich_campaign_leads
+        )
+        self.hunter_ctrl.campaigns_loaded.connect(
+            self.hunter_page.on_campaigns_loaded
+        )
+        self.hunter_ctrl.enrich_lead_finished.connect(
+            self._on_lead_enrich_finished
+        )
+        self.hunter_ctrl.enrich_campaign_finished.connect(
+            self._on_campaign_enrich_finished
         )
 
         # ─── Navigation signals ────────────────────────────────
@@ -1041,6 +1065,8 @@ class MainWindow(QMainWindow):
 
         # ─── Chat signals ────────────────────────────────────
         self.chat_panel.message_sent.connect(self._on_chat_message)
+        self.chat_panel.message_sent_with_files.connect(self._on_chat_message_with_files)
+        self.chat_panel.stop_requested.connect(self._on_chat_stop)
         self.chat_ctrl.response_ready.connect(self._on_chat_response)
         self.chat_ctrl.error.connect(
             lambda msg: self._on_chat_error(msg)
@@ -1295,8 +1321,8 @@ class MainWindow(QMainWindow):
                 show_toast(self, f"CRM sync error: {result.get('error')}", "error")
 
         worker = ThreadWorker(_work)
-        worker.finished.connect(_done)
-        worker.error.connect(lambda e: show_toast(self, f"CRM sync failed: {e}", "error"))
+        worker.signals.result.connect(_done)
+        worker.signals.error.connect(lambda e: show_toast(self, f"CRM sync failed: {e}", "error"))
         self._crm_worker = worker
         worker.start()
 
@@ -1355,10 +1381,40 @@ class MainWindow(QMainWindow):
                 self.hunter_page.import_btn.setEnabled(True)
 
         worker = ThreadWorker(_work)
-        worker.finished.connect(_done)
-        worker.error.connect(lambda e: show_toast(self, f"Import failed: {e}", "error"))
+        worker.signals.result.connect(_done)
+        worker.signals.error.connect(lambda e: show_toast(self, f"Import failed: {e}", "error"))
         self._batch_worker = worker
         worker.start()
+
+    # ─── Campaign & Enrichment handlers ────────────────────────
+
+    def _on_load_campaigns(self):
+        """Load campaigns and handle pending detail requests."""
+        self.hunter_ctrl.load_campaigns()
+        # Check for pending campaign detail request
+        detail_req = getattr(self.hunter_page, "_detail_request", None)
+        if detail_req:
+            cid, cname = detail_req
+            self.hunter_page._detail_request = None
+            leads = self.hunter_ctrl.get_campaign_leads_detailed(cid)
+            self.hunter_page.show_campaign_detail(cid, cname, leads)
+
+    def _on_lead_enrich_finished(self, lead_id: int, result: dict):
+        """Handle single lead enrichment result — refresh detail if visible."""
+        self.hunter_page.on_enrich_lead_finished(lead_id, result)
+        # Refresh detail view if showing
+        detail = self.hunter_page.campaign_detail
+        if detail._campaign_id and self.hunter_page._campaigns_stack.currentIndex() == 1:
+            leads = self.hunter_ctrl.get_campaign_leads_detailed(detail._campaign_id)
+            detail.load_campaign(detail._campaign_id, detail.campaign_title.text(), leads)
+
+    def _on_campaign_enrich_finished(self, campaign_id: int, result: dict):
+        """Handle campaign enrichment result — refresh detail view."""
+        self.hunter_page.on_enrich_campaign_finished(campaign_id, result)
+        # Refresh detail view
+        leads = self.hunter_ctrl.get_campaign_leads_detailed(campaign_id)
+        detail = self.hunter_page.campaign_detail
+        self.hunter_page.show_campaign_detail(campaign_id, detail.campaign_title.text(), leads)
 
     # ─── Outreach campaign changed handler ────────────────────
 
@@ -1386,8 +1442,8 @@ class MainWindow(QMainWindow):
             show_toast(self, f"Triage complete: {total} emails, {replies} replies.", "info")
 
         worker = ThreadWorker(_work)
-        worker.finished.connect(_done)
-        worker.error.connect(lambda e: show_toast(self, f"Triage failed: {e}", "error"))
+        worker.signals.result.connect(_done)
+        worker.signals.error.connect(lambda e: show_toast(self, f"Triage failed: {e}", "error"))
         self._triage_worker = worker
         worker.start()
 
@@ -1414,8 +1470,8 @@ class MainWindow(QMainWindow):
                 )
 
         worker = ThreadWorker(_work)
-        worker.finished.connect(_done)
-        worker.error.connect(
+        worker.signals.result.connect(_done)
+        worker.signals.error.connect(
             lambda e: self.settings_page.on_openai_oauth_complete(False, str(e))
         )
         self._oauth_worker = worker
@@ -1497,8 +1553,17 @@ class MainWindow(QMainWindow):
 
     def _on_chat_message(self, message: str):
         """Handle a chat message from the user."""
-        self.chat_panel.show_typing(True)
+        self.chat_panel.show_thinking(True)
         self.chat_ctrl.process_message(message)
+
+    def _on_chat_message_with_files(self, message: str, file_paths: list):
+        """Handle a chat message with attached files."""
+        self.chat_panel.show_thinking(True)
+        self.chat_ctrl.send_message_with_files(message, file_paths)
+
+    def _on_chat_stop(self):
+        """Handle stop generation request from chat panel."""
+        self.chat_ctrl.stop_generation()
 
     def _on_chat_response(self, response: dict):
         """Handle orchestrator response."""
@@ -1506,12 +1571,12 @@ class MainWindow(QMainWindow):
 
     def _on_chat_error(self, error_msg: str):
         """Handle chat error."""
-        self.chat_panel.show_typing(False)
+        self.chat_panel.show_thinking(False)
         self.chat_panel.add_message(f"Error: {error_msg}", is_user=False)
 
     def _on_chat_action_confirmed(self, intent_dict: dict):
         """Handle confirmed action from chat panel."""
-        self.chat_panel.show_typing(True)
+        self.chat_panel.show_thinking(True)
         self.chat_ctrl.execute_confirmed_action(intent_dict)
 
     def _on_chat_draft_approved(self, subject: str, body: str, lead_email: str):
@@ -1635,7 +1700,7 @@ class MainWindow(QMainWindow):
         # Stop voice engine WebSocket server
         if hasattr(self, "voice_engine"):
             try:
-                self.voice_engine.shutdown()
+                self.voice_engine.stop_server()
             except Exception as e:
                 logger.warning(f"Voice engine shutdown error: {e}")
 

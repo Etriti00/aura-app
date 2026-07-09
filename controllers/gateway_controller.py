@@ -57,6 +57,7 @@ class GatewayController(QObject):
             kwargs = {"bot_token": bot_token, "on_message_callback": self._on_inbound_message}
             if platform == "discord":
                 kwargs["db_manager"] = self.gateway_engine.db_manager
+                kwargs["on_status_callback"] = self._on_adapter_status
             elif platform == "telegram":
                 kwargs["db_manager"] = self.gateway_engine.db_manager
                 kwargs["gateway_engine"] = self.gateway_engine
@@ -80,12 +81,28 @@ class GatewayController(QObject):
             # Save config
             self.gateway_engine.save_gateway_config(platform, bot_token, True)
 
-            self.connection_status.emit(platform, True)
-            logger.info(f"Platform {platform} connected")
+            # Discord reports status via on_ready callback; others report immediately
+            if platform != "discord":
+                self.connection_status.emit(platform, True)
+            logger.info(f"Platform {platform} adapter started (awaiting connection...)")
 
         except Exception as e:
             self.error.emit(f"Failed to connect {platform}: {str(e)}")
             logger.error(f"Platform start error ({platform}): {e}")
+
+    def _on_adapter_status(self, platform: str, connected: bool, error_msg: str = None):
+        """Callback from adapter background thread when connection status changes."""
+        # Emit on the Qt thread via QMetaObject (signal is thread-safe)
+        self.connection_status.emit(platform, connected)
+        if connected:
+            logger.info(f"Platform {platform} fully connected")
+        else:
+            err = error_msg or "Connection failed"
+            self.error.emit(f"{platform}: {err}")
+            logger.error(f"Platform {platform} connection failed: {err}")
+            # Clean up failed adapter
+            self._adapters.pop(platform, None)
+            self.gateway_engine._adapters.pop(platform, None)
 
     def stop_platform(self, platform: str):
         """Disconnect from a messaging platform."""
@@ -145,8 +162,8 @@ class GatewayController(QObject):
             logger.error(f"Gateway processing error: {err}")
 
         worker = ThreadWorker(_work)
-        worker.finished.connect(_done)
-        worker.error.connect(_error)
+        worker.signals.result.connect(_done)
+        worker.signals.error.connect(_error)
         self._workers[f"{platform}_{sender_id}"] = worker
         worker.start()
 
@@ -166,7 +183,7 @@ class GatewayController(QObject):
                 self.notification_sent.emit(message, count)
 
         worker = ThreadWorker(_work)
-        worker.finished.connect(_done)
+        worker.signals.result.connect(_done)
         self._workers["broadcast"] = worker
         worker.start()
 

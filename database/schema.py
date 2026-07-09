@@ -152,6 +152,7 @@ class Settings(Base):
     # Auth mode per provider: "api" | "subscription" | "none"
     anthropic_auth_mode = Column(String(20), default="none")
     openai_auth_mode = Column(String(20), default="none")
+    gemini_auth_mode = Column(String(20), default="none")
 
     smtp_password_enc = Column(String(500), default="")
 

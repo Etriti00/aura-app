@@ -24,6 +24,11 @@ class AIEngine:
     Supports all major providers: Gemini, Anthropic, OpenAI, Ollama, etc.
     """
 
+    # Subscription-mode flags (class-level defaults so partially constructed
+    # instances degrade safely to standard LiteLLM routing)
+    _gemini_sub_mode = False  # True -> route Gemini calls through the gemini CLI
+    _claude_sub_mode = False  # True -> route Anthropic calls through the claude CLI
+
     def __init__(self, safety_guard: SafetyGuard = None):
         self.safety = safety_guard or SafetyGuard()
         self._api_keys = {}
@@ -89,13 +94,19 @@ class AIEngine:
 
         sub_tokens = sub_tokens or {}
 
+        # Gemini subscription mode: route Gemini model calls through the CLI
+        self._gemini_sub_mode = bool(sub_tokens.get("gemini_sub"))
+
+        # Claude subscription mode: route Anthropic model calls through the claude CLI
+        self._claude_sub_mode = bool(sub_tokens.get("claude_sub"))
+
         # Set environment variables for LiteLLM
         import os
         if "gemini" in api_keys and api_keys["gemini"]:
             os.environ["GEMINI_API_KEY"] = api_keys["gemini"]
         if "anthropic" in api_keys and api_keys["anthropic"]:
             os.environ["ANTHROPIC_API_KEY"] = api_keys["anthropic"]
-        elif sub_tokens.get("anthropic_sub"):
+        elif sub_tokens.get("anthropic_sub") and not self._claude_sub_mode:
             os.environ["ANTHROPIC_API_KEY"] = sub_tokens["anthropic_sub"]
         if "openai" in api_keys and api_keys["openai"]:
             os.environ["OPENAI_API_KEY"] = api_keys["openai"]
@@ -109,24 +120,164 @@ class AIEngine:
     # Error substrings that indicate a transient (retryable) failure
     _TRANSIENT_ERRORS = ("429", "rate_limit", "timeout", "502", "503", "529", "overloaded")
 
+    def _call_gemini_cli(self, messages: list, model: str) -> Optional[str]:
+        """
+        Call the Gemini CLI subprocess for subscription mode.
+        Requires `gemini` CLI to be installed and authenticated via 'gemini auth login'.
+        """
+        import subprocess
+
+        # Build a single prompt from the messages list
+        parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                parts.append(f"[Instructions]\n{content}")
+            else:
+                parts.append(content)
+        full_prompt = "\n\n".join(parts)
+
+        # Strip "gemini/" prefix if present — CLI takes bare model name
+        cli_model = model.removeprefix("gemini/") if model.startswith("gemini/") else model
+
+        try:
+            result = subprocess.run(
+                ["gemini", "--model", cli_model, "--yolo", full_prompt],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env={**__import__("os").environ, "GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""},
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+            logger.error(f"gemini CLI error: {result.stderr.strip()}")
+            return None
+        except FileNotFoundError:
+            logger.error("gemini CLI not found. Install it and run 'gemini auth login'.")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error("gemini CLI timed out after 120s")
+            return None
+        except Exception as e:
+            logger.error(f"gemini CLI call failed: {e}")
+            return None
+
+    # ─── Claude CLI: subscription mode ──────────────────────────────
+
+    # Map from LiteLLM model names to Claude CLI aliases
+    _CLAUDE_CLI_MODEL_MAP = {
+        "anthropic/claude-sonnet-4-6": "sonnet",
+        "anthropic/claude-sonnet-4-5": "sonnet",
+        "anthropic/claude-haiku-4-5": "haiku",
+        "anthropic/claude-opus-4-6": "opus",
+        "claude-sonnet-4-6": "sonnet",
+        "claude-sonnet-4-5": "sonnet",
+        "claude-haiku-4-5": "haiku",
+        "claude-opus-4-6": "opus",
+    }
+
+    def _call_claude_cli(self, messages: list, model: str) -> Optional[str]:
+        """
+        Call the Claude Code CLI subprocess for subscription mode.
+        Requires `claude` CLI to be installed and authenticated (claude login).
+        Uses -p (print) mode for non-interactive single-shot calls.
+        """
+        import subprocess
+
+        # Build a single prompt from the messages list
+        parts = []
+        system_parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                system_parts.append(content)
+            else:
+                parts.append(content)
+        full_prompt = "\n\n".join(parts)
+
+        # Map model name to CLI alias
+        cli_model = self._CLAUDE_CLI_MODEL_MAP.get(model, "sonnet")
+
+        cmd = [
+            "claude", "-p",
+            "--model", cli_model,
+            "--output-format", "text",
+            "--no-session-persistence",
+        ]
+
+        # Append system prompt if present
+        if system_parts:
+            cmd.extend(["--append-system-prompt", "\n\n".join(system_parts)])
+
+        cmd.append(full_prompt)
+
+        try:
+            logger.debug(f"Claude CLI call: model={cli_model}, prompt_len={len(full_prompt)}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+            stderr = result.stderr.strip()
+            if stderr:
+                logger.error(f"claude CLI error: {stderr}")
+            elif result.returncode != 0:
+                logger.error(f"claude CLI exited with code {result.returncode}")
+            return None
+        except FileNotFoundError:
+            logger.error(
+                "claude CLI not found. Install Claude Code and run 'claude login'."
+            )
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error("claude CLI timed out after 120s")
+            return None
+        except Exception as e:
+            logger.error(f"claude CLI call failed: {e}")
+            return None
+
+    # ─── Unified LLM dispatch ────────────────────────────────────
+
     def _call_llm(self, model: str, messages: list, temperature: float = 0.7,
                   max_tokens: int = 1024, _max_retries: int = 3) -> Optional[str]:
         """
         Make a LiteLLM completion call with exponential backoff on transient errors.
+        For subscription modes, routes through CLI subprocesses instead.
         Returns the response text or None on failure.
         """
+        # Gemini subscription: bypass LiteLLM, use CLI subprocess
+        if self._gemini_sub_mode and (
+            model.startswith("gemini/") or model.startswith("gemini-")
+        ):
+            return self._call_gemini_cli(messages, model)
+
+        # Claude subscription: bypass LiteLLM, use Claude Code CLI
+        if self._claude_sub_mode and (
+            model.startswith("anthropic/") or model.startswith("claude")
+        ):
+            return self._call_claude_cli(messages, model)
+
         import time as _time
         import litellm
         litellm.set_verbose = False
+        litellm.drop_params = True  # auto-drop unsupported params per provider
 
         for attempt in range(_max_retries):
             try:
-                response = litellm.completion(
+                kwargs = dict(
                     model=model,
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
+                if model.startswith("ollama"):
+                    kwargs["api_base"] = "http://localhost:11434"
+                response = litellm.completion(**kwargs)
 
                 # Track token usage
                 usage = response.get("usage", {})

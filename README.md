@@ -258,7 +258,7 @@ aura --verbose status
 ┌─────────────────────────────────────────────────────────┐
 │              Interface Layer (GUI or CLI)                 │
 │   GUI: PySide6 (14 Pages, Chat Panel, Sidebar)          │
-│   CLI: REPL + 75 commands (no PySide6 required)         │
+│   CLI: REPL + 81 commands (no PySide6 required)         │
 ├─────────────────────────────────────────────────────────┤
 │                   Controller Layer                       │
 │   GUI: 19 QObject controllers with Signal/Slot wiring   │
@@ -280,7 +280,7 @@ aura --verbose status
 ```
 aura-app/
 ├── main.py                  # GUI entry point
-├── cli.py                   # CLI entry point (75 commands, REPL)
+├── cli.py                   # CLI entry point (81 commands, REPL)
 ├── config.py                # All constants, paths, design tokens
 ├── aura.spec                # PyInstaller build configuration (cross-platform)
 ├── pyproject.toml           # Python packaging (pip install -e .)
@@ -364,7 +364,7 @@ aura-app/
 | TTS | ElevenLabs, OpenAI, Piper (local) |
 | STT | Whisper (local via faster-whisper, or API) |
 | Encryption | AES-256 via `cryptography` (machine-bound, per-install salt) |
-| CLI | 75 commands, REPL, natural language fallback |
+| CLI | 81 commands, REPL, natural language fallback |
 | Packaging | PyInstaller (OneDir), cross-platform (Win/macOS/Linux) |
 
 ---
@@ -501,10 +501,11 @@ Please ensure all tests pass before submitting.
 - **Knowledge Base Engine** — Store and retrieve business knowledge entries (products, competitors, pricing, processes). New Settings tab for managing entries with search
 - **Per-Agent Auto-Memory** — Each agent automatically stores and retrieves learned behaviors in per-agent memory logs, injected into agent context during task execution
 - **Knowledge CLI commands** — `/knowledge-add`, `/knowledge-list`, `/knowledge-remove`, `/memory-rules`, `/memory-stats`, `/memory-clear`
-- **Audit fixes** — Fixed CLI `/enrich` crash (int→dict), gateway platform hardcoding, Telegram key mismatch, GMaps API key decryption, missing orchestrator intents, Whisper temp file leak
+- **Audit fixes** — Fixed CLI `/enrich` crash (int→dict), removed dead gateway response method, fixed Settings docstring (6→7 tabs)
+- **Config cleanup** — Removed dead `Colors`, `DarkColors`, `Shadows` classes, dead `FONT_*` typography constants, and duplicate `IMPROVEMENT_CYCLE_INTERVAL_MS`
 - **Missing PyInstaller imports** — Added `skill_registry`, `hubspot_engine`, `linkedin_engine`, `icons`, `command_palette` to `aura.spec`
 - **Version**: 2.0.0 → 2.1.0 across `config.py`, `pyproject.toml`, `aura.spec`
-- **Tests**: 1200 → 1250+ tests (50+ new tests across 2 new test files)
+- **Tests**: 1200 → 1250+ tests (50+ new tests across 3 new test files)
 
 ### v2.0.0 — Enterprise Features + Settings Overhaul
 
@@ -515,7 +516,7 @@ Please ensure all tests pass before submitting.
 - **Discord server mode** — Auto-create notification channels (#leads, #campaigns, #fleet, #alerts, #reports), event→channel routing with embeds, config persistence
 - **Telegram command system** — 12 slash commands (/status, /hunt, /leads, /agents, /draft, /send, /campaigns, /budget, /approve, /deny, /help, /settings) with inline keyboards
 - **Business & Invoicing settings** — New Settings tab with company info, banking details, and invoice configuration (16 fields for agent context and invoice generation)
-- **Tabbed Settings page** — Restructured from single scroll into 6 sub-tabs: API Keys, AI Config, Email & Delivery, Features, Business & Invoicing, Appearance
+- **Tabbed Settings page** — Restructured from single scroll into 7 sub-tabs: API Keys, AI Config, Email & Delivery, Features, Business & Invoicing, Knowledge Base, Appearance
 - **Schema expansion** — 5 new models (Service, Invoice, InvoiceLineItem, FinanceNote, DiscordServerConfig), expanded Lead/EnrichmentData/Settings
 - **Tests**: 959 → 1200 tests (241 new tests across 8 new test files)
 

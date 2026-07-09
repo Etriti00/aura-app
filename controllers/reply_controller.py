@@ -109,8 +109,8 @@ class ReplyController(QObject):
             logger.error(f"Reply check failed: {error}")
 
         self._worker = ThreadWorker(_work)
-        self._worker.finished.connect(_on_done)
-        self._worker.error.connect(_on_error)
+        self._worker.signals.result.connect(_on_done)
+        self._worker.signals.error.connect(_on_error)
         self._worker.start()
 
     # ─── Triage scheduling ────────────────────────────────────
@@ -153,6 +153,6 @@ class ReplyController(QObject):
             self.check_error.emit(f"Triage error: {error}")
 
         self._triage_worker = ThreadWorker(_work)
-        self._triage_worker.finished.connect(_on_done)
-        self._triage_worker.error.connect(_on_error)
+        self._triage_worker.signals.result.connect(_on_done)
+        self._triage_worker.signals.error.connect(_on_error)
         self._triage_worker.start()

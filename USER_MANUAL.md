@@ -1,7 +1,7 @@
 # Aura — User Manual
 
 > **Your Local AI Sales Agent**
-> Version 2.0.0
+> Version 2.1.0
 
 ---
 
@@ -628,7 +628,7 @@ Toggle which proactive notifications you want to receive:
 
 ## 12. Settings — Configuration
 
-The Settings page is organized into **6 tabs** for easy navigation, similar to the Outreach page layout:
+The Settings page is organized into **7 tabs** for easy navigation, similar to the Outreach page layout:
 
 | Tab | What It Contains |
 |-----|-----------------|
@@ -637,6 +637,7 @@ The Settings page is organized into **6 tabs** for easy navigation, similar to t
 | **Email & Delivery** | Sender identity, SMTP fallback, IMAP reply detection |
 | **Features** | Feature toggles, CRM platform, research & voice config |
 | **Business & Invoicing** | Company info, banking details, invoice configuration |
+| **Knowledge Base** | Product info, ICP criteria, approach & tone settings |
 | **Appearance** | Theme selection (light/dark) |
 
 ### 12.1 API Keys Tab
@@ -1117,5 +1118,5 @@ Check the log file at `~/.aura/aura.log` for detailed error information. The log
 
 ---
 
-*Aura v2.0.0 — Your Local AI Sales Agent*
-*Last updated: 2026-03-09*
+*Aura v2.1.0 — Your Local AI Sales Agent*
+*Last updated: 2026-03-14*

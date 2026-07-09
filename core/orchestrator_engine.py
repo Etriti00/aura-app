@@ -24,6 +24,8 @@ INTENTS = [
     "crm_sync", "inbox_triage", "enrich_list",
     "set_budget", "show_budget", "set_gateway",
     "fleet_dispatch", "fleet_status", "fleet_boot", "fleet_shutdown",
+    # Lead management intents
+    "list_leads", "show_lead_detail",
     # Advanced engine intents
     "set_goal", "show_goals", "show_reflections", "set_autonomy",
     "show_conversations", "show_approvals", "approve_action", "deny_action",
@@ -49,6 +51,8 @@ Available actions and their parameter schemas:
 - "crm_sync": {"campaign_name": str|null, "crm_platform": str|null}
 - "inbox_triage": {}
 - "enrich_list": {"campaign_name": str}
+- "list_leads": {"campaign_name": str|null, "status": str|null, "limit": int (default 50)}  // list leads from DB. Use this when the user asks to list, show, display, enumerate, or see their leads
+- "show_lead_detail": {"lead_id": int|null, "business_name": str|null}  // show full details of a specific lead
 - "set_budget": {"budget_usd": float, "time_window_hours": float, "eco_mode": bool|null, "action": str|null}  // action: "activate", "deactivate", "pause", "resume"
 - "show_budget": {}
 - "set_gateway": {"platform": str|null, "action": str|null}  // action: "enable", "disable", "status"
@@ -104,6 +108,10 @@ class OrchestratorEngine:
 
             # Configure API keys
             api_keys = self._get_api_keys(settings)
+            claude_sub_mode = getattr(settings, "anthropic_auth_mode", "none") == "subscription" \
+                and not api_keys.get("anthropic")
+            gemini_sub_mode = getattr(settings, "gemini_auth_mode", "none") == "subscription"
+
             for provider, key in api_keys.items():
                 if provider == "gemini":
                     os.environ["GEMINI_API_KEY"] = key
@@ -127,16 +135,35 @@ class OrchestratorEngine:
 
             messages.append({"role": "user", "content": message})
 
-            import litellm
-            response = litellm.completion(
-                model=model,
-                messages=messages,
-                max_tokens=500,
-                temperature=0.1,
-                response_format={"type": "json_object"},
-            )
+            # Route through CLI for subscription modes
+            is_anthropic = model.startswith("anthropic/") or model.startswith("claude")
+            is_gemini = model.startswith("gemini/") or model.startswith("gemini-")
 
-            raw = response.choices[0].message.content.strip()
+            if claude_sub_mode and is_anthropic:
+                raw = self._call_claude_cli(messages, model)
+                if raw is None:
+                    raise RuntimeError("Claude CLI call failed — is 'claude' installed and logged in?")
+            elif gemini_sub_mode and is_gemini:
+                raw = self._call_gemini_cli(messages, model)
+                if raw is None:
+                    raise RuntimeError("Gemini CLI call failed — is 'gemini' installed and logged in?")
+            else:
+                import litellm
+                litellm.drop_params = True
+                kwargs = dict(
+                    model=model,
+                    messages=messages,
+                    max_tokens=500,
+                    temperature=0.1,
+                )
+                if model.startswith("ollama"):
+                    kwargs["api_base"] = "http://localhost:11434"
+                elif model.startswith("openai/") or model.startswith("openrouter/"):
+                    kwargs["response_format"] = {"type": "json_object"}
+
+                logger.debug(f"Calling LLM: model={model}, msg_count={len(messages)}")
+                response = litellm.completion(**kwargs)
+                raw = response.choices[0].message.content.strip()
 
             # Parse JSON response
             try:
@@ -171,14 +198,35 @@ class OrchestratorEngine:
             return result
 
         except Exception as e:
-            logger.error(f"Intent parsing failed: {e}")
+            error_str = str(e)
+            logger.error(f"Intent parsing failed (model={model}): {e}")
+
+            # Provide user-friendly error messages
+            if "invalid_request_error" in error_str or "BadRequestError" in error_str:
+                friendly = (
+                    f"The AI model '{model}' returned an error. "
+                    "Please check your API key is valid and the model name is correct "
+                    "in Settings → AI Config."
+                )
+            elif "auth" in error_str.lower() or "401" in error_str or "api_key" in error_str.lower():
+                friendly = (
+                    "Authentication failed. Please check your API key "
+                    "in Settings → API Keys."
+                )
+            elif "rate_limit" in error_str.lower() or "429" in error_str:
+                friendly = "Rate limit hit. Please wait a moment and try again."
+            elif "timeout" in error_str.lower():
+                friendly = "The AI request timed out. Please try again."
+            else:
+                friendly = f"AI request failed: {error_str}"
+
             return {
                 "intent": "general_question",
                 "confidence": 0.0,
                 "parameters": {"question": message},
                 "clarification_needed": False,
                 "clarification_question": None,
-                "response_text": f"I had trouble understanding that: {str(e)}",
+                "response_text": friendly,
             }
 
     def execute_intent(self, intent_dict: dict, engines: dict) -> dict:
@@ -219,6 +267,10 @@ class OrchestratorEngine:
                 return self._exec_inbox_triage(params, engines)
             elif intent == "enrich_list":
                 return self._exec_enrich_list(params, engines)
+            elif intent == "list_leads":
+                return self._exec_list_leads(params, engines)
+            elif intent == "show_lead_detail":
+                return self._exec_show_lead_detail(params, engines)
             elif intent == "set_budget":
                 return self._exec_set_budget(params, engines)
             elif intent == "show_budget":
@@ -669,6 +721,129 @@ class OrchestratorEngine:
             },
         }
 
+    def _exec_list_leads(self, params: dict, engines: dict) -> dict:
+        """List leads from the database, optionally filtered by campaign or status."""
+        campaign_name = params.get("campaign_name", "")
+        status_filter = params.get("status")
+        limit = min(params.get("limit", 50), 200)
+
+        with self.db_manager.session_scope() as session:
+            query = session.query(Lead)
+
+            if campaign_name:
+                campaign = (
+                    session.query(Campaign)
+                    .filter(Campaign.name.ilike(f"%{campaign_name}%"))
+                    .first()
+                )
+                if campaign:
+                    query = query.filter(Lead.campaign_id == campaign.id)
+                else:
+                    return {"success": False, "error": f"Campaign '{campaign_name}' not found"}
+
+            if status_filter:
+                query = query.filter(Lead.status == status_filter)
+
+            leads = query.order_by(Lead.id.desc()).limit(limit).all()
+
+            if not leads:
+                return {
+                    "success": True,
+                    "action": "list_leads",
+                    "data": {"leads": [], "total": 0},
+                }
+
+            lead_list = []
+            for i, lead in enumerate(leads, 1):
+                entry = {
+                    "num": i,
+                    "id": lead.id,
+                    "business_name": lead.business_name or "Unknown",
+                    "email": lead.email or "—",
+                    "phone": lead.phone or "—",
+                    "city": lead.city or "—",
+                    "status": lead.status or "new",
+                    "has_website": "Yes" if lead.has_website else "No",
+                }
+                if lead.website_url:
+                    entry["website"] = lead.website_url
+                lead_list.append(entry)
+
+            # Build a readable text summary
+            lines = []
+            for entry in lead_list:
+                line = (
+                    f"{entry['num']}. **{entry['business_name']}** "
+                    f"({entry['status']}) — {entry['email']}"
+                )
+                if entry.get("phone") != "—":
+                    line += f" | {entry['phone']}"
+                if entry.get("city") != "—":
+                    line += f" | {entry['city']}"
+                lines.append(line)
+
+            total = query.count() if len(leads) == limit else len(leads)
+
+            return {
+                "success": True,
+                "action": "list_leads",
+                "data": {
+                    "leads": lead_list,
+                    "total": total,
+                    "_text_summary": "\n".join(lines),
+                },
+            }
+
+    def _exec_show_lead_detail(self, params: dict, engines: dict) -> dict:
+        """Show full details for a specific lead."""
+        lead_id = params.get("lead_id")
+        business_name = params.get("business_name", "")
+
+        with self.db_manager.session_scope() as session:
+            if lead_id:
+                lead = session.query(Lead).filter_by(id=lead_id).first()
+            elif business_name:
+                lead = (
+                    session.query(Lead)
+                    .filter(Lead.business_name.ilike(f"%{business_name}%"))
+                    .first()
+                )
+            else:
+                return {"success": False, "error": "Provide a lead_id or business_name"}
+
+            if not lead:
+                return {"success": False, "error": "Lead not found"}
+
+            detail = {
+                "id": lead.id,
+                "business_name": lead.business_name or "Unknown",
+                "category": lead.category or "—",
+                "address": lead.address or "—",
+                "city": lead.city or "—",
+                "country": lead.country or "—",
+                "phone": lead.phone or "—",
+                "email": lead.email or "—",
+                "status": lead.status or "new",
+                "has_website": "Yes" if lead.has_website else "No",
+                "website_url": lead.website_url or "—",
+                "website_score": lead.website_score,
+                "website_issues": lead.website_issues or "—",
+                "source": lead.source_platform or "—",
+                "notes": lead.notes or "—",
+                "created": lead.created_at.strftime("%Y-%m-%d %H:%M") if lead.created_at else "—",
+            }
+
+            if lead.email_subject:
+                detail["email_subject"] = lead.email_subject
+            if lead.email_sent_at:
+                detail["email_sent_at"] = lead.email_sent_at.strftime("%Y-%m-%d %H:%M")
+
+            return {
+                "success": True,
+                "action": "show_lead_detail",
+                "data": detail,
+            }
+
     def _exec_set_budget(self, params: dict, engines: dict) -> dict:
         """Set or modify budget pacing."""
         pacing = engines.get("pacing")
@@ -1044,6 +1219,96 @@ class OrchestratorEngine:
                 except Exception:
                     pass
         return keys
+
+    # ─── CLI subprocess methods for subscription modes ─────────────
+
+    # Map LiteLLM model names → Claude CLI aliases
+    _CLAUDE_CLI_MODEL_MAP = {
+        "anthropic/claude-sonnet-4-6": "sonnet",
+        "anthropic/claude-sonnet-4-5": "sonnet",
+        "anthropic/claude-haiku-4-5": "haiku",
+        "anthropic/claude-opus-4-6": "opus",
+    }
+
+    def _call_claude_cli(self, messages: list, model: str) -> Optional[str]:
+        """Route an LLM call through the Claude Code CLI (subscription mode)."""
+        import subprocess
+
+        parts, system_parts = [], []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                system_parts.append(content)
+            else:
+                parts.append(content)
+        full_prompt = "\n\n".join(parts)
+
+        cli_model = self._CLAUDE_CLI_MODEL_MAP.get(model, "sonnet")
+        cmd = [
+            "claude", "-p",
+            "--model", cli_model,
+            "--output-format", "text",
+            "--no-session-persistence",
+        ]
+        if system_parts:
+            cmd.extend(["--append-system-prompt", "\n\n".join(system_parts)])
+        cmd.append(full_prompt)
+
+        try:
+            logger.debug(f"Claude CLI call: model={cli_model}")
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=120,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+            if result.stderr.strip():
+                logger.error(f"claude CLI error: {result.stderr.strip()}")
+            return None
+        except FileNotFoundError:
+            logger.error("claude CLI not found — install Claude Code and run 'claude login'")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error("claude CLI timed out after 120s")
+            return None
+        except Exception as e:
+            logger.error(f"claude CLI call failed: {e}")
+            return None
+
+    def _call_gemini_cli(self, messages: list, model: str) -> Optional[str]:
+        """Route an LLM call through the Gemini CLI (subscription mode)."""
+        import subprocess
+
+        parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                parts.append(f"[Instructions]\n{content}")
+            else:
+                parts.append(content)
+        full_prompt = "\n\n".join(parts)
+
+        cli_model = model.removeprefix("gemini/") if model.startswith("gemini/") else model
+        try:
+            result = subprocess.run(
+                ["gemini", "--model", cli_model, "--yolo", full_prompt],
+                capture_output=True, text=True, timeout=120,
+                env={**__import__("os").environ, "GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""},
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+            logger.error(f"gemini CLI error: {result.stderr.strip()}")
+            return None
+        except FileNotFoundError:
+            logger.error("gemini CLI not found")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error("gemini CLI timed out after 120s")
+            return None
+        except Exception as e:
+            logger.error(f"gemini CLI call failed: {e}")
+            return None
 
     def get_history(self) -> list:
         """Return conversation history for display."""

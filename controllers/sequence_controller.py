@@ -192,5 +192,5 @@ class SequenceController(QObject):
                 self.batch_complete.emit(sent, failed)
 
         self._worker = ThreadWorker(_work)
-        self._worker.finished.connect(_on_done)
+        self._worker.signals.result.connect(_on_done)
         self._worker.start()

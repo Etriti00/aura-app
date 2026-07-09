@@ -44,8 +44,8 @@ class MaskedInput(QWidget):
         layout.addWidget(self.toggle_btn)
 
     def _on_text_changed(self, text: str):
-        """When the user types, capture the raw value."""
-        if self._is_revealed:
+        """When the user types or pastes, capture the raw value."""
+        if not self.input.isReadOnly():
             self._raw_value = text
 
     def _toggle_reveal(self):

@@ -1,22 +1,62 @@
 """
-Aura — Chat Panel UI
-Slide-in panel for natural language commands with premium message bubbles,
-typing indicator, and context-sensitive action chips.
+Aura — Advanced Chat Panel UI
+Claude Code-style chat with streaming text, fun thinking animations,
+stop generation, file upload/download, and multiline input.
 """
+
+import os
+import random
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QScrollArea, QFrame, QPushButton, QGraphicsDropShadowEffect,
-    QSizePolicy, QTextEdit, QProgressBar
+    QSizePolicy, QTextEdit, QProgressBar, QFileDialog, QApplication,
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QSize
-from PySide6.QtGui import QFont, QColor
+from PySide6.QtCore import Qt, Signal, QTimer, QSize, QMimeData
+from PySide6.QtGui import QFont, QColor, QKeyEvent, QDragEnterEvent, QDropEvent
 
 from config import CHAT_PANEL_WIDTH
 from utils.logger import get_logger
 from ui.icons import get_icon, get_pixmap
 
 logger = get_logger("chat_panel")
+
+# ─── Fun thinking phrases ──────────────────────────────────────────────
+THINKING_PHRASES = [
+    "Discombobulating the flibbergibbets…",
+    "Recalibrating the quantum flux…",
+    "Consulting the oracle of sales wisdom…",
+    "Untangling the spaghetti of data…",
+    "Polishing the crystal ball…",
+    "Herding digital cats…",
+    "Reticulating splines…",
+    "Brewing a fresh pot of insights…",
+    "Negotiating with the algorithms…",
+    "Deciphering the ancient scrolls…",
+    "Warming up the neural pathways…",
+    "Summoning the spirit of productivity…",
+    "Calibrating the persuasion matrix…",
+    "Folding space-time for faster results…",
+    "Charging the creativity capacitors…",
+    "Asking the magic 8-ball for backup…",
+    "Running the numbers through the vibe check…",
+    "Feeding the hamsters that power the AI…",
+    "Consulting the spreadsheet gods…",
+    "Aligning the sales chakras…",
+    "Defragmenting the inspiration drive…",
+    "Downloading more RAM for this task…",
+    "Teaching the AI to be humble…",
+    "Converting caffeine to code…",
+    "Checking if Mercury is in retrograde…",
+    "Synchronizing the buzzword generators…",
+    "Deploying the charm offensive…",
+    "Compiling the witty response module…",
+    "Mining the depths of knowledge…",
+    "Performing advanced rocket surgery…",
+]
+
+# Streaming speed (ms between words)
+STREAM_WORD_DELAY_MS = 30
 
 
 class MessageBubble(QFrame):
@@ -36,6 +76,55 @@ class MessageBubble(QFrame):
         layout.addWidget(label)
 
 
+class StreamingBubble(QFrame):
+    """AI message bubble that reveals text word-by-word like streaming."""
+
+    stream_finished = Signal()
+
+    def __init__(self, full_text: str, parent=None):
+        super().__init__(parent)
+        self.setObjectName("chatBubbleAI")
+        self._full_text = full_text
+        self._words = full_text.split()
+        self._current_idx = 0
+        self._is_stopped = False
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 10, 14, 10)
+
+        self._label = QLabel("")
+        self._label.setWordWrap(True)
+        self._label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._label.setFont(QFont("Inter", 11))
+        layout.addWidget(self._label)
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._reveal_next)
+
+    def start_streaming(self):
+        """Begin the word-by-word reveal."""
+        if not self._words:
+            self._label.setText(self._full_text)
+            self.stream_finished.emit()
+            return
+        self._timer.start(STREAM_WORD_DELAY_MS)
+
+    def stop_streaming(self):
+        """Immediately reveal all remaining text."""
+        self._timer.stop()
+        self._label.setText(self._full_text)
+        self._is_stopped = True
+        self.stream_finished.emit()
+
+    def _reveal_next(self):
+        if self._current_idx < len(self._words):
+            self._current_idx += 1
+            self._label.setText(" ".join(self._words[:self._current_idx]))
+        else:
+            self._timer.stop()
+            self.stream_finished.emit()
+
+
 class ActionChip(QPushButton):
     """Small action suggestion chip."""
 
@@ -46,47 +135,64 @@ class ActionChip(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
 
-class TypingIndicator(QFrame):
-    """Animated typing dots indicator."""
+class ThinkingWidget(QFrame):
+    """Fun animated thinking indicator with rotating silly phrases and spinner."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("typingIndicator")
-        self.setFixedHeight(36)
+        self.setObjectName("thinkingWidget")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(5)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(10)
 
-        self._dots = []
-        for _ in range(3):
-            dot = QLabel("●")
-            dot.setObjectName("typingDot")
-            dot.setFont(QFont("Inter", 10))
-            layout.addWidget(dot)
-            self._dots.append(dot)
+        # Spinner dots
+        self._spinner_label = QLabel("◐")
+        self._spinner_label.setObjectName("thinkingSpinner")
+        self._spinner_label.setFont(QFont("Inter", 14))
+        self._spinner_label.setFixedWidth(20)
+        layout.addWidget(self._spinner_label)
 
-        layout.addStretch()
+        # Fun phrase
+        self._phrase_label = QLabel("")
+        self._phrase_label.setObjectName("thinkingPhrase")
+        self._phrase_label.setFont(QFont("Inter", 11))
+        self._phrase_label.setWordWrap(True)
+        layout.addWidget(self._phrase_label, stretch=1)
 
-        self._anim_timer = QTimer(self)
-        self._anim_timer.timeout.connect(self._animate)
-        self._anim_idx = 0
+        # Spinner animation (rotate through ◐ ◓ ◑ ◒)
+        self._spinner_chars = ["◐", "◓", "◑", "◒"]
+        self._spinner_idx = 0
+        self._spin_timer = QTimer(self)
+        self._spin_timer.timeout.connect(self._spin)
+
+        # Phrase rotation
+        self._phrase_timer = QTimer(self)
+        self._phrase_timer.timeout.connect(self._next_phrase)
+        self._used_phrases = []
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._anim_timer.start(400)
+        self._next_phrase()
+        self._spin_timer.start(150)
+        self._phrase_timer.start(3000)
 
     def hideEvent(self, event):
         super().hideEvent(event)
-        self._anim_timer.stop()
+        self._spin_timer.stop()
+        self._phrase_timer.stop()
 
-    def _animate(self):
-        for i, dot in enumerate(self._dots):
-            name = "typingDotActive" if i == self._anim_idx % 3 else "typingDot"
-            dot.setObjectName(name)
-            dot.style().unpolish(dot)
-            dot.style().polish(dot)
-        self._anim_idx += 1
+    def _spin(self):
+        self._spinner_idx = (self._spinner_idx + 1) % len(self._spinner_chars)
+        self._spinner_label.setText(self._spinner_chars[self._spinner_idx])
+
+    def _next_phrase(self):
+        if len(self._used_phrases) >= len(THINKING_PHRASES):
+            self._used_phrases.clear()
+        available = [p for p in THINKING_PHRASES if p not in self._used_phrases]
+        phrase = random.choice(available)
+        self._used_phrases.append(phrase)
+        self._phrase_label.setText(phrase)
 
 
 class ConfirmationCard(QFrame):
@@ -118,11 +224,6 @@ class ConfirmationCard(QFrame):
         action_row.addWidget(action_text_label)
         action_row.addStretch()
         layout.addLayout(action_row)
-
-        # Keep reference for compatibility
-        action_label = action_text_label
-        action_label  # suppress unused warning
-        # action_label already added via action_row above
 
         detail_label = QLabel(detail)
         detail_label.setObjectName("confirmCardDetail")
@@ -207,7 +308,6 @@ class ActionBlock(QFrame):
         title_lbl.setFont(QFont("Inter", 12, QFont.Weight.Bold))
         layout.addWidget(title_lbl)
 
-        # Display each key-value pair
         for key, value in data.items():
             if key.startswith("_"):
                 continue
@@ -294,10 +394,136 @@ class InlineEditor(QFrame):
         )
 
 
+class FileAttachmentChip(QFrame):
+    """Small chip showing an attached file with a remove button."""
+
+    removed = Signal(str)  # file_path
+
+    def __init__(self, file_path: str, parent=None):
+        super().__init__(parent)
+        self.setObjectName("fileChip")
+        self.file_path = file_path
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 4, 4)
+        layout.setSpacing(6)
+
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(get_pixmap("batch_import", "dark", "accent", 14))
+        icon_lbl.setFixedSize(16, 16)
+        layout.addWidget(icon_lbl)
+
+        name = os.path.basename(file_path)
+        if len(name) > 25:
+            name = name[:22] + "…"
+        name_lbl = QLabel(name)
+        name_lbl.setObjectName("fileChipName")
+        name_lbl.setFont(QFont("Inter", 10))
+        name_lbl.setToolTip(file_path)
+        layout.addWidget(name_lbl)
+
+        remove_btn = QPushButton("×")
+        remove_btn.setObjectName("fileChipRemove")
+        remove_btn.setFixedSize(18, 18)
+        remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        remove_btn.clicked.connect(lambda: self.removed.emit(self.file_path))
+        layout.addWidget(remove_btn)
+
+
+class FileDownloadCard(QFrame):
+    """Card in chat for a file the AI is providing — click to save."""
+
+    def __init__(self, filename: str, content: str, parent=None):
+        super().__init__(parent)
+        self.setObjectName("fileDownloadCard")
+        self._filename = filename
+        self._content = content
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(10)
+
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(get_pixmap("export_csv", "dark", "accent", 20))
+        icon_lbl.setFixedSize(24, 24)
+        layout.addWidget(icon_lbl)
+
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(2)
+
+        name_lbl = QLabel(filename)
+        name_lbl.setObjectName("fileCardName")
+        name_lbl.setFont(QFont("Inter", 11, QFont.Weight.Bold))
+        info_layout.addWidget(name_lbl)
+
+        size_text = f"{len(content):,} chars"
+        size_lbl = QLabel(size_text)
+        size_lbl.setObjectName("mutedText")
+        size_lbl.setFont(QFont("Inter", 9))
+        info_layout.addWidget(size_lbl)
+
+        layout.addLayout(info_layout, stretch=1)
+
+        save_btn = QPushButton("Save")
+        save_btn.setIcon(get_icon("export_csv", "dark", "success"))
+        save_btn.setIconSize(QSize(14, 14))
+        save_btn.setObjectName("primaryButton")
+        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        save_btn.setFixedHeight(30)
+        save_btn.clicked.connect(self._save_file)
+        layout.addWidget(save_btn)
+
+    def _save_file(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save File", self._filename,
+        )
+        if path:
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(self._content)
+                logger.info(f"File saved: {path}")
+            except Exception as e:
+                logger.error(f"File save error: {e}")
+
+
+class ChatInput(QTextEdit):
+    """Multiline input that sends on Enter (Shift+Enter for newline)."""
+
+    submit = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("chatInput")
+        self.setPlaceholderText("Ask Aura anything…")
+        self.setToolTip("Enter to send · Shift+Enter for a new line")
+        self.setFont(QFont("Inter", 12))
+        self.setAcceptRichText(False)
+        self.setMaximumHeight(120)
+        self.setMinimumHeight(40)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.document().contentsChanged.connect(self._auto_resize)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                super().keyPressEvent(event)
+            else:
+                self.submit.emit()
+        else:
+            super().keyPressEvent(event)
+
+    def _auto_resize(self):
+        doc_height = int(self.document().size().height()) + 12
+        new_height = max(40, min(120, doc_height))
+        self.setFixedHeight(new_height)
+
+
 class ChatPanel(QWidget):
-    """Slide-in chat panel for natural language commands."""
+    """Advanced slide-in chat panel with streaming, stop, files, and fun animations."""
 
     message_sent = Signal(str)
+    message_sent_with_files = Signal(str, list)  # text, [file_paths]
+    stop_requested = Signal()
     action_confirmed = Signal(dict)
     draft_approved = Signal(str, str, str)  # subject, body, lead_email
 
@@ -306,6 +532,10 @@ class ChatPanel(QWidget):
         self.setFixedWidth(CHAT_PANEL_WIDTH)
         self.setObjectName("chatPanel")
         self._is_visible = False
+        self._is_thinking = False
+        self._attached_files: list[str] = []
+        self._current_streaming_bubble = None
+        self.setAcceptDrops(True)
         self._build_ui()
 
     def _build_ui(self):
@@ -359,9 +589,19 @@ class ChatPanel(QWidget):
         self.scroll.setWidget(self.messages_widget)
         layout.addWidget(self.scroll)
 
-        # ─── Typing Indicator ─────────────────────────────────────
-        self.typing_indicator = TypingIndicator()
-        self.typing_indicator.hide()
+        # ─── Thinking Widget ─────────────────────────────────────
+        self.thinking_widget = ThinkingWidget()
+        self.thinking_widget.hide()
+
+        # ─── File Attachment Bar (hidden by default) ──────────────
+        self._file_bar = QFrame()
+        self._file_bar.setObjectName("chatFileBar")
+        self._file_bar_layout = QHBoxLayout(self._file_bar)
+        self._file_bar_layout.setContentsMargins(12, 4, 12, 4)
+        self._file_bar_layout.setSpacing(6)
+        self._file_bar_layout.addStretch()
+        self._file_bar.hide()
+        layout.addWidget(self._file_bar)
 
         # ─── Context Chips ────────────────────────────────────────
         chips_frame = QFrame()
@@ -375,81 +615,207 @@ class ChatPanel(QWidget):
         # ─── Input Bar ────────────────────────────────────────────
         input_frame = QFrame()
         input_frame.setObjectName("chatInputBar")
-        input_frame.setFixedHeight(56)
+        input_frame.setMinimumHeight(56)
         input_layout = QHBoxLayout(input_frame)
         input_layout.setContentsMargins(12, 8, 12, 8)
-        input_layout.setSpacing(10)
+        input_layout.setSpacing(8)
 
-        self.input_field = QLineEdit()
-        self.input_field.setObjectName("chatInput")
-        self.input_field.setPlaceholderText("Ask Aura anything…")
-        self.input_field.setFont(QFont("Inter", 12))
-        self.input_field.returnPressed.connect(self._on_send)
+        # Attach file button
+        attach_btn = QPushButton()
+        attach_btn.setIcon(get_icon("batch_import", "dark", "muted"))
+        attach_btn.setIconSize(QSize(16, 16))
+        attach_btn.setObjectName("chatAttachButton")
+        attach_btn.setFixedSize(34, 34)
+        attach_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        attach_btn.setToolTip("Attach file")
+        attach_btn.clicked.connect(self._pick_file)
+        input_layout.addWidget(attach_btn)
 
-        send_btn = QPushButton()
-        send_btn.setIcon(get_icon("chat_send", "dark"))
-        send_btn.setIconSize(QSize(16, 16))
-        send_btn.setObjectName("chatSendButton")
-        send_btn.setFixedSize(38, 38)
-        send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        send_btn.setToolTip("Send message (Enter)")
-        send_btn.clicked.connect(self._on_send)
-
+        # Multiline input
+        self.input_field = ChatInput()
         input_layout.addWidget(self.input_field)
-        input_layout.addWidget(send_btn)
+        self.input_field.submit.connect(self._on_send)
+
+        # Send button (swaps to Stop when thinking)
+        self._send_btn = QPushButton()
+        self._send_btn.setIcon(get_icon("chat_send", "dark"))
+        self._send_btn.setIconSize(QSize(16, 16))
+        self._send_btn.setObjectName("chatSendButton")
+        self._send_btn.setFixedSize(38, 38)
+        self._send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._send_btn.setToolTip("Send message (Enter)")
+        self._send_btn.clicked.connect(self._on_send_or_stop)
+        input_layout.addWidget(self._send_btn)
+
         layout.addWidget(input_frame)
 
     def _add_default_chips(self):
-        """Add context-sensitive suggestion chips."""
-        suggestions = ["Show stats", "Best skill?", "Export report"]
+        suggestions = ["Show stats", "Enrich leads", "Export report", "Best skill?"]
         for text in suggestions:
             chip = ActionChip(text)
             chip.clicked.connect(lambda checked, t=text: self._send_text(t))
             self.chips_layout.addWidget(chip)
         self.chips_layout.addStretch()
 
+    # ─── Input Handling ──────────────────────────────────────────
+
     def _send_text(self, text: str):
-        self.input_field.setText(text)
+        self.input_field.setPlainText(text)
         self._on_send()
 
     def _on_send(self):
-        text = self.input_field.text().strip()
+        text = self.input_field.toPlainText().strip()
         if not text:
             return
         self.input_field.clear()
         self.add_message(text, is_user=True)
-        self.message_sent.emit(text)
+
+        if self._attached_files:
+            self.message_sent_with_files.emit(text, list(self._attached_files))
+            self._clear_attachments()
+        else:
+            self.message_sent.emit(text)
+
+    def _on_send_or_stop(self):
+        if self._is_thinking:
+            self._on_stop()
+        else:
+            self._on_send()
+
+    def _on_stop(self):
+        """User clicked stop — cancel generation."""
+        self.stop_requested.emit()
+        self.show_thinking(False)
+        # If there's a streaming bubble in progress, finish it
+        if self._current_streaming_bubble:
+            self._current_streaming_bubble.stop_streaming()
+            self._current_streaming_bubble = None
+        self.add_message("Generation stopped.", is_user=False)
+
+    # ─── File Attachment ─────────────────────────────────────────
+
+    def _pick_file(self):
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Attach Files", "",
+            "All Files (*);;Text (*.txt *.csv *.json *.md);;Images (*.png *.jpg *.jpeg)",
+        )
+        for p in paths:
+            self._add_attachment(p)
+
+    def _add_attachment(self, file_path: str):
+        if file_path in self._attached_files:
+            return
+        self._attached_files.append(file_path)
+
+        chip = FileAttachmentChip(file_path)
+        chip.removed.connect(self._remove_attachment)
+        # Insert before the stretch
+        count = self._file_bar_layout.count()
+        self._file_bar_layout.insertWidget(count - 1, chip)
+        self._file_bar.show()
+
+    def _remove_attachment(self, file_path: str):
+        if file_path in self._attached_files:
+            self._attached_files.remove(file_path)
+        # Remove the chip widget
+        for i in range(self._file_bar_layout.count()):
+            item = self._file_bar_layout.itemAt(i)
+            if item and item.widget() and isinstance(item.widget(), FileAttachmentChip):
+                if item.widget().file_path == file_path:
+                    w = item.widget()
+                    self._file_bar_layout.removeWidget(w)
+                    w.deleteLater()
+                    break
+        if not self._attached_files:
+            self._file_bar.hide()
+
+    def _clear_attachments(self):
+        self._attached_files.clear()
+        while self._file_bar_layout.count() > 1:
+            item = self._file_bar_layout.itemAt(0)
+            if item and item.widget():
+                w = item.widget()
+                self._file_bar_layout.removeWidget(w)
+                w.deleteLater()
+            else:
+                break
+        self._file_bar.hide()
+
+    # ─── Drag and Drop ───────────────────────────────────────────
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path and os.path.isfile(path):
+                self._add_attachment(path)
 
     # ─── Public API ───────────────────────────────────────────────
 
     def add_message(self, text: str, is_user: bool = True):
         """Add a message bubble to the chat."""
         bubble = MessageBubble(text, is_user)
-        count = self.messages_layout.count()
-        self.messages_layout.insertWidget(count - 1, bubble)
-        QTimer.singleShot(50, lambda: self.scroll.verticalScrollBar().setValue(
-            self.scroll.verticalScrollBar().maximum()
-        ))
+        self._insert_widget(bubble)
+        self._scroll_to_bottom()
+
+    def add_streaming_message(self, text: str):
+        """Add an AI message that streams in word-by-word."""
+        bubble = StreamingBubble(text)
+        self._current_streaming_bubble = bubble
+        bubble.stream_finished.connect(self._on_stream_done)
+        self._insert_widget(bubble)
+        bubble.start_streaming()
+        self._scroll_to_bottom()
+
+    def _on_stream_done(self):
+        self._current_streaming_bubble = None
 
     def add_confirmation_card(self, action: str, detail: str, intent_dict: dict):
-        """Add a confirmation card for a destructive action."""
         card = ConfirmationCard(action, detail, intent_dict)
         card.confirmed.connect(self.action_confirmed.emit)
         card.cancelled.connect(lambda: card.hide())
-        count = self.messages_layout.count()
-        self.messages_layout.insertWidget(count - 1, card)
+        self._insert_widget(card)
+        self._scroll_to_bottom()
 
-    def show_typing(self, show: bool):
-        """Show or hide the typing indicator."""
+    def add_file_download(self, filename: str, content: str):
+        """Add a downloadable file card to the chat."""
+        card = FileDownloadCard(filename, content)
+        self._insert_widget(card)
+        self._scroll_to_bottom()
+
+    def show_thinking(self, show: bool):
+        """Show or hide the fun thinking indicator."""
+        self._is_thinking = show
         if show:
-            count = self.messages_layout.count()
-            self.messages_layout.insertWidget(count - 1, self.typing_indicator)
-            self.typing_indicator.show()
+            self._insert_widget(self.thinking_widget)
+            self.thinking_widget.show()
+            # Swap send button to stop
+            self._send_btn.setIcon(get_icon("chat_cancel", "dark", "danger"))
+            self._send_btn.setObjectName("chatStopButton")
+            self._send_btn.style().unpolish(self._send_btn)
+            self._send_btn.style().polish(self._send_btn)
+            self._send_btn.setToolTip("Stop generation")
+            self.input_field.setEnabled(False)
         else:
-            self.typing_indicator.hide()
+            self.thinking_widget.hide()
+            # Swap stop button back to send
+            self._send_btn.setIcon(get_icon("chat_send", "dark"))
+            self._send_btn.setObjectName("chatSendButton")
+            self._send_btn.style().unpolish(self._send_btn)
+            self._send_btn.style().polish(self._send_btn)
+            self._send_btn.setToolTip("Send message (Enter)")
+            self.input_field.setEnabled(True)
+            self.input_field.setFocus()
+        self._scroll_to_bottom()
+
+    # Legacy alias
+    def show_typing(self, show: bool):
+        self.show_thinking(show)
 
     def toggle(self):
-        """Toggle panel visibility."""
         if self._is_visible:
             self.hide()
             self._is_visible = False
@@ -463,27 +829,27 @@ class ChatPanel(QWidget):
         return self._is_visible
 
     def add_progress(self, label: str = "Working...") -> ProgressWidget:
-        """Add a progress widget to the chat and return it for updates."""
         widget = ProgressWidget(label)
-        count = self.messages_layout.count()
-        self.messages_layout.insertWidget(count - 1, widget)
+        self._insert_widget(widget)
         self._scroll_to_bottom()
         return widget
 
     def add_action_block(self, title: str, data: dict):
-        """Add a rich result card to the chat."""
         block = ActionBlock(title, data)
-        count = self.messages_layout.count()
-        self.messages_layout.insertWidget(count - 1, block)
+        self._insert_widget(block)
         self._scroll_to_bottom()
 
     def add_inline_editor(self, subject: str, body: str, lead_email: str = ""):
-        """Add an editable email draft to the chat."""
         editor = InlineEditor(subject, body, lead_email)
         editor.edit_confirmed.connect(self.draft_approved.emit)
-        count = self.messages_layout.count()
-        self.messages_layout.insertWidget(count - 1, editor)
+        self._insert_widget(editor)
         self._scroll_to_bottom()
+
+    # ─── Helpers ──────────────────────────────────────────────────
+
+    def _insert_widget(self, widget):
+        count = self.messages_layout.count()
+        self.messages_layout.insertWidget(count - 1, widget)
 
     def _scroll_to_bottom(self):
         QTimer.singleShot(50, lambda: self.scroll.verticalScrollBar().setValue(
@@ -492,10 +858,12 @@ class ChatPanel(QWidget):
 
     def handle_response(self, response: dict):
         """Process orchestrator response and update UI."""
-        self.show_typing(False)
+        self.show_thinking(False)
 
         if response.get("clarification_needed"):
-            self.add_message(response.get("clarification_question", "Could you clarify?"), is_user=False)
+            self.add_streaming_message(
+                response.get("clarification_question", "Could you clarify?")
+            )
             return
 
         execution = response.get("execution_result", {})
@@ -519,8 +887,7 @@ class ChatPanel(QWidget):
         if intent in action_intents and data and execution.get("success"):
             response_text = response.get("response_text", "")
             if response_text:
-                self.add_message(response_text, is_user=False)
-            # Filter out internal keys and show useful data
+                self.add_streaming_message(response_text)
             display_data = {k: v for k, v in data.items() if not k.startswith("_") and v is not None}
             if display_data:
                 title_map = {
@@ -534,6 +901,32 @@ class ChatPanel(QWidget):
                 self.add_action_block(title_map.get(intent, "Result"), display_data)
             return
 
+        # Show lead list as streamed text
+        if intent == "list_leads" and execution.get("success"):
+            total = data.get("total", 0)
+            text_summary = data.get("_text_summary", "")
+            response_text = response.get("response_text", "")
+            if total == 0:
+                self.add_streaming_message(
+                    response_text or "No leads found matching your criteria."
+                )
+                return
+            header = response_text or f"Found {total} leads:"
+            full_text = f"{header}\n\n{text_summary}"
+            self.add_streaming_message(full_text)
+            return
+
+        # Show lead detail as action block
+        if intent == "show_lead_detail" and execution.get("success"):
+            response_text = response.get("response_text", "")
+            if response_text:
+                self.add_streaming_message(response_text)
+            display_data = {k: v for k, v in data.items() if not k.startswith("_") and v is not None}
+            if display_data:
+                name = display_data.get("business_name", "Lead")
+                self.add_action_block(f"Lead: {name}", display_data)
+            return
+
         # Show InlineEditor for draft generation results
         if intent == "generate_drafts" and data.get("draft"):
             draft = data["draft"]
@@ -544,7 +937,11 @@ class ChatPanel(QWidget):
             )
             return
 
-        # Default: text message
+        # Check for file content in response
+        if data.get("_file_content") and data.get("_file_name"):
+            self.add_file_download(data["_file_name"], data["_file_content"])
+
+        # Default: streaming text message
         response_text = response.get("response_text", "")
         if not response_text and execution:
             answer = data.get("answer", "")
@@ -553,4 +950,4 @@ class ChatPanel(QWidget):
             else:
                 response_text = "Done!" if execution.get("success") else f"Error: {execution.get('error', 'Unknown')}"
 
-        self.add_message(response_text, is_user=False)
+        self.add_streaming_message(response_text)

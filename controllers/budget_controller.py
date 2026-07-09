@@ -85,8 +85,8 @@ class BudgetController(QObject):
             })
 
         self._worker = ThreadWorker(_work)
-        self._worker.finished.connect(_done)
-        self._worker.error.connect(_error)
+        self._worker.signals.result.connect(_done)
+        self._worker.signals.error.connect(_error)
         self._worker.start()
 
     # ─── Periodic monitoring ───────────────────────────────────────

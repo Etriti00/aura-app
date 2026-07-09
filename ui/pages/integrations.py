@@ -266,6 +266,12 @@ class IntegrationsPage(QWidget):
             token = widgets["token_input"].get_value()
             if not token:
                 return
+            # Show connecting state immediately
+            widgets["status_lbl"].setText("Connecting...")
+            widgets["status_lbl"].setObjectName("badgeWarning")
+            widgets["status_lbl"].style().unpolish(widgets["status_lbl"])
+            widgets["status_lbl"].style().polish(widgets["status_lbl"])
+            widgets["connect_btn"].setEnabled(False)
             self.platform_connect_requested.emit(platform, token)
 
     def _on_add_user(self):
@@ -334,6 +340,7 @@ class IntegrationsPage(QWidget):
             widgets["status_lbl"].setObjectName("badgeInfo")
             widgets["connect_btn"].setText("Connect")
 
+        widgets["connect_btn"].setEnabled(True)
         widgets["status_lbl"].style().unpolish(widgets["status_lbl"])
         widgets["status_lbl"].style().polish(widgets["status_lbl"])
 

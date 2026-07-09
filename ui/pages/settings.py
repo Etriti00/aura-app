@@ -1,7 +1,7 @@
 """
 Aura — Settings Page (Tabbed Layout)
-Six sub-tabs: API Keys, AI Config, Email & Delivery, Features,
-Business & Invoicing, Appearance.
+Seven sub-tabs: API Keys, AI Config, Email & Delivery, Features,
+Business & Invoicing, Knowledge Base, Appearance.
 """
 
 from PySide6.QtWidgets import (
@@ -192,33 +192,38 @@ class SettingsPage(QWidget):
         sub_layout = sub_card.get_layout()
         self._icon_header("section_subscription", "Subscription Auth", sub_layout)
         sub_info = QLabel(
-            "Use your existing Claude Pro/Max or ChatGPT Plus subscription "
+            "Use your existing Claude Pro/Max, ChatGPT Plus, or Google account "
             "instead of separate API keys."
         )
         sub_info.setObjectName("mutedText")
         sub_info.setWordWrap(True)
         sub_layout.addWidget(sub_info)
 
-        # Anthropic subscription
+        # Anthropic subscription (Claude Code CLI)
         anthropic_sub_label = QLabel("Anthropic — Claude Subscription")
         anthropic_sub_label.setObjectName("formLabel")
         sub_layout.addWidget(anthropic_sub_label)
         anthropic_sub_info = QLabel(
-            "Run 'claude setup-token' in your terminal (requires Claude Code CLI), "
-            "then paste the token below."
+            "Uses your Claude Pro/Max subscription via the Claude Code CLI. "
+            "Requires: 1) Install Claude Code (npm install -g @anthropic-ai/claude-code), "
+            "2) Run 'claude login' in your terminal."
         )
         anthropic_sub_info.setObjectName("mutedText")
         anthropic_sub_info.setWordWrap(True)
         sub_layout.addWidget(anthropic_sub_info)
 
         anthropic_sub_row = QHBoxLayout()
-        self.anthropic_sub_input = MaskedInput("Paste setup-token here...")
-        anthropic_sub_row.addWidget(self.anthropic_sub_input, stretch=1)
-        self.save_anthropic_sub_btn = ModernButton("Save Token", "secondary")
+        self.save_anthropic_sub_btn = ModernButton("Verify Claude CLI", "secondary")
         self.save_anthropic_sub_btn.setFixedHeight(40)
-        self.save_anthropic_sub_btn.setMinimumWidth(100)
-        self.save_anthropic_sub_btn.clicked.connect(self._on_save_anthropic_sub)
-        anthropic_sub_row.addWidget(self.save_anthropic_sub_btn, alignment=Qt.AlignmentFlag.AlignBottom)
+        self.save_anthropic_sub_btn.setMinimumWidth(150)
+        self.save_anthropic_sub_btn.clicked.connect(self._on_verify_claude_cli)
+        anthropic_sub_row.addWidget(self.save_anthropic_sub_btn)
+        self.enable_claude_sub_btn = ModernButton("Enable Subscription", "primary")
+        self.enable_claude_sub_btn.setFixedHeight(40)
+        self.enable_claude_sub_btn.setMinimumWidth(150)
+        self.enable_claude_sub_btn.clicked.connect(self._on_enable_claude_sub)
+        anthropic_sub_row.addWidget(self.enable_claude_sub_btn)
+        anthropic_sub_row.addStretch()
         sub_layout.addLayout(anthropic_sub_row)
 
         self.anthropic_sub_status = QLabel("")
@@ -254,17 +259,35 @@ class SettingsPage(QWidget):
         self.openai_sub_status.setObjectName("mutedText")
         sub_layout.addWidget(self.openai_sub_status)
 
-        # Gemini note
-        gemini_sub_label = QLabel("Google — Gemini")
+        # Gemini subscription (via gemini CLI)
+        gemini_sub_label = QLabel("Google — Gemini Subscription")
         gemini_sub_label.setObjectName("formLabel")
         sub_layout.addWidget(gemini_sub_label)
         gemini_sub_info = QLabel(
-            "Gemini API keys are free to generate at aistudio.google.com — "
-            "no paid subscription required. Enter your key in the API Keys section above."
+            "Use the gemini CLI with your Google account - no API key required. "
+            "Run 'gemini auth login' once in a terminal to authenticate, then enable below."
         )
         gemini_sub_info.setObjectName("mutedText")
         gemini_sub_info.setWordWrap(True)
         sub_layout.addWidget(gemini_sub_info)
+
+        gemini_sub_row = QHBoxLayout()
+        self.gemini_enable_sub_btn = ModernButton("Use gemini CLI", "primary")
+        self.gemini_enable_sub_btn.setFixedHeight(40)
+        self.gemini_enable_sub_btn.clicked.connect(self._on_gemini_enable_sub)
+        gemini_sub_row.addWidget(self.gemini_enable_sub_btn)
+        self.gemini_disable_sub_btn = ModernButton("Disable", "danger")
+        self.gemini_disable_sub_btn.setFixedHeight(40)
+        self.gemini_disable_sub_btn.clicked.connect(self._on_gemini_disable_sub)
+        self.gemini_disable_sub_btn.hide()
+        gemini_sub_row.addWidget(self.gemini_disable_sub_btn)
+        gemini_sub_row.addStretch()
+        sub_layout.addLayout(gemini_sub_row)
+
+        self.gemini_sub_status = QLabel("")
+        self.gemini_sub_status.setObjectName("mutedText")
+        sub_layout.addWidget(self.gemini_sub_status)
+
         layout.addWidget(sub_card)
 
         layout.addStretch()
@@ -292,16 +315,21 @@ class SettingsPage(QWidget):
         t2_col.addWidget(t2_label)
         self.tier2_combo = QComboBox()
         self.tier2_combo.addItems([
-            "gemini/gemini-2.0-flash",
-            "gemini/gemini-2.5-flash-preview-09-2025",
-            "openai/gpt-4.1-mini",
-            "openai/gpt-4.1-nano",
-            "openai/gpt-4o-mini",
-            "anthropic/claude-haiku-4-5",
-            "openrouter/google/gemini-2.0-flash",
-            "openrouter/openai/gpt-4.1-mini",
+            "ollama/llama3.1",
             "ollama/llama3",
             "ollama/mistral",
+            "ollama/qwen2",
+            "ollama/gemma2",
+            "ollama/phi3",
+            "gemini/gemini-2.5-flash-preview-09-2025",
+            "gemini/gemini-2.5-flash-lite-preview-09-2025",
+            "gemini/gemini-2.0-flash",
+            "openai/gpt-4.1-mini",
+            "openai/gpt-4.1-nano",
+            "openai/o4-mini",
+            "anthropic/claude-haiku-4-5",
+            "openrouter/google/gemini-2.5-flash-preview-09-2025",
+            "openrouter/openai/gpt-4.1-mini",
         ])
         t2_col.addWidget(self.tier2_combo)
         model_row.addLayout(t2_col, stretch=1)
@@ -313,14 +341,19 @@ class SettingsPage(QWidget):
         t3_col.addWidget(t3_label)
         self.tier3_combo = QComboBox()
         self.tier3_combo.addItems([
+            "ollama/llama3.1",
+            "ollama/llama3:70b",
+            "ollama/mixtral",
+            "ollama/qwen2",
             "anthropic/claude-sonnet-4-6",
+            "anthropic/claude-opus-4-5",
             "openai/gpt-4.1",
-            "openai/gpt-4o",
-            "gemini/gemini-2.5-pro-preview",
-            "gemini/gemini-1.5-pro-latest",
+            "openai/o3",
+            "openai/o4-mini",
+            "gemini/gemini-2.5-pro-preview-06-05",
+            "gemini/gemini-2.5-flash-preview-09-2025",
             "openrouter/openai/gpt-4.1",
             "openrouter/auto",
-            "ollama/llama3:70b",
         ])
         t3_col.addWidget(self.tier3_combo)
         model_row.addLayout(t3_col, stretch=1)
@@ -332,12 +365,16 @@ class SettingsPage(QWidget):
         chat_col.addWidget(chat_label)
         self.chat_model_combo = QComboBox()
         self.chat_model_combo.addItems([
+            "ollama/llama3.1",
+            "ollama/llama3",
+            "ollama/mistral",
+            "ollama/qwen2",
             "anthropic/claude-sonnet-4-6",
             "anthropic/claude-haiku-4-5",
             "openai/gpt-4.1",
             "openai/gpt-4.1-mini",
-            "openai/gpt-4o",
-            "gemini/gemini-2.5-pro-preview",
+            "openai/o4-mini",
+            "gemini/gemini-2.5-flash-preview-09-2025",
             "gemini/gemini-2.0-flash",
             "openrouter/openai/gpt-4.1",
             "openrouter/auto",
@@ -1208,8 +1245,13 @@ class SettingsPage(QWidget):
             btn.setChecked(True)
 
         # Subscription auth status
-        if settings.get("has_anthropic_sub"):
-            self.anthropic_sub_status.setText("Connected (setup-token active)")
+        if settings.get("anthropic_auth_mode") == "subscription":
+            self.anthropic_sub_status.setText("Subscription mode enabled (using Claude CLI)")
+            self.anthropic_sub_status.setObjectName("statusTextSuccess")
+            self.anthropic_sub_status.style().unpolish(self.anthropic_sub_status)
+            self.anthropic_sub_status.style().polish(self.anthropic_sub_status)
+        elif settings.get("has_anthropic_sub"):
+            self.anthropic_sub_status.setText("API key saved")
             self.anthropic_sub_status.setObjectName("statusTextSuccess")
             self.anthropic_sub_status.style().unpolish(self.anthropic_sub_status)
             self.anthropic_sub_status.style().polish(self.anthropic_sub_status)
@@ -1227,6 +1269,18 @@ class SettingsPage(QWidget):
             self.openai_sub_status.setText("")
             self.openai_sign_in_btn.show()
             self.openai_disconnect_btn.hide()
+
+        if settings.get("gemini_auth_mode") == "subscription":
+            self.gemini_sub_status.setText("Active — using gemini CLI")
+            self.gemini_sub_status.setObjectName("statusTextSuccess")
+            self.gemini_sub_status.style().unpolish(self.gemini_sub_status)
+            self.gemini_sub_status.style().polish(self.gemini_sub_status)
+            self.gemini_enable_sub_btn.hide()
+            self.gemini_disable_sub_btn.show()
+        else:
+            self.gemini_sub_status.setText("")
+            self.gemini_enable_sub_btn.show()
+            self.gemini_disable_sub_btn.hide()
 
         # Business & Invoicing fields
         self.company_legal_name.setText(settings.get("company_legal_name", ""))
@@ -1310,18 +1364,61 @@ class SettingsPage(QWidget):
         })
         show_toast(self.window(), "Feature toggles saved.", "success")
 
-    def _on_save_anthropic_sub(self):
-        token = self.anthropic_sub_input.get_value()
-        if token:
-            self.save_anthropic_sub_requested.emit(token)
-            self.anthropic_sub_input.clear()
-            self.anthropic_sub_status.setText("Connected (setup-token active)")
-            self.anthropic_sub_status.setObjectName("statusTextSuccess")
-            self.anthropic_sub_status.style().unpolish(self.anthropic_sub_status)
-            self.anthropic_sub_status.style().polish(self.anthropic_sub_status)
-            show_toast(self.window(), "Anthropic subscription token saved.", "success")
-        else:
-            show_toast(self.window(), "Please paste a setup-token.", "warning")
+    def _on_verify_claude_cli(self):
+        """Verify that the Claude Code CLI is installed and authenticated."""
+        import subprocess
+        self.save_anthropic_sub_btn.set_loading(True, "Checking...")
+        try:
+            result = subprocess.run(
+                ["claude", "-p", "--model", "haiku",
+                 "--output-format", "text", "--no-session-persistence",
+                 "respond with just the word OK"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                self.anthropic_sub_status.setText(
+                    f"Claude CLI verified (response: {result.stdout.strip()[:30]})"
+                )
+                self.anthropic_sub_status.setObjectName("statusTextSuccess")
+                self.anthropic_sub_status.style().unpolish(self.anthropic_sub_status)
+                self.anthropic_sub_status.style().polish(self.anthropic_sub_status)
+                show_toast(self.window(), "Claude CLI is working!", "success")
+            else:
+                error = result.stderr.strip()[:100] if result.stderr else "No response"
+                self.anthropic_sub_status.setText(f"CLI check failed: {error}")
+                show_toast(
+                    self.window(),
+                    "Claude CLI not responding. Run 'claude login' in your terminal.",
+                    "warning",
+                )
+        except FileNotFoundError:
+            self.anthropic_sub_status.setText("Claude CLI not found")
+            show_toast(
+                self.window(),
+                "Claude CLI not installed. Run: npm install -g @anthropic-ai/claude-code",
+                "error",
+            )
+        except subprocess.TimeoutExpired:
+            self.anthropic_sub_status.setText("CLI timed out")
+            show_toast(self.window(), "Claude CLI timed out — try again.", "warning")
+        except Exception as e:
+            self.anthropic_sub_status.setText(f"Error: {str(e)[:60]}")
+            show_toast(self.window(), f"CLI check error: {e}", "error")
+        finally:
+            self.save_anthropic_sub_btn.set_loading(False)
+
+    def _on_enable_claude_sub(self):
+        """Enable Claude subscription mode (uses CLI instead of API key)."""
+        self.auth_mode_changed.emit("anthropic", "subscription")
+        self.anthropic_sub_status.setText("Subscription mode enabled (using Claude CLI)")
+        self.anthropic_sub_status.setObjectName("statusTextSuccess")
+        self.anthropic_sub_status.style().unpolish(self.anthropic_sub_status)
+        self.anthropic_sub_status.style().polish(self.anthropic_sub_status)
+        show_toast(
+            self.window(),
+            "Claude subscription enabled! Chat will use your Claude CLI auth.",
+            "success",
+        )
 
     def _on_openai_sign_in(self):
         self.openai_sign_in_btn.setEnabled(False)
@@ -1348,6 +1445,40 @@ class SettingsPage(QWidget):
             show_toast(self.window(), "ChatGPT subscription connected!", "success")
         else:
             show_toast(self.window(), f"OAuth failed: {error}", "error")
+
+    def _on_gemini_enable_sub(self):
+        """Enable Gemini subscription mode (gemini CLI)."""
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["gemini", "--version"], capture_output=True, text=True, timeout=5
+            )
+            if result.returncode != 0:
+                raise FileNotFoundError
+        except (FileNotFoundError, Exception):
+            show_toast(
+                self.window(),
+                "gemini CLI not found. Install it and run 'gemini auth login' first.",
+                "error",
+            )
+            return
+
+        self.auth_mode_changed.emit("gemini", "subscription")
+        self.gemini_sub_status.setText("Active — using gemini CLI")
+        self.gemini_sub_status.setObjectName("statusTextSuccess")
+        self.gemini_sub_status.style().unpolish(self.gemini_sub_status)
+        self.gemini_sub_status.style().polish(self.gemini_sub_status)
+        self.gemini_enable_sub_btn.hide()
+        self.gemini_disable_sub_btn.show()
+        show_toast(self.window(), "Gemini CLI subscription enabled.", "success")
+
+    def _on_gemini_disable_sub(self):
+        """Disable Gemini subscription mode, fall back to API key."""
+        self.auth_mode_changed.emit("gemini", "none")
+        self.gemini_sub_status.setText("")
+        self.gemini_enable_sub_btn.show()
+        self.gemini_disable_sub_btn.hide()
+        show_toast(self.window(), "Gemini subscription disabled.", "info")
 
     def _on_auth_mode_changed(self, provider: str, button_id: int):
         mode_map = {0: "none", 1: "api", 2: "subscription"}

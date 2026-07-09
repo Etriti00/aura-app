@@ -90,6 +90,7 @@ class SettingsController(QObject):
             # Auth modes
             "anthropic_auth_mode": getattr(settings, "anthropic_auth_mode", "none"),
             "openai_auth_mode": getattr(settings, "openai_auth_mode", "none"),
+            "gemini_auth_mode": getattr(settings, "gemini_auth_mode", "none"),
             # Autonomy & advanced AI
             "autonomy_level": getattr(settings, "autonomy_level", "supervised"),
             "reflection_enabled": getattr(settings, "reflection_enabled", True),

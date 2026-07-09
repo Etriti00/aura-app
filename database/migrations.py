@@ -78,6 +78,7 @@ def migrate_schema(db_path):
     # Settings: Auth mode per provider (api/subscription/none)
     _add_col("settings", "anthropic_auth_mode", "TEXT", "'none'")
     _add_col("settings", "openai_auth_mode", "TEXT", "'none'")
+    _add_col("settings", "gemini_auth_mode", "TEXT", "'none'")
 
     # Agent hierarchy
     _add_col("agents", "rank", "INTEGER", "3")

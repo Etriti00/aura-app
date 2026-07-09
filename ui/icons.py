@@ -63,6 +63,8 @@ ICONS = {
     "chat_send":             "mdi6.arrow-up",
     "chat_confirm":          "mdi6.check",
     "chat_cancel":           "mdi6.close",
+    "chat_stop":             "mdi6.stop",
+    "chat_attach":           "mdi6.paperclip",
 
     # Masked input
     "eye_visible":           "mdi6.eye-outline",

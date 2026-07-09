@@ -100,6 +100,16 @@ class OutreachController(QObject):
                 except Exception:
                     pass
 
+        # Gemini subscription: use gemini CLI instead of API key
+        if getattr(settings, "gemini_auth_mode", "none") == "subscription":
+            sub_tokens["gemini_sub"] = True
+            api_keys.pop("gemini", None)  # don't use API key in subscription mode
+
+        # Claude subscription: use claude CLI instead of API key
+        if getattr(settings, "anthropic_auth_mode", "none") == "subscription":
+            sub_tokens["claude_sub"] = True
+            api_keys.pop("anthropic", None)
+
         self.ai_engine.configure(api_keys, models, sub_tokens=sub_tokens)
 
         # Configure delivery

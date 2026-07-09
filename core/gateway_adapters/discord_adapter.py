@@ -18,7 +18,7 @@ class DiscordAdapter(BaseAdapter):
     """Discord bot adapter using WebSocket gateway connection."""
 
     def __init__(self, bot_token: str, on_message_callback: Callable,
-                 db_manager=None):
+                 db_manager=None, on_status_callback: Callable = None):
         super().__init__(bot_token, on_message_callback)
         self._client = None
         self._tree = None
@@ -27,6 +27,7 @@ class DiscordAdapter(BaseAdapter):
         self._db_manager = db_manager
         self._server_manager = None
         self.notification_router = None
+        self._on_status = on_status_callback  # (platform, connected: bool, error: str|None)
 
     @property
     def platform(self) -> str:
@@ -89,6 +90,12 @@ class DiscordAdapter(BaseAdapter):
                     logger.info("Discord slash commands synced")
                 except Exception as e:
                     logger.warning(f"Slash command sync failed: {e}")
+                # Notify controller that we're truly connected
+                if self._on_status:
+                    try:
+                        self._on_status("discord", True, None)
+                    except Exception:
+                        pass
 
             @self._client.event
             async def on_message(message):
@@ -112,9 +119,19 @@ class DiscordAdapter(BaseAdapter):
                 "discord.py not installed. Run: pip install discord.py"
             )
             self._running = False
+            if self._on_status:
+                try:
+                    self._on_status("discord", False, "discord.py not installed")
+                except Exception:
+                    pass
         except Exception as e:
             logger.error(f"Discord bot error: {e}")
             self._running = False
+            if self._on_status:
+                try:
+                    self._on_status("discord", False, str(e))
+                except Exception:
+                    pass
 
     def _register_slash_commands(self):
         """Register /aura slash commands."""

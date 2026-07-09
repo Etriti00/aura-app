@@ -41,6 +41,9 @@ class HunterController(QObject):
     status_message = Signal(str)        # Human-readable status
     linkedin_import_finished = Signal(int, int)  # total, skipped
     hubspot_search_finished = Signal(int)         # total found
+    enrich_lead_finished = Signal(int, dict)      # lead_id, result
+    enrich_campaign_finished = Signal(int, dict)  # campaign_id, summary
+    campaigns_loaded = Signal(list)               # list of campaign dicts
 
     def __init__(self, db_manager: DatabaseManager, enrichment_engine=None):
         super().__init__()
@@ -193,6 +196,7 @@ class HunterController(QObject):
                         try:
                             enrichment_data = self.enrichment_engine.enrich_lead(lead_dict)
                             if enrichment_data:
+                                self.enrichment_engine.save_enrichment(lead_dict["id"], enrichment_data)
                                 self.lead_enriched.emit(lead_dict["id"], enrichment_data)
                         except Exception as e:
                             logger.warning(f"Enrichment failed for lead #{lead_dict['id']}: {e}")
@@ -526,3 +530,149 @@ class HunterController(QObject):
         except Exception as e:
             logger.error(f"Failed to save lead '{lead_dict.get('business_name')}': {e}")
             return None
+
+    # ─── Campaign & Enrichment Methods ────────────────────────────
+
+    def load_campaigns(self):
+        """Load all campaigns with stats and emit campaigns_loaded signal."""
+        try:
+            with self.db_manager.session_scope() as session:
+                campaigns = session.query(Campaign).order_by(Campaign.created_at.desc()).all()
+                result = []
+                for c in campaigns:
+                    total = session.query(Lead).filter_by(campaign_id=c.id).count()
+                    qualified = session.query(Lead).filter_by(campaign_id=c.id, status="qualified").count()
+                    enriched = session.query(Lead).filter(
+                        Lead.campaign_id == c.id,
+                        Lead.data_completeness_score > 0,
+                    ).count()
+                    result.append({
+                        "id": c.id,
+                        "name": c.name,
+                        "target_niche": c.target_niche or "",
+                        "target_city": c.target_city or "",
+                        "status": c.status or "completed",
+                        "total_leads": total,
+                        "qualified_leads": qualified,
+                        "enriched_leads": enriched,
+                        "created_at": c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else "",
+                    })
+                self.campaigns_loaded.emit(result)
+        except Exception as e:
+            logger.error(f"Failed to load campaigns: {e}")
+            self.campaigns_loaded.emit([])
+
+    def get_campaign_leads_detailed(self, campaign_id: int) -> list:
+        """Get leads for a campaign with enrichment data included."""
+        try:
+            with self.db_manager.session_scope() as session:
+                from database.schema import EnrichmentData
+                leads = session.query(Lead).filter_by(campaign_id=campaign_id).all()
+                result = []
+                for l in leads:
+                    enrichment = session.query(EnrichmentData).filter_by(lead_id=l.id).first()
+                    lead_dict = {
+                        "id": l.id,
+                        "business_name": l.business_name or "",
+                        "category": l.category or "",
+                        "city": l.city or "",
+                        "phone": l.phone or "",
+                        "email": l.email or "",
+                        "source_platform": l.source_platform or "",
+                        "has_website": l.has_website or False,
+                        "website_url": l.website_url or "",
+                        "status": l.status or "new",
+                        "data_completeness_score": l.data_completeness_score or 0,
+                        "lifecycle_state": l.lifecycle_state or "new",
+                        # Enrichment fields
+                        "google_maps_rating": None,
+                        "review_count": None,
+                        "domain_age": None,
+                        "has_facebook": False,
+                        "has_instagram": False,
+                        "has_linkedin": False,
+                        "decision_maker": "",
+                        "icp_fit_score": None,
+                    }
+                    if enrichment:
+                        lead_dict["google_maps_rating"] = enrichment.google_maps_rating
+                        lead_dict["review_count"] = enrichment.google_maps_review_count
+                        lead_dict["domain_age"] = enrichment.domain_age_years
+                        lead_dict["has_facebook"] = enrichment.has_facebook or False
+                        lead_dict["has_instagram"] = enrichment.has_instagram or False
+                        lead_dict["has_linkedin"] = enrichment.has_linkedin or False
+                        lead_dict["decision_maker"] = enrichment.decision_maker_name or ""
+                        lead_dict["icp_fit_score"] = enrichment.icp_fit_score
+                    result.append(lead_dict)
+                return result
+        except Exception as e:
+            logger.error(f"Failed to load campaign leads: {e}")
+            return []
+
+    def enrich_single_lead(self, lead_id: int):
+        """Run waterfall enrichment on a single lead in a background thread."""
+        if not self.enrichment_engine:
+            self.scrape_error.emit("Enrichment engine not available.")
+            return
+
+        self.status_message.emit(f"Enriching lead #{lead_id}...")
+
+        def _do_enrich(**kwargs):
+            try:
+                return self.enrichment_engine.waterfall_enrich_lead(lead_id)
+            except Exception as e:
+                logger.error(f"Waterfall enrichment failed for lead #{lead_id}: {e}")
+                return {"success": False, "error": str(e)}
+
+        worker = ThreadWorker(fn=_do_enrich)
+        worker.signals.result.connect(
+            lambda result: self.enrich_lead_finished.emit(lead_id, result if isinstance(result, dict) else {})
+        )
+        worker.signals.error.connect(lambda msg: self.enrich_lead_finished.emit(lead_id, {"success": False, "error": msg}))
+        worker.signals.finished.connect(lambda: self._cleanup_enrich_worker(worker))
+        # Store to prevent garbage collection
+        if not hasattr(self, "_enrich_workers"):
+            self._enrich_workers = []
+        self._enrich_workers.append(worker)
+        worker.start()
+
+    def enrich_campaign_leads(self, campaign_id: int):
+        """Run waterfall enrichment on all leads in a campaign (background thread)."""
+        if not self.enrichment_engine:
+            self.scrape_error.emit("Enrichment engine not available.")
+            return
+
+        self.status_message.emit("Starting campaign enrichment...")
+
+        def _do_enrich(**kwargs):
+            try:
+                return self.enrichment_engine.waterfall_enrich_campaign(campaign_id)
+            except Exception as e:
+                logger.error(f"Campaign enrichment failed: {e}")
+                return {"success": False, "error": str(e), "enriched": 0, "emails_found": 0}
+
+        worker = ThreadWorker(fn=_do_enrich)
+        worker.signals.result.connect(
+            lambda result: self.enrich_campaign_finished.emit(
+                campaign_id, result if isinstance(result, dict) else {}
+            )
+        )
+        worker.signals.error.connect(
+            lambda msg: self.enrich_campaign_finished.emit(
+                campaign_id, {"success": False, "error": msg, "enriched": 0, "emails_found": 0}
+            )
+        )
+        worker.signals.finished.connect(lambda: self._cleanup_enrich_worker(worker))
+        # Store to prevent garbage collection
+        self._enrich_campaign_worker = worker
+        worker.start()
+
+    def _cleanup_enrich_worker(self, worker):
+        """Remove finished worker from the list to allow eventual GC."""
+        if hasattr(self, "_enrich_workers"):
+            try:
+                self._enrich_workers.remove(worker)
+            except ValueError:
+                pass
+        if getattr(self, "_enrich_campaign_worker", None) is worker:
+            self._enrich_campaign_worker = None

@@ -1,7 +1,10 @@
 """
 Aura — Chat Controller
 Handles AI chat interactions in a background thread via the Orchestrator Engine.
+Supports stop generation, file attachments, and file delivery.
 """
+
+import os
 
 from PySide6.QtCore import QObject, Signal
 
@@ -11,6 +14,9 @@ from utils.logger import get_logger
 from utils.thread_worker import ThreadWorker
 
 logger = get_logger("chat_controller")
+
+# Max size for file content included in AI context (chars)
+_MAX_FILE_CONTEXT_CHARS = 8000
 
 
 class ChatController(QObject):
@@ -113,9 +119,51 @@ class ChatController(QObject):
             logger.error(f"Chat error: {error}")
 
         self._worker = ThreadWorker(_work)
-        self._worker.finished.connect(_on_done)
-        self._worker.error.connect(_on_error)
+        self._worker.signals.result.connect(_on_done)
+        self._worker.signals.error.connect(_on_error)
         self._worker.start()
+
+    def send_message_with_files(self, message: str, file_paths: list):
+        """
+        Process a message with attached files.
+        Reads file contents and includes them in the AI context.
+        """
+        # Build file context string
+        file_context_parts = []
+        for path in file_paths:
+            try:
+                name = os.path.basename(path)
+                size = os.path.getsize(path)
+                if size > _MAX_FILE_CONTEXT_CHARS * 2:
+                    file_context_parts.append(
+                        f"[File: {name} — {size:,} bytes, too large to include inline]"
+                    )
+                    continue
+                with open(path, "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read(_MAX_FILE_CONTEXT_CHARS)
+                if len(content) >= _MAX_FILE_CONTEXT_CHARS:
+                    content = content[:_MAX_FILE_CONTEXT_CHARS] + "\n… (truncated)"
+                file_context_parts.append(
+                    f"--- File: {name} ---\n{content}\n--- End of {name} ---"
+                )
+            except Exception as e:
+                file_context_parts.append(f"[File: {os.path.basename(path)} — error reading: {e}]")
+
+        if file_context_parts:
+            augmented_message = (
+                message + "\n\n[Attached files]\n" + "\n\n".join(file_context_parts)
+            )
+        else:
+            augmented_message = message
+
+        context = {"attached_files": [os.path.basename(p) for p in file_paths]}
+        self.send_message(augmented_message, context)
+
+    def stop_generation(self):
+        """Cancel the current background worker."""
+        if self._worker:
+            self._worker.cancel()
+            logger.info("Chat generation cancelled by user")
 
     def confirm_action(self, intent_dict: dict):
         """
@@ -166,8 +214,8 @@ class ChatController(QObject):
             self.error.emit(str(error))
 
         self._worker = ThreadWorker(_work)
-        self._worker.finished.connect(_on_done)
-        self._worker.error.connect(_on_error)
+        self._worker.signals.result.connect(_on_done)
+        self._worker.signals.error.connect(_on_error)
         self._worker.start()
 
     def get_history(self) -> list:

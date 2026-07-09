@@ -1,6 +1,6 @@
 # Aura — Technical Documentation
 
-> **Version**: 2.0.0
+> **Version**: 2.1.0
 > **Stack**: Python 3.14 | PySide6 | SQLAlchemy | SQLite | LiteLLM
 > **Platform**: Windows | macOS | Linux (packaged via PyInstaller)
 
@@ -160,7 +160,7 @@ AuraApp/
 │   ├── logger.py              # Rotating file logger (5MB, 3 backups)
 │   └── thread_worker.py       # QThread wrapper with signals
 │
-└── tests/                     # 1200 tests across 40+ files
+└── tests/                     # 1250+ tests across 50+ files
     ├── conftest.py            # InMemoryDatabaseManager, shared fixtures
     ├── test_scraper.py
     ├── test_ai_engine.py
@@ -968,7 +968,7 @@ On first launch, if `settings.first_run_complete` is False, a SetupWizard modal 
 | `test_settings_controller.py` | Business fields get/save, toggles, regression |
 | `test_integration_v2.py` | Cross-engine integration for v2.0 features |
 | ... | ... | ... |
-| **Total** | **1200 tests** | **100% passing** |
+| **Total** | **1250+ tests** | **100% passing** |
 
 ### 16.3 Running Tests
 

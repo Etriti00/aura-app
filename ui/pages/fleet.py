@@ -843,8 +843,11 @@ class FleetPage(QWidget):
         self._agent_cards.clear()
         while self.agent_grid.count():
             item = self.agent_grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            w = item.widget()
+            if w:
+                w.hide()
+                w.setParent(None)
+                w.deleteLater()
 
         if not agents:
             self.empty_state.show()

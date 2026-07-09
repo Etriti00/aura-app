@@ -907,19 +907,18 @@ QFrame#chatInputBar {
     border-top: 1px solid rgba(78, 91, 242, 0.10);
 }
 
-QLineEdit#chatInput {
+QTextEdit#chatInput, QLineEdit#chatInput {
     background: #FFFFFF;
     color: #1D1D1F;
     border: 1px solid #DDDDE5;
-    border-radius: 20px;
-    height: 38px;
-    padding: 0 18px;
+    border-radius: 16px;
+    padding: 8px 16px;
     font-size: 13px;
 }
 
-QLineEdit#chatInput:focus {
+QTextEdit#chatInput:focus, QLineEdit#chatInput:focus {
     border: 2px solid rgba(78, 91, 242, 0.5);
-    padding: 0 17px;
+    padding: 7px 15px;
     background: #FFFFFF;
 }
 
@@ -1014,6 +1013,100 @@ QLabel#confirmCardDetail {
     color: #6E6E73;
     font-size: 11px;
     background: transparent;
+}
+
+/* ─── Thinking Widget (fun animated indicator) ─────────────────────── */
+QFrame#thinkingWidget {
+    background: rgba(78, 91, 242, 0.06);
+    border: 1px solid rgba(78, 91, 242, 0.15);
+    border-radius: 16px 16px 16px 4px;
+    margin-right: 40px;
+}
+
+QLabel#thinkingSpinner {
+    color: #4E5BF2;
+    font-size: 16px;
+    background: transparent;
+}
+
+QLabel#thinkingPhrase {
+    color: #6E6E73;
+    font-size: 11px;
+    font-style: italic;
+    background: transparent;
+}
+
+/* ─── Stop Button ──────────────────────────────────────────────────── */
+QPushButton#chatStopButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #FF3B30, stop:1 #FF6961);
+    color: white;
+    border-radius: 19px;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+}
+
+QPushButton#chatStopButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #FF6961, stop:1 #FFA09A);
+}
+
+/* ─── Attach Button ────────────────────────────────────────────────── */
+QPushButton#chatAttachButton {
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 17px;
+    border: 1px solid #DDDDE5;
+}
+
+QPushButton#chatAttachButton:hover {
+    background: rgba(78, 91, 242, 0.08);
+    border-color: rgba(78, 91, 242, 0.25);
+}
+
+/* ─── File Attachment Chips ────────────────────────────────────────── */
+QFrame#chatFileBar {
+    background: rgba(78, 91, 242, 0.02);
+    border-top: 1px solid #EDEDF2;
+}
+
+QFrame#fileChip {
+    background: rgba(78, 91, 242, 0.08);
+    border: 1px solid rgba(78, 91, 242, 0.18);
+    border-radius: 12px;
+}
+
+QLabel#fileChipName {
+    color: #1D1D1F;
+    background: transparent;
+    font-size: 10px;
+}
+
+QPushButton#fileChipRemove {
+    background: transparent;
+    color: #AEAEB2;
+    border: none;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QPushButton#fileChipRemove:hover {
+    color: #FF3B30;
+}
+
+/* ─── File Download Card ───────────────────────────────────────────── */
+QFrame#fileDownloadCard {
+    background: rgba(52, 199, 89, 0.06);
+    border: 1px solid rgba(52, 199, 89, 0.18);
+    border-radius: 14px;
+    margin-right: 40px;
+}
+
+QLabel#fileCardName {
+    color: #1D1D1F;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 /* ─── Empty State ──────────────────────────────────────────────────────── */
@@ -1388,6 +1481,62 @@ QMenu#ticketContextMenu::item {
 }
 QMenu#ticketContextMenu::item:selected {
     background-color: rgba(78, 91, 242, 0.1);
+}
+
+/* ─── Hunter Tabs & Campaign Views ─────────────────────────── */
+
+QTabWidget#hunterTabs::pane {
+    border: none;
+    background: transparent;
+}
+
+QTabWidget#hunterTabs > QTabBar::tab {
+    background: transparent;
+    color: #6E6E73;
+    padding: 10px 24px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QTabWidget#hunterTabs > QTabBar::tab:selected {
+    color: #1D1D1F;
+    border-bottom: 2px solid #4E5BF2;
+}
+
+QTabWidget#hunterTabs > QTabBar::tab:hover:!selected {
+    color: #3A3A3C;
+    border-bottom: 2px solid rgba(78, 91, 242, 0.3);
+}
+
+QTableWidget#campaignListTable,
+QTableWidget#campaignDetailTable {
+    background-color: #FFFFFF;
+    border: 1px solid #E8E8ED;
+    border-radius: 8px;
+    gridline-color: #F0F0F5;
+    selection-background-color: rgba(78, 91, 242, 0.1);
+    selection-color: #1D1D1F;
+}
+
+QTableWidget#campaignListTable::item,
+QTableWidget#campaignDetailTable::item {
+    padding: 6px 8px;
+    border-bottom: 1px solid #F0F0F5;
+}
+
+QTableWidget#campaignListTable QHeaderView::section,
+QTableWidget#campaignDetailTable QHeaderView::section {
+    background-color: #FAFAFA;
+    color: #6E6E73;
+    border: none;
+    border-bottom: 1px solid #E8E8ED;
+    padding: 8px 8px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Kanban Column */

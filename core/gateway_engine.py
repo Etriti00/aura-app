@@ -124,12 +124,6 @@ class GatewayEngine:
                 "intent": None,
             }
 
-    def _build_response_text(self, intent: str, result: dict,
-                              fallback: str) -> str:
-        """Build a platform-appropriate response from an execution result."""
-        structured = from_intent_result(intent, result, fallback)
-        return self._formatter.render(structured, Platform.DISCORD)
-
     def _build_response_for_platform(self, intent: str, result: dict,
                                       fallback: str, platform: str) -> str:
         """Build a platform-specific response."""
