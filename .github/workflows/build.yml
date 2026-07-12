@@ -155,8 +155,9 @@ jobs:
           cd artifacts
           for d in */; do
             name="${d%/}"
-            # Installer bundles: publish the installer file directly.
-            if ls "$d"*.exe "$d"*.dmg "$d"*.run > /dev/null 2>&1; then
+            # Installer bundles: publish the installer file directly. Check
+            # each glob so a non-matching pattern does not fail the test.
+            if ls "$d"*.exe "$d"*.dmg "$d"*.run 2>/dev/null | grep -q .; then
               mv "$d"*.exe "$d"*.dmg "$d"*.run . 2>/dev/null || true
             elif ls "$d"*.tar.gz > /dev/null 2>&1; then
               mv "$d"*.tar.gz .
