@@ -1,0 +1,9 @@
+venv/
+dist/
+build/
+.git/
+.pytest_cache/
+__pycache__/
+exports/
+*.zip
+docs/

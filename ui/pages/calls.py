@@ -42,7 +42,7 @@ class CallsPage(QWidget):
         content.setObjectName("centralWidget")
         layout = QVBoxLayout(content)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # ─── Header ───────────────────────────────────────────────
         header = QVBoxLayout()
@@ -205,11 +205,17 @@ class CallsPage(QWidget):
             self.log_table.setItem(row, 5, QTableWidgetItem(call.get("started_at", "")[:16]))
 
             view_btn = QPushButton("View")
-            view_btn.setObjectName("secondaryButton")
+            view_btn.setObjectName("tableActionButton")
             view_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             call_id = call.get("id", 0)
             view_btn.clicked.connect(lambda checked, cid=call_id: self._on_view_transcript(cid))
-            self.log_table.setCellWidget(row, 6, view_btn)
+            cell = QWidget()
+            cell_lyt = QHBoxLayout(cell)
+            cell_lyt.setContentsMargins(4, 3, 4, 3)
+            cell_lyt.addStretch()
+            cell_lyt.addWidget(view_btn)
+            cell_lyt.addStretch()
+            self.log_table.setCellWidget(row, 6, cell)
 
     def _on_view_transcript(self, call_id: int):
         """Request to load a call transcript — wired by controller."""
@@ -226,11 +232,17 @@ class CallsPage(QWidget):
             self.active_table.setItem(row, 2, QTableWidgetItem(str(call.get("transcript_count", 0))))
 
             end_btn = QPushButton("End Call")
-            end_btn.setObjectName("dangerButton")
+            end_btn.setObjectName("tableActionDanger")
             end_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             call_id = call.get("call_id", 0)
             end_btn.clicked.connect(lambda checked, cid=call_id: self.end_call_requested.emit(cid))
-            self.active_table.setCellWidget(row, 3, end_btn)
+            cell = QWidget()
+            cell_lyt = QHBoxLayout(cell)
+            cell_lyt.setContentsMargins(4, 3, 4, 3)
+            cell_lyt.addStretch()
+            cell_lyt.addWidget(end_btn)
+            cell_lyt.addStretch()
+            self.active_table.setCellWidget(row, 3, cell)
 
     def update_call_detail(self, data: dict):
         """Display a full call transcript."""
@@ -260,7 +272,7 @@ class CallsPage(QWidget):
             active = status.get(key, False)
             badge.setObjectName("badgeSuccess" if active else "badgeDanger")
             extra = f" ({status.get(key + '_provider', '')})" if active and status.get(key + "_provider") else ""
-            badge.setText(f"{label} ✓{extra}" if active else f"{label} ✗")
+            badge.setText(f"{label} Ready{extra}" if active else f"{label} Off")
             badge.style().unpolish(badge)
             badge.style().polish(badge)
 
@@ -270,7 +282,7 @@ class CallsPage(QWidget):
 
         ws_active = status.get("ws_server", False)
         self.ws_badge.setObjectName("badgeSuccess" if ws_active else "badgeWarning")
-        self.ws_badge.setText("WS Server ✓" if ws_active else "WS Server ✗")
+        self.ws_badge.setText("WS Server Active" if ws_active else "WS Server Off")
         self.ws_badge.style().unpolish(self.ws_badge)
         self.ws_badge.style().polish(self.ws_badge)
 

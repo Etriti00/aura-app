@@ -37,7 +37,7 @@ class EmptyState(QWidget):
         layout.setSpacing(10)
 
         self.icon_label = QLabel()
-        self.icon_label.setPixmap(get_pixmap(icon_key, theme, "muted", 48))
+        self.icon_label.setPixmap(get_pixmap(icon_key, theme, "default", 48))
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.icon_label.setObjectName("emptyStateIcon")
         layout.addWidget(self.icon_label)

@@ -43,7 +43,7 @@ class TrendsPage(QWidget):
         content.setObjectName("centralWidget")
         layout = QVBoxLayout(content)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # ─── Header ──────────────────────────────────────────────
         header = QHBoxLayout()
@@ -82,14 +82,12 @@ class TrendsPage(QWidget):
         self.keyword_input = QLineEdit()
         self.keyword_input.setObjectName("chatInput")
         self.keyword_input.setPlaceholderText("Enter keywords (comma-separated, max 5)...")
-        self.keyword_input.setMinimumHeight(38)
         search_row.addWidget(self.keyword_input, stretch=3)
 
         self.region_combo = QComboBox()
         self.region_combo.setObjectName("secondaryButton")
         self.region_combo.addItems(["US", "GB", "DE", "FR", "CA", "AU", "IN", "BR", "JP", ""])
         self.region_combo.setCurrentText("US")
-        self.region_combo.setMinimumHeight(38)
         search_row.addWidget(self.region_combo)
 
         self.timeframe_combo = QComboBox()
@@ -97,7 +95,6 @@ class TrendsPage(QWidget):
         for code, label in TRENDS_TIMEFRAMES:
             self.timeframe_combo.addItem(label, code)
         self.timeframe_combo.setCurrentIndex(5)  # "Last 3 months"
-        self.timeframe_combo.setMinimumHeight(38)
         search_row.addWidget(self.timeframe_combo)
 
         search_btn = QPushButton("Analyze")
@@ -197,7 +194,6 @@ class TrendsPage(QWidget):
         self.opp_seed_input = QLineEdit()
         self.opp_seed_input.setObjectName("chatInput")
         self.opp_seed_input.setPlaceholderText("Seed keywords...")
-        self.opp_seed_input.setMinimumHeight(34)
         self.opp_seed_input.setMaximumWidth(250)
         opp_header_row.addWidget(self.opp_seed_input)
 

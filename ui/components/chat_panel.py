@@ -8,12 +8,14 @@ import os
 import random
 
 from PySide6.QtWidgets import (
-    QComboBox,
+    QComboBox, QGridLayout,
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QScrollArea, QFrame, QPushButton, QGraphicsDropShadowEffect,
     QSizePolicy, QTextEdit, QProgressBar, QFileDialog, QApplication,
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QSize, QMimeData
+from PySide6.QtCore import (
+    Qt, Signal, QTimer, QSize, QMimeData, QPropertyAnimation, QEasingCurve,
+)
 from PySide6.QtGui import QFont, QColor, QKeyEvent, QDragEnterEvent, QDropEvent
 
 from config import CHAT_PANEL_WIDTH
@@ -133,6 +135,8 @@ class ActionChip(QPushButton):
         super().__init__(text, parent)
         self.setObjectName("chipButton")
         self.setFixedHeight(30)
+        fm = self.fontMetrics()
+        self.setMinimumWidth(fm.horizontalAdvance(text) + 34)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
 
@@ -522,7 +526,8 @@ class ChatInput(QTextEdit):
 class ChatPanel(QWidget):
     """Advanced slide-in chat panel with streaming, stop, files, and fun animations."""
 
-    model_changed = Signal(str)  # chat model picked in the header
+    model_changed = Signal(str)
+    panel_toggled = Signal(bool)  # panel opened/closed  # chat model picked in the header
     message_sent = Signal(str)
     message_sent_with_files = Signal(str, list)  # text, [file_paths]
     stop_requested = Signal()
@@ -531,7 +536,11 @@ class ChatPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(CHAT_PANEL_WIDTH)
+        # Width is animated by toggle(): closed = 0, open = CHAT_PANEL_WIDTH
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(0)
+        self._width_anim = None
+        self._greeting = None
         self.setObjectName("chatPanel")
         self._is_visible = False
         self._is_thinking = False
@@ -541,7 +550,21 @@ class ChatPanel(QWidget):
         self._build_ui()
 
     def _build_ui(self):
-        layout = QVBoxLayout(self)
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Hard 1px dividing line on the panel left edge
+        divider = QWidget()
+        divider.setObjectName("chatDivider")
+        divider.setFixedWidth(1)
+        outer.addWidget(divider)
+
+        body = QWidget()
+        body.setObjectName("chatPanelBody")
+        outer.addWidget(body, stretch=1)
+
+        layout = QVBoxLayout(body)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
@@ -550,7 +573,8 @@ class ChatPanel(QWidget):
         header.setObjectName("chatHeader")
         header.setFixedHeight(56)
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(18, 0, 18, 0)
+        header_layout.setContentsMargins(16, 0, 12, 0)
+        header_layout.setSpacing(8)
 
         title_icon = QLabel()
         title_icon.setPixmap(get_pixmap("chat_title", "dark", "accent", 18))
@@ -581,9 +605,8 @@ class ChatPanel(QWidget):
             self.model_combo.addItems(all_models())
         except Exception:
             pass
-        self.model_combo.setFixedHeight(30)
-        self.model_combo.setMinimumWidth(150)
-        self.model_combo.setMaximumWidth(185)
+        self.model_combo.setMinimumWidth(170)
+        self.model_combo.setMaximumWidth(235)
         self.model_combo.setToolTip(
             "Chat model — pick from the fleet or type any model ID"
         )
@@ -592,6 +615,10 @@ class ChatPanel(QWidget):
         )
         self.model_combo.lineEdit().returnPressed.connect(
             lambda: self.model_changed.emit(self.model_combo.currentText())
+        )
+        # Long model IDs: keep the provider prefix visible, not the tail
+        self.model_combo.lineEdit().editingFinished.connect(
+            lambda: self.model_combo.lineEdit().setCursorPosition(0)
         )
         header_layout.addWidget(self.model_combo)
         header_layout.addWidget(close_btn)
@@ -614,6 +641,29 @@ class ChatPanel(QWidget):
         self.scroll.setWidget(self.messages_widget)
         layout.addWidget(self.scroll)
 
+        # Empty-state greeting, hidden once the first message arrives
+        self._greeting = QWidget()
+        g_lay = QVBoxLayout(self._greeting)
+        g_lay.setContentsMargins(24, 48, 24, 24)
+        g_lay.setSpacing(10)
+        g_icon = QLabel()
+        g_icon.setPixmap(get_pixmap("chat_title", "dark", "accent", 28))
+        g_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        g_lay.addWidget(g_icon)
+        g_title = QLabel("Aura Assistant")
+        g_title.setObjectName("chatTitle")
+        g_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        g_lay.addWidget(g_title)
+        g_sub = QLabel(
+            "Ask about your leads, campaigns, and outreach.\n"
+            "Try one of the suggestions below."
+        )
+        g_sub.setObjectName("mutedText")
+        g_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        g_sub.setWordWrap(True)
+        g_lay.addWidget(g_sub)
+        self.messages_layout.insertWidget(0, self._greeting)
+
         # ─── Thinking Widget ─────────────────────────────────────
         self.thinking_widget = ThinkingWidget()
         self.thinking_widget.hide()
@@ -631,9 +681,10 @@ class ChatPanel(QWidget):
         # ─── Context Chips ────────────────────────────────────────
         chips_frame = QFrame()
         chips_frame.setObjectName("chatChipsBar")
-        self.chips_layout = QHBoxLayout(chips_frame)
+        self.chips_layout = QGridLayout(chips_frame)
         self.chips_layout.setContentsMargins(12, 6, 12, 6)
-        self.chips_layout.setSpacing(6)
+        self.chips_layout.setHorizontalSpacing(8)
+        self.chips_layout.setVerticalSpacing(6)
         self._add_default_chips()
         layout.addWidget(chips_frame)
 
@@ -676,11 +727,11 @@ class ChatPanel(QWidget):
 
     def _add_default_chips(self):
         suggestions = ["Show stats", "Enrich leads", "Export report", "Best skill?"]
-        for text in suggestions:
+        for i, text in enumerate(suggestions):
             chip = ActionChip(text)
             chip.clicked.connect(lambda checked, t=text: self._send_text(t))
-            self.chips_layout.addWidget(chip)
-        self.chips_layout.addStretch()
+            self.chips_layout.addWidget(chip, i // 2, i % 2)
+        self.chips_layout.setColumnStretch(2, 1)
 
     # ─── Input Handling ──────────────────────────────────────────
 
@@ -844,15 +895,39 @@ class ChatPanel(QWidget):
         """Reflect the configured chat model in the header selector."""
         if model_id:
             self.model_combo.setEditText(model_id)
+        self.model_combo.lineEdit().setCursorPosition(0)
 
     def toggle(self):
         if self._is_visible:
-            self.hide()
             self._is_visible = False
+            self._animate_width(0)
         else:
-            self.show()
             self._is_visible = True
+            self.show()
+            self._animate_width(CHAT_PANEL_WIDTH)
             self.input_field.setFocus()
+        self.panel_toggled.emit(self._is_visible)
+
+    def _animate_width(self, target: int):
+        """Slide the panel open or closed; interruptible mid-flight."""
+        if self._width_anim is not None:
+            self._width_anim.stop()
+        anim = QPropertyAnimation(self, b"maximumWidth", self)
+        anim.setStartValue(self.width())
+        anim.setEndValue(target)
+        anim.setDuration(300)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        if target == 0:
+            self.setMinimumWidth(0)
+            anim.finished.connect(self._finish_close)
+        else:
+            anim.valueChanged.connect(lambda v: self.setMinimumWidth(int(v)))
+        anim.start()
+        self._width_anim = anim
+
+    def _finish_close(self):
+        if not self._is_visible:
+            self.hide()
 
     @property
     def is_panel_visible(self) -> bool:
@@ -878,6 +953,8 @@ class ChatPanel(QWidget):
     # ─── Helpers ──────────────────────────────────────────────────
 
     def _insert_widget(self, widget):
+        if self._greeting is not None and self._greeting.isVisible():
+            self._greeting.hide()
         count = self.messages_layout.count()
         self.messages_layout.insertWidget(count - 1, widget)
 

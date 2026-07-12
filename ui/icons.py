@@ -14,21 +14,21 @@ from PySide6.QtGui import QIcon, QPixmap
 ICON_COLORS = {
     "dark": {
         "default": "#FFFFFF",
-        "muted": "rgba(255,255,255,0.45)",
-        "accent": "#4E5BF2",
-        "success": "#22C55E",
-        "warning": "#F59E0B",
-        "danger": "#EF4444",
-        "info": "#818CF8",
+        "muted": "#99EBEBF5",
+        "accent": "#0A84FF",
+        "success": "#30D158",
+        "warning": "#FFD60A",
+        "danger": "#FF453A",
+        "info": "#64D2FF",
     },
     "light": {
         "default": "#1D1D1F",
         "muted": "#6E6E73",
-        "accent": "#4E5BF2",
+        "accent": "#007AFF",
         "success": "#34C759",
         "warning": "#FF9500",
         "danger": "#FF3B30",
-        "info": "#6366F1",
+        "info": "#5AC8FA",
     },
 }
 
@@ -112,6 +112,11 @@ ICONS = {
 
     # Fleet
     "current_task":          "mdi6.flash-outline",
+    "agent_orchestrator":    "mdi6.crown-outline",
+    "agent_worker":          "mdi6.robot-outline",
+    "agent_canary":          "mdi6.bird",
+    "agent_observer":        "mdi6.eye-outline",
+    "agent_default":         "mdi6.robot-outline",
 
     # Settings sections
     "section_keys":          "mdi6.key-outline",
@@ -165,10 +170,36 @@ ICONS = {
 # Fallback icon for unknown keys
 _FALLBACK = "mdi6.help-circle-outline"
 
+# Brand marks rendered from shipped files instead of the icon font.
+# Paths resolve relative to this module so dev runs and PyInstaller
+# bundles find them the same way.
+_ASSETS_DIR = __import__("os").path.normpath(
+    __import__("os").path.join(__import__("os").path.dirname(__file__), "..", "assets")
+)
+FILE_ICONS = {
+    "logo_mark": "icons/aura-mark.svg",
+    "chat_title": "icons/aura-mark.svg",
+    "wizard_welcome": "icons/aura-mark.svg",
+}
+
+
+def _file_icon(name: str, theme: str = "dark") -> QIcon | None:
+    rel = FILE_ICONS.get(name)
+    if not rel:
+        return None
+    import os
+    path = os.path.join(_ASSETS_DIR, rel)
+    if os.path.exists(path):
+        return QIcon(path)
+    return None
+
 
 def get_icon(name: str, theme: str = "dark",
              color_key: str = "default") -> QIcon:
     """Return a QIcon for the given registry key."""
+    file_icon = _file_icon(name, theme)
+    if file_icon is not None:
+        return file_icon
     icon_name = ICONS.get(name, _FALLBACK)
     color = ICON_COLORS.get(theme, ICON_COLORS["dark"]).get(
         color_key, "#FFFFFF"

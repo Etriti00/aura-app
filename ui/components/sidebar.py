@@ -53,13 +53,14 @@ class Sidebar(QWidget):
 
         # Logo area with glow effect
         logo_container = QWidget()
-        logo_container.setFixedHeight(56)
+        logo_container.setFixedHeight(55)
         logo_layout = QVBoxLayout(logo_container)
         logo_layout.setContentsMargins(20, 14, 20, 14)
 
-        logo_icon = QLabel()
-        logo_icon.setPixmap(get_pixmap("logo_mark", self._theme, "accent", 18))
-        logo_icon.setFixedSize(22, 22)
+        self._logo_icon = QLabel()
+        self._logo_icon.setPixmap(get_pixmap("logo_mark", self._theme, "accent", 18))
+        self._logo_icon.setFixedSize(22, 22)
+        logo_icon = self._logo_icon
 
         logo_text = QLabel(APP_NAME)
         logo_text.setObjectName("logoText")
@@ -76,13 +77,6 @@ class Sidebar(QWidget):
         logo_label = logo_text
         logo_label.setObjectName("logoText")
         logo_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        # Add subtle indigo glow to logo
-        logo_glow = QGraphicsDropShadowEffect(logo_label)
-        logo_glow.setBlurRadius(30)
-        logo_glow.setOffset(0, 0)
-        logo_glow.setColor(QColor(129, 140, 248, 60))
-        logo_label.setGraphicsEffect(logo_glow)
 
         logo_layout.addWidget(logo_row)
 
@@ -131,7 +125,7 @@ class Sidebar(QWidget):
         # Bottom accent line
         bottom_accent = QWidget()
         bottom_accent.setObjectName("sidebarAccent")
-        bottom_accent.setFixedHeight(2)
+        bottom_accent.setFixedHeight(1)
         layout.addWidget(bottom_accent)
 
         # Version info at bottom
@@ -139,6 +133,7 @@ class Sidebar(QWidget):
         version_label = QLabel(f"v{APP_VERSION}")
         version_label.setObjectName("versionLabel")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        version_label.setFixedHeight(31)
         layout.addWidget(version_label)
 
         # Set initial active state
@@ -167,6 +162,8 @@ class Sidebar(QWidget):
     def update_icons(self, theme: str):
         """Rebuild all icons for a new theme."""
         self._theme = theme
+        if hasattr(self, "_logo_icon"):
+            self._logo_icon.setPixmap(get_pixmap("logo_mark", theme, "accent", 18))
         for i, (label, icon_key, tooltip) in enumerate(self.PAGES):
             if i < len(self.buttons):
                 self.buttons[i].setIcon(get_icon(icon_key, theme))

@@ -36,7 +36,7 @@ class SuppressionPage(QWidget):
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # ─── Header ───────────────────────────────────────────────
         header_layout = QHBoxLayout()
@@ -72,7 +72,6 @@ class SuppressionPage(QWidget):
         self.type_combo = QComboBox()
         self.type_combo.addItems(["Email", "Domain"])
         self.type_combo.setFixedWidth(110)
-        self.type_combo.setFixedHeight(40)
 
         self.value_input = QLineEdit()
         self.value_input.setPlaceholderText("Enter email or domain…")

@@ -37,6 +37,9 @@ PROVIDERS = {
         "env": "OPENAI_API_KEY",
         "key_field": "openai_key_enc",
         "models": [
+            "openai/gpt-5.6-sol",
+            "openai/gpt-5.6-terra",
+            "openai/gpt-5.6-luna",
             "openai/gpt-5.5",
             "openai/gpt-5.2",
             "openai/gpt-4.1",
@@ -52,6 +55,14 @@ PROVIDERS = {
             "gemini/gemini-3.5-flash",
             "gemini/gemini-3-flash",
             "gemini/gemini-3.1-flash-lite",
+        ],
+    },
+    "meta": {
+        "label": "Meta (Muse Spark)",
+        "env": "META_API_KEY",
+        "key_field": "meta_key_enc",
+        "models": [
+            "meta/muse-spark-1.1",
         ],
     },
     "xai": {
@@ -112,6 +123,8 @@ PROVIDERS = {
         "env": "OPENROUTER_API_KEY",
         "key_field": "openrouter_key_enc",
         "models": [
+            "openrouter/openai/gpt-5.6-sol",
+            "openrouter/meta/muse-spark-1.1",
             "openrouter/x-ai/grok-4.5",
             "openrouter/z-ai/glm-5.2",
             "openrouter/z-ai/glm-5.1",
@@ -141,7 +154,7 @@ PROVIDERS = {
 
 # Providers added by the fleet registry (beyond Aura's original big three +
 # openrouter) — used by env injection so legacy paths stay untouched.
-EXTENDED_PROVIDERS = ("xai", "zai", "moonshot", "dashscope", "minimax", "nvidia_nim")
+EXTENDED_PROVIDERS = ("meta", "xai", "zai", "moonshot", "dashscope", "minimax", "nvidia_nim")
 
 
 def custom_models(settings) -> list:

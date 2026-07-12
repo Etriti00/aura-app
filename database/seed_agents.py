@@ -4,7 +4,37 @@ Extracted from db_manager.py to reduce file size.
 Contains default Agent definitions and hierarchy setup.
 """
 
+import json
+
 from database.schema import Agent
+
+# Least-privilege skill assignments: each agent carries only the skills
+# its duties require. Anything else is acquired at runtime through a
+# skill_request to the Commander, who grants and widens the assignment.
+SKILL_ASSIGNMENTS = {
+    "Commander":     ["Fleet Commander"],
+    "Scheduler":     [],
+    "Triage Lead":   ["Inbox Triage Specialist", "Conversationalist"],
+    "Scout":         ["Prospector"],
+    "Enricher":      ["Enrichment Specialist", "Data Enrichment Analyst"],
+    "Qualifier":     ["Qualifier", "Lead Scoring Expert", "Deep Qualifier"],
+    "Closer":        ["Closer", "The Closer", "The Consultant",
+                      "The Friendly Neighbor", "Cold Outreach Pro",
+                      "Follow-up Specialist"],
+    "Postman":       [],
+    "Tracker":       ["Inbox Triage Specialist"],
+    "Archivist":     ["RAG Style Matcher"],
+    "Analyst":       ["Analyst", "Data Summarizer", "Market Researcher"],
+    "Forger":        [],
+    "Syncer":        ["CRM Data Mapper"],
+    "Trend Spotter": ["Trend Analyst"],
+    "Suppressor":    [],
+    "Reporter":      ["Executive Report Writer", "Data Summarizer"],
+    "Canary":        [],
+    "Observer":      [],
+    "Accountant":    ["Invoice Architect"],
+    "Caller":        ["Voice Agent", "Conversationalist"],
+}
 
 
 def seed_default_agents(db_manager):
@@ -701,6 +731,17 @@ def seed_default_agents(db_manager):
                 session.add(agent_def)
 
     _set_hierarchy(db_manager)
+    _set_skill_assignments(db_manager)
+
+
+def _set_skill_assignments(db_manager):
+    """Write the least-privilege skill assignment for every seed agent."""
+    with db_manager.session_scope() as session:
+        agents = {a.name: a for a in session.query(Agent).all()}
+        for name, skills in SKILL_ASSIGNMENTS.items():
+            agent = agents.get(name)
+            if agent is not None:
+                agent.allowed_skills = json.dumps(skills)
 
 
 def _set_hierarchy(db_manager):

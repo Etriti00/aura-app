@@ -506,7 +506,7 @@ class HunterPage(QWidget):
         # Search Form Card
         search_card = GlassCard()
         form = search_card.get_layout()
-        form.setSpacing(8)
+        form.setSpacing(18)
 
         # Row 1: Campaign name + Niche
         row1 = QHBoxLayout()
@@ -635,14 +635,12 @@ class HunterPage(QWidget):
         self.start_btn.setIcon(get_icon("sidebar_hunter", "dark"))
         self.start_btn.setIconSize(QSize(16, 16))
         self.start_btn.clicked.connect(self._on_start)
-        self.start_btn.setFixedHeight(42)
         action_row.addWidget(self.start_btn)
 
         self.stop_btn = ModernButton("Stop", "danger")
         self.stop_btn.setIcon(get_icon("chat_close", "dark", "danger"))
         self.stop_btn.setIconSize(QSize(14, 14))
         self.stop_btn.clicked.connect(self._on_stop)
-        self.stop_btn.setFixedHeight(42)
         self.stop_btn.setEnabled(False)
         action_row.addWidget(self.stop_btn)
         form.addLayout(action_row)

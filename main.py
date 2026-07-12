@@ -41,8 +41,39 @@ def main():
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
 
+    # Windows: register an explicit AppUserModelID before any window is
+    # created so the taskbar shows the Aura icon and groups under Aura
+    # instead of inheriting the host python.exe icon.
+    if sys.platform.startswith("win"):
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                "Etriti.Aura.SalesAgent"
+            )
+        except Exception:
+            pass
+
     app = QApplication(sys.argv)
+
+    # Application icon (taskbar, dock, window chrome, alt-tab). Prefer the
+    # platform-native icon so every OS taskbar renders the real logo.
+    from PySide6.QtGui import QIcon
+    _icons_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "assets", "icons"
+    )
+    if sys.platform == "darwin":
+        _icon_file = "aura_icon.icns"
+    elif sys.platform.startswith("win"):
+        _icon_file = "aura_icon.ico"
+    else:
+        _icon_file = "aura_icon.png"
+    _icon_path = os.path.join(_icons_dir, _icon_file)
+    if not os.path.exists(_icon_path):
+        _icon_path = os.path.join(_icons_dir, "aura_icon.png")
+    if os.path.exists(_icon_path):
+        app.setWindowIcon(QIcon(_icon_path))
     app.setApplicationName(APP_NAME)
+    app.setDesktopFileName("aura")
     app.setStyle("Fusion")  # Consistent cross-platform base style
 
     # Load custom fonts
@@ -112,14 +143,53 @@ def main():
 
     # Determine theme
     settings = db_manager.get_settings()
-    theme = settings.theme if settings else "light"
+    # Aura ships a single dark interface; the light theme was removed.
+    theme = "dark"
 
     # Launch main window
     from ui.main_window import MainWindow
     window = MainWindow(db_manager=db_manager, key_vault=key_vault)
+
+    # Real Liquid Glass on Windows 11: blur the desktop behind the window and
+    # tint it. Qt's backing store must be transparent for the blur to show.
+    # The "acrylic" property lets the stylesheet swap the opaque gradient for
+    # a see-through tint.
+    try:
+        from ui.win_effects import enable_acrylic_accent, enable_dark_chrome
+
+        hwnd = int(window.winId())
+        enable_dark_chrome(hwnd)  # dark title bar + rounded corners
+        if enable_acrylic_accent(hwnd):
+            window.setProperty("acrylic", "true")
+    except Exception:
+        pass
+
     window._apply_theme(theme)
     window.show()
     logger.info("Main window launched.")
+
+    # Dev aid: live theme reload when AURA_THEME_WATCH=1 saves a QSS file and
+    # re-applies the theme in the running window.
+    if os.environ.get("AURA_THEME_WATCH"):
+        from PySide6.QtCore import QFileSystemWatcher
+        from config import THEMES_DIR
+        _theme_files = [
+            str(THEMES_DIR / "neon_dark.qss"),
+        ]
+        _watcher = QFileSystemWatcher(_theme_files)
+
+        def _reload_theme(_path):
+            try:
+                window._apply_theme(theme)
+            except Exception as _e:
+                logger.warning("Theme reload failed: %s", _e)
+            for _f in _theme_files:
+                if _f not in _watcher.files():
+                    _watcher.addPath(_f)
+
+        _watcher.fileChanged.connect(_reload_theme)
+        window._theme_watcher = _watcher
+        logger.info("Theme hot-reload enabled.")
 
     if _hardware_change:
         from ui.components.toast_notification import show_toast

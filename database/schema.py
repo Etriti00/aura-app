@@ -155,6 +155,7 @@ class Settings(Base):
     gemini_auth_mode = Column(String(20), default="none")
 
     # Extended model fleet provider keys (see core/model_fleet.py)
+    meta_key_enc = Column(String(500), default="")
     xai_key_enc = Column(String(500), default="")
     zai_key_enc = Column(String(500), default="")
     moonshot_key_enc = Column(String(500), default="")
@@ -183,7 +184,7 @@ class Settings(Base):
     scraper_enabled_sources = Column(String(500), default='["duckduckgo", "google_maps", "yelp"]')
 
     # App state
-    theme = Column(String(20), default="light")
+    theme = Column(String(20), default="dark")
     first_run_complete = Column(Boolean, default=False)
 
     # Daily email tracking
@@ -569,6 +570,9 @@ class Agent(Base):
     model_tier = Column(String(20), default="haiku")    # local/ollama/haiku/sonnet
     # Optional explicit model for this agent — overrides tier routing
     model_override = Column(String(120), default=None, nullable=True)
+    # JSON list of skill names this agent may use. NULL = unrestricted
+    # (legacy). The Commander extends it at runtime on skill requests.
+    allowed_skills = Column(Text, default=None, nullable=True)
     tasks_completed = Column(Integer, default=0)
     tasks_failed = Column(Integer, default=0)
     total_cost_usd = Column(Float, default=0.0)

@@ -90,6 +90,7 @@ class ForgePage(QWidget):
 
         # Main content: skill list | editor
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(18)
 
         # ─── Left: Skill list ───────────────────────────────────────
         list_card = GlassCard()
@@ -125,6 +126,7 @@ class ForgePage(QWidget):
         self.editor_tabs = QTabWidget()
         self.editor_tabs.setObjectName("forgeEditorTabs")
         self.editor_tabs.setDocumentMode(True)
+        self.editor_tabs.tabBar().setDrawBase(False)
 
         # ── Tab 1: Identity ──
         identity_tab = QWidget()

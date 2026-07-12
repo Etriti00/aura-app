@@ -145,6 +145,7 @@ def call_claude_cli(messages: list, model: str) -> Optional[str]:
         logger.debug(f"Claude CLI call: model={cli_model}, prompt_len={len(full_prompt)}")
         result = subprocess.run(
             cmd, input=full_prompt, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
             timeout=CLI_TIMEOUT_S,
         )
         if result.returncode == 0 and result.stdout.strip():
@@ -182,6 +183,7 @@ def call_gemini_cli(messages: list, model: str) -> Optional[str]:
         result = subprocess.run(
             [exe, "--model", cli_model, "--yolo"],
             input=full_prompt, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
             timeout=CLI_TIMEOUT_S,
             env={**os.environ, "GOOGLE_API_KEY": "", "GEMINI_API_KEY": ""},
         )
@@ -233,6 +235,7 @@ def call_codex_cli(messages: list, model: str) -> Optional[str]:
         logger.debug(f"Codex CLI call: model={cli_model}, prompt_len={len(full_prompt)}")
         result = subprocess.run(
             cmd, input=full_prompt, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
             timeout=CLI_TIMEOUT_S,
         )
         if result.returncode == 0:

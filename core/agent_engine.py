@@ -154,7 +154,9 @@ class AgentEngine:
                     return {"success": False, "error": f"Agent '{agent.name}' is in error state"}
 
                 # Skill matching
-                skill_data = self._find_matching_skill(session, task_type, payload)
+                skill_data = self._find_matching_skill(
+                    session, task_type, payload, agent=agent
+                )
 
                 task = AgentTask(
                     agent_id=agent_id,
@@ -652,6 +654,7 @@ class AgentEngine:
                         "memory_today": agent.memory_today or "",
                         "long_term_memory": agent.long_term_memory or "",
                         "boot_script": agent.boot_script or "",
+                        "skills": self._assigned_skills_list(agent),
                         "recent_tasks": tasks_list,
                     },
                 }
@@ -791,18 +794,32 @@ class AgentEngine:
                 logger.debug(f"Case note auto-log failed: {e}")
 
     def _find_matching_skill(self, session, task_type: str,
-                             payload: dict) -> dict | None:
+                             payload: dict, agent=None) -> dict | None:
         """Find the best matching skill for a task.
 
         Priority: payload skill_id → payload skill_name → capability match
                   → TASK_SKILL_MAP → is_default.
+
+        Agents carry a least-privilege skill assignment (allowed_skills).
+        Assigned skills are preferred; when the best match falls outside
+        the assignment, the agent files a skill_request with the Commander
+        (tier 1), the grant is logged, and the assignment is widened.
         """
+        allowed = self._allowed_skill_names(agent)
+
+        def _finish(skill_dict):
+            if skill_dict is None:
+                return None
+            if allowed is not None and skill_dict.get("name") not in allowed:
+                self._grant_skill(session, agent, skill_dict.get("name"))
+            return skill_dict
+
         # Priority 1: Explicit skill_id in payload
         skill_id = payload.get("skill_id")
         if skill_id:
             skill = session.query(Skill).filter_by(id=skill_id).first()
             if skill:
-                return self._skill_to_dict(skill)
+                return _finish(self._skill_to_dict(skill))
 
         # Priority 2: Skill name in payload
         skill_name = payload.get("skill_name")
@@ -811,31 +828,110 @@ class AgentEngine:
                 Skill.name.ilike(f"%{skill_name}%")
             ).first()
             if skill:
-                return self._skill_to_dict(skill)
+                return _finish(self._skill_to_dict(skill))
 
-        # Priority 3: Capability-based matching (new — uses skill_registry)
+        # Priority 3: Capability-based matching — assigned skills first
         if find_best_skill_for_task:
             all_skills = session.query(Skill).all()
             skill_dicts = [self._skill_to_dict(s) for s in all_skills]
+            if allowed is not None:
+                assigned = [s for s in skill_dicts if s.get("name") in allowed]
+                match = find_best_skill_for_task(assigned, task_type, payload)
+                if match:
+                    return match
             match = find_best_skill_for_task(skill_dicts, task_type, payload)
             if match:
-                return match
+                return _finish(match)
 
         # Priority 4: Legacy TASK_SKILL_MAP patterns (fallback)
         patterns = TASK_SKILL_MAP.get(task_type, [])
         for pattern in patterns:
-            skill = session.query(Skill).filter(
+            query = session.query(Skill).filter(
                 Skill.name.ilike(f"%{pattern}%")
-            ).first()
+            )
+            skill = None
+            if allowed:
+                skill = query.filter(Skill.name.in_(allowed)).first()
+            if not skill:
+                skill = query.first()
             if skill:
-                return self._skill_to_dict(skill)
+                return _finish(self._skill_to_dict(skill))
 
         # Priority 5: Default skill
         skill = session.query(Skill).filter_by(is_default=True).first()
         if skill:
-            return self._skill_to_dict(skill)
+            return _finish(self._skill_to_dict(skill))
 
         return None
+
+    @staticmethod
+    def _allowed_skill_names(agent):
+        """Parse an agent's skill assignment. None = unrestricted (legacy)."""
+        if agent is None:
+            return None
+        raw = getattr(agent, "allowed_skills", None)
+        if raw is None or raw == "":
+            return None
+        try:
+            names = json.loads(raw)
+            if isinstance(names, list):
+                return set(names)
+        except (ValueError, TypeError):
+            pass
+        return None
+
+    def _grant_skill(self, session, agent, skill_name: str) -> None:
+        """Widen an agent's assignment through the Commander (tier 1).
+
+        The agent files a skill_request; Commander policy is to grant,
+        log both sides of the exchange, and persist the wider assignment
+        so the grant survives restarts.
+        """
+        if agent is None or not skill_name:
+            return
+        try:
+            allowed = []
+            raw = getattr(agent, "allowed_skills", None)
+            if raw:
+                try:
+                    allowed = json.loads(raw) or []
+                except (ValueError, TypeError):
+                    allowed = []
+            if skill_name in allowed:
+                return
+            allowed.append(skill_name)
+            agent.allowed_skills = json.dumps(allowed)
+
+            commander = session.query(Agent).filter_by(rank=1).first()
+            if commander and commander.id != agent.id:
+                session.add(AgentMessage(
+                    from_agent_id=agent.id, to_agent_id=commander.id,
+                    message_type="skill_request",
+                    content=json.dumps({"skill_name": skill_name}),
+                ))
+                session.add(AgentMessage(
+                    from_agent_id=commander.id, to_agent_id=agent.id,
+                    message_type="skill_granted",
+                    content=json.dumps({"skill_name": skill_name}),
+                    acknowledged=True,
+                ))
+            logger.info(
+                f"Skill '{skill_name}' granted to agent '{agent.name}' "
+                f"by Commander policy"
+            )
+        except Exception as e:
+            logger.debug(f"Skill grant failed: {e}")
+
+    @staticmethod
+    def _assigned_skills_list(agent) -> list:
+        """Assigned skills as dicts for status consumers (fleet dialog)."""
+        raw = getattr(agent, "allowed_skills", None)
+        if not raw:
+            return []
+        try:
+            return [{"name": n} for n in json.loads(raw)]
+        except (ValueError, TypeError):
+            return []
 
     @staticmethod
     def _skill_to_dict(skill: Skill) -> dict:
@@ -858,9 +954,67 @@ class AgentEngine:
                 result[field] = val
         return result
 
+    def _design_skill_with_llm(self, task_type: str, payload: dict) -> dict:
+        """Have the Forger design a proper skill with an LLM pass.
+
+        Model-agnostic: goes through the router, so any configured
+        provider (API key or subscription CLI) can do the design work.
+        Returns a dict of skill fields, or {} so callers fall back to the
+        template stub when no model is reachable.
+        """
+        if not self.router_engine:
+            return {}
+        try:
+            design_prompt = (
+                "Design a reusable AI skill for a B2B sales automation agent.\n"
+                f"Task type: {task_type}\n"
+                f"Example payload: {json.dumps(payload)[:400]}\n\n"
+                "Reply with ONLY a JSON object using exactly these keys:\n"
+                '{"name": "short skill title",\n'
+                ' "description": "one sentence",\n'
+                ' "system_prompt": "persona and rules in 3 to 6 sentences",\n'
+                ' "instructions": "numbered step by step procedure",\n'
+                ' "tone": "professional|casual|direct|analytical",\n'
+                ' "category": "prospecting|qualification|outreach|analysis|'
+                'enrichment|research|conversation|management|general",\n'
+                ' "capabilities": ["snake_case_capability"],\n'
+                ' "temperature": 0.4,\n'
+                ' "max_tokens": 800}'
+            )
+            result = self.router_engine.route(
+                "forge_skill", design_prompt, tier_override="haiku",
+            )
+            if not result.get("success"):
+                return {}
+            text = result.get("data", "") or ""
+            try:
+                from core.cli_llm import strip_code_fences
+                text = strip_code_fences(text)
+            except ImportError:
+                pass
+            start = text.find("{")
+            end = text.rfind("}")
+            if start < 0 or end <= start:
+                return {}
+            designed = json.loads(text[start:end + 1])
+            if not isinstance(designed, dict):
+                return {}
+            if not designed.get("system_prompt"):
+                return {}
+            return designed
+        except Exception as e:
+            logger.debug(f"LLM skill design failed, using template: {e}")
+            return {}
+
     def _delegate_to_forger(self, requesting_agent_id: int, task_type: str,
                             payload: dict, depth: int) -> dict | None:
-        """Delegate skill creation to the Forger agent."""
+        """Delegate skill creation to the Forger agent.
+
+        The Forger first tries to DESIGN the skill with an LLM pass
+        (persona, instructions, sampling parameters). When no model is
+        reachable the template stub still produces a working skill, so
+        the pipeline never stalls on skill creation.
+        """
         try:
             with self.db_manager.session_scope() as session:
                 forger = session.query(Agent).filter(
@@ -871,18 +1025,29 @@ class AgentEngine:
                     return None
                 forger_id = forger.id
 
-            # Ask Forger to create a skill via the forge controller
-            skill_name = f"Auto: {task_type.replace('_', ' ').title()}"
-            system_prompt = (
+            designed = self._design_skill_with_llm(task_type, payload)
+
+            skill_name = (designed.get("name")
+                          or f"Auto: {task_type.replace('_', ' ').title()}")
+            system_prompt = designed.get("system_prompt") or (
                 f"You are an AI specialist for the task '{task_type}'. "
                 f"Generate high-quality, professional output. "
                 f"Context: {json.dumps(payload)[:500]}"
             )
+            capabilities = designed.get("capabilities")
+            if not isinstance(capabilities, list):
+                capabilities = None
             result = self.forge_controller.create_skill_from_agent(
                 name=skill_name,
                 system_prompt=system_prompt,
-                tone="professional",
+                tone=designed.get("tone", "professional"),
                 preferred_tier="haiku",
+                description=designed.get("description", ""),
+                instructions=designed.get("instructions", ""),
+                category=designed.get("category", "general"),
+                capabilities=capabilities,
+                temperature=designed.get("temperature"),
+                max_tokens=designed.get("max_tokens"),
             )
 
             if result and result.get("success"):

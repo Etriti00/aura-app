@@ -35,6 +35,10 @@ jobs:
       - name: Install Playwright Chromium
         run: python -m playwright install chromium
 
+      - name: Install Inno Setup (Windows)
+        if: runner.os == 'Windows'
+        run: choco install innosetup --no-progress -y
+
       - name: Install system deps (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -48,15 +52,90 @@ jobs:
       - name: Build with PyInstaller
         run: python scripts/build.py
 
-      - name: Upload artifact
+      - name: Windows installer (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          AURA_VERSION: ${{ github.ref_name }}
+        run: |
+          $stage = "installers/windows/installer-in"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item -Recurse -Force dist/Aura/* $stage
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installers/windows/aura.iss
+          New-Item -ItemType Directory -Force -Path installer-out | Out-Null
+          Copy-Item installers/windows/installer-out/AuraSetup.exe installer-out/AuraSetup.exe
+
+      - name: macOS DMG
+        if: runner.os == 'macOS'
+        env:
+          AURA_VERSION: ${{ github.ref_name }}
+        run: |
+          bash installers/macos/make_dmg.sh dist/Aura.app
+          mkdir -p installer-out
+          mv Aura-macOS-Installer.dmg installer-out/
+
+      - name: Linux self-extracting installer
+        if: runner.os == 'Linux'
+        env:
+          AURA_VERSION: ${{ github.ref_name }}
+        run: |
+          bash installers/linux/make_installer.sh dist/Aura
+          mkdir -p installer-out
+          mv Aura-Linux-Installer.run installer-out/
+
+      - name: Upload raw app artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: dist/
 
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-Installer
+          path: installer-out/
+
+  build-headless:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: Aura-Server-Linux-x64
+          - os: ubuntu-24.04-arm
+            artifact: Aura-RaspberryPi-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-headless.txt
+          pip install pyinstaller
+
+      - name: Build headless CLI
+        run: pyinstaller aura-cli.spec --noconfirm
+
+      - name: Package tarball
+        run: |
+          cd dist
+          tar -czf "../${{ matrix.artifact }}.tar.gz" aura-cli
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.tar.gz
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, build-headless]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -67,17 +146,36 @@ jobs:
         with:
           path: artifacts
 
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+
       - name: Package artifacts
         run: |
           cd artifacts
           for d in */; do
             name="${d%/}"
-            (cd "$d" && zip -r "../${name}.zip" .)
+            # Installer bundles: publish the installer file directly.
+            if ls "$d"*.exe "$d"*.dmg "$d"*.run > /dev/null 2>&1; then
+              mv "$d"*.exe "$d"*.dmg "$d"*.run . 2>/dev/null || true
+            elif ls "$d"*.tar.gz > /dev/null 2>&1; then
+              mv "$d"*.tar.gz .
+            else
+              (cd "$d" && zip -r "../${name}.zip" .)
+            fi
           done
-          ls -lh *.zip
+          # Headless one-line installer, shipped as a release asset too.
+          cp ../repo/installers/server/install.sh aura-server-install.sh
+          ls -lh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.zip
+          files: |
+            artifacts/*.zip
+            artifacts/*.tar.gz
+            artifacts/*.exe
+            artifacts/*.dmg
+            artifacts/*.run
+            artifacts/aura-server-install.sh
           generate_release_notes: true

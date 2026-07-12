@@ -44,7 +44,7 @@ class DashboardPage(QWidget):
         content.setObjectName("centralWidget")  # Ensure it picks up background theme
         layout = QVBoxLayout(content)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # Header
         header = QHBoxLayout()
@@ -163,7 +163,7 @@ class DashboardPage(QWidget):
         a_layout.setContentsMargins(14, 14, 14, 14)
         ab_a_row = QHBoxLayout()
         ab_a_dot = QLabel()
-        ab_a_dot.setPixmap(get_pixmap("variant_marker", "dark", "accent", 10))
+        ab_a_dot.setPixmap(get_pixmap("variant_marker", "dark", "default", 10))
         ab_a_dot.setFixedSize(14, 14)
         self.ab_a_label = QLabel("Variant A")
         self.ab_a_label.setObjectName("abVariantA")
@@ -184,7 +184,7 @@ class DashboardPage(QWidget):
         b_layout.setContentsMargins(14, 14, 14, 14)
         ab_b_row = QHBoxLayout()
         ab_b_dot = QLabel()
-        ab_b_dot.setPixmap(get_pixmap("variant_marker", "dark", "accent", 10))
+        ab_b_dot.setPixmap(get_pixmap("variant_marker", "dark", "default", 10))
         ab_b_dot.setFixedSize(14, 14)
         self.ab_b_label = QLabel("Variant B")
         self.ab_b_label.setObjectName("abVariantB")

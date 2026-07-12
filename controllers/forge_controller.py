@@ -149,12 +149,22 @@ class ForgeController(QObject):
 
     def create_skill_from_agent(self, name: str, system_prompt: str,
                                tone: str = "professional",
-                               preferred_tier: str = "haiku") -> dict:
+                               preferred_tier: str = "haiku",
+                               description: str = "",
+                               instructions: str = "",
+                               category: str = "general",
+                               capabilities: list | None = None,
+                               temperature: float | None = None,
+                               max_tokens: int | None = None) -> dict:
         """Programmatically create a skill (called by agent engine).
 
-        Returns dict with success flag and skill_id, or existing skill if duplicate.
+        Accepts the full designed-skill surface so Forger-created skills
+        are first-class citizens of the library, not bare prompt stubs.
+        Returns dict with success flag and skill_id, or existing skill if
+        duplicate.
         """
         try:
+            import json as _json
             with self.db_manager.session_scope() as session:
                 existing = session.query(Skill).filter_by(name=name).first()
                 if existing:
@@ -166,7 +176,15 @@ class ForgeController(QObject):
                     tone=tone,
                     preferred_tier=preferred_tier,
                     is_builtin=False,
+                    description=description or "",
+                    instructions=instructions or "",
+                    category=category or "general",
+                    capabilities=_json.dumps(capabilities) if capabilities else "[]",
                 )
+                if temperature is not None:
+                    skill.temperature = max(0.0, min(float(temperature), 1.0))
+                if max_tokens is not None:
+                    skill.max_tokens = max(128, min(int(max_tokens), 4096))
                 session.add(skill)
                 session.flush()
                 skill_id = skill.id

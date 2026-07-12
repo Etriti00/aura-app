@@ -164,6 +164,14 @@ def seed_defaults(db_manager):
                         "spam trigger words. Subject lines are curiosity-driven, under 40 characters, lowercase style. "
                         "Never start with 'I' — always lead with the prospect. Keep under 100 words."
                     ),
+                    example_output=(
+                        "Subject: denver plumbers are missing this\n\n"
+                        "Dave, 73% of plumbing customers check Google reviews before calling. "
+                        "Apex does great work but shows only 12 reviews — competitors average 60+.\n\n"
+                        "We fix that in 30 days with automated review requests.\n\n"
+                        "Worth a two minute breakdown?\n\n"
+                        "Best,\n[Your Name]"
+                    ),
                     tone="direct",
                     preferred_tier="sonnet",
                     temperature=0.7,
@@ -196,6 +204,14 @@ def seed_defaults(db_manager):
                         "Follow-up sequence strategy: Follow-up 1 (3 days): add a new relevant insight. Follow-up 2 "
                         "(7 days): share a brief case study or result. Follow-up 3 (14 days): breakup email — give "
                         "them an easy out which paradoxically increases replies. Keep each under 80 words."
+                    ),
+                    example_output=(
+                        "Subject: Re: Quick question about Bella's\n\n"
+                        "Hi Sarah,\n\n"
+                        "A Portland bakery similar to yours just cut phone-order no-shows 20% "
+                        "with one change to its order page. Thought of you — happy to share "
+                        "the details if useful.\n\n"
+                        "Best,\n[Your Name]"
                     ),
                     tone="persistent",
                     preferred_tier="sonnet",
@@ -553,6 +569,49 @@ def seed_defaults(db_manager):
                     input_schema='{"lead_record": {"type": "object"}, "target_crm": "string", "pipeline_config": {"type": "object"}}',
                     output_schema='{"api_payload": {"type": "object"}, "pipeline_stage": "string", "unmapped_fields": ["string"], "warnings": ["string"]}',
                     examples='[{"input": "Lead: Sarah Chen, sarah@bella.com, status: qualified, CRM: HubSpot", "output": "Payload: {email: sarah@bella.com, firstname: Sarah, lastname: Chen, lifecyclestage: salesqualifiedlead}"}]',
+                    version="1.0",
+                ),
+
+                # ── Finance Skills ────────────────────────────────────
+                Skill(
+                    name="Invoice Architect",
+                    system_prompt=(
+                        "You are a pricing and invoicing specialist who produces fair, defensible quotes "
+                        "and professional invoices. You match services from the catalog to the client's "
+                        "size, industry, and needs. Every line item carries a quantity, unit price, and a "
+                        "one-sentence rationale a client would accept. You verify arithmetic twice: line "
+                        "totals, subtotal, tax, and grand total must be exact. You never invent services "
+                        "that are not in the catalog and never price below the catalog floor. "
+                        "Tone: professional, transparent, confident."
+                    ),
+                    example_output=(
+                        "Invoice draft — Bella's Bakery\n"
+                        "1. Website redesign (5 pages) — 1 x $1,800 — modern mobile-first rebuild\n"
+                        "2. Local SEO setup — 1 x $450 — Google Business profile and on-page basics\n"
+                        "Subtotal: $2,250 | Tax (8%): $180 | Total: $2,430\n"
+                        "Rationale: aligned to catalog rates for a 12-person local business."
+                    ),
+                    tone="professional",
+                    preferred_tier="haiku",
+                    temperature=0.2,
+                    max_tokens=800,
+                    is_default=False,
+                    is_builtin=True,
+                    description="Pricing and invoicing specialist producing itemized, arithmetic-checked invoice drafts.",
+                    instructions=(
+                        "1. RECEIVE lead context, services catalog, and campaign info\n"
+                        "2. SELECT catalog services that match the client's needs and size\n"
+                        "3. PRICE each line item with quantity, unit price, and one-line rationale\n"
+                        "4. CALCULATE subtotal, tax, and total — verify the arithmetic twice\n"
+                        "5. SUMMARIZE the pricing rationale in client-appropriate language\n"
+                        "6. OUTPUT a structured invoice draft ready for the approval flow"
+                    ),
+                    category="analysis",
+                    capabilities='["generate_invoice", "price_services", "itemize_costs", "verify_arithmetic"]',
+                    tags='["invoicing", "pricing", "finance", "billing"]',
+                    input_schema='{"lead_context": {"type": "object"}, "services_catalog": [{"name": "string", "unit_price": "number"}], "tax_rate": "number"}',
+                    output_schema='{"line_items": [{"service": "string", "qty": "integer", "unit_price": "number", "rationale": "string"}], "subtotal": "number", "tax": "number", "total": "number", "rationale_summary": "string"}',
+                    examples='[]',
                     version="1.0",
                 ),
 

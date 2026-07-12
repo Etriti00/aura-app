@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Aura
+Comment=AI sales agent -- your pipeline, revitalized
+Exec=@PREFIX@/Aura
+Icon=aura
+Terminal=false
+Categories=Office;Network;
+StartupWMClass=Aura

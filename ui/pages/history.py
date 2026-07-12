@@ -223,6 +223,8 @@ class CommandDetailDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("historyDetailDialog")
+        from ui.win_effects import apply_sheet_glass
+        apply_sheet_glass(self)
         self.setWindowTitle("Command Detail")
         self.setMinimumSize(650, 500)
         self._setup_ui()

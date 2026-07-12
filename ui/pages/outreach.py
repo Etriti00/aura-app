@@ -87,6 +87,7 @@ class OutreachPage(QWidget):
 
         # Splitter: Lead table | Email editor
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(18)
 
         # Lead table card
         table_card = GlassCard()

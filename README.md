@@ -4,8 +4,8 @@
 
 <h1 align="center">Aura</h1>
 <p align="center">
-  <strong>Your Local AI Sales Agent</strong><br>
-  Autonomous lead generation, outreach, and deal closing that runs entirely on your desktop.
+  <strong>Your pipeline. Revitalized.</strong><br>
+  An autonomous fleet of AI agents that finds leads, qualifies them, and writes outreach that lands, running entirely on your own machine.
 </p>
 
 <p align="center">
@@ -88,7 +88,18 @@ pip install ".[gui]"
 aura-gui
 ```
 
-Or download a prebuilt binary for Windows, macOS, or Linux from the Releases page.
+Or install a prebuilt build from the [Releases page](https://github.com/Etriti00/aura-app/releases/latest). Every release ships a guided installer per platform:
+
+* **Windows** — `AuraSetup.exe`, a standard install wizard with Start Menu and desktop shortcuts and an uninstaller.
+* **macOS** — `Aura-macOS-Installer.dmg`, drag Aura into Applications.
+* **Linux desktop** — `Aura-Linux-Installer.run`, a self extracting installer (system wide with `sudo`, otherwise per user).
+* **Raspberry Pi and VPS servers** — headless CLI builds (`Aura-RaspberryPi-arm64.tar.gz`, `Aura-Server-Linux-x64.tar.gz`). Install either in one line:
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/Etriti00/aura-app/main/installers/server/install.sh | bash
+  ```
+
+The desktop landing page auto detects your operating system and offers the right build.
 
 On first launch, configure at least one AI provider (an API key or a subscription CLI), your sender identity, and email delivery. All keys are encrypted with a per install salt and never leave your device.
 
@@ -112,19 +123,19 @@ On first launch, configure at least one AI provider (an API key or a subscriptio
 
 ## Interface
 
-The desktop app is a premium glassmorphism interface: a deep midnight base with nearly transparent frosted panels, hairline borders, neon purple and yellow accents, and generous radii across all fourteen pages, the sidebar, dialogs, tables, and the chat panel. Light and dark variants are included. The CLI mirrors full feature parity with 84 commands across 17 groups plus a natural language REPL.
+The desktop app is an Apple style liquid glass interface: a near black base with genuine translucent acrylic on Windows 11 that blurs the desktop behind the window, capsule buttons, macOS style pop up selectors, and monochrome SF style iconography across all fourteen pages, the sidebar, dialogs, tables, and the chat panel. The CLI mirrors full feature parity with 82 commands across 17 groups plus a natural language REPL, and runs headless on servers and Raspberry Pi.
 
 ## Architecture
 
 ```
-Interface layer     GUI (PySide6, 14 pages) and CLI (REPL, 84 commands)
+Interface layer     GUI (PySide6, 14 pages) and CLI (REPL, 82 commands)
 Controller layer    18 QObject controllers with signal and slot wiring
 Engine layer        50+ specialized engines (business logic)
 Data layer          SQLAlchemy ORM on SQLite in WAL mode
 External services   LiteLLM fleet, Apollo, Twilio, Telegram, Discord, IMAP
 ```
 
-Key modules: `core/model_fleet.py` (provider and model registry), `core/model_verifier.py` (two step validation), `core/router_engine.py` (four tier cost routing plus per agent overrides), `core/cli_llm.py` (subscription CLI transport), `core/fleet_orchestrator.py` (swarm dispatch), and `core/orchestrator_engine.py` (natural language to actions).
+Key modules: `core/model_fleet.py` (provider and model registry), `core/model_verifier.py` (two step validation), `core/router_engine.py` (four tier cost routing plus per agent overrides), `core/cli_llm.py` (subscription CLI transport), `core/skill_registry.py` (the skill library and capability matching), `core/agent_engine.py` (per agent skill assignments and the Commander grant flow), `core/fleet_orchestrator.py` (swarm dispatch), and `core/orchestrator_engine.py` (natural language to actions).
 
 ## Testing
 
@@ -132,9 +143,17 @@ Key modules: `core/model_fleet.py` (provider and model registry), `core/model_ve
 venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
-Current status: 1,370+ tests across 55+ files, all passing. Continuous integration runs the suite on every push and packages Windows, macOS, and Linux binaries on tagged releases.
+Current status: 1,384 tests across 56+ files, all passing. Continuous integration runs the suite on every push and, on tagged releases, builds the guided installers for Windows, macOS, and Linux plus headless CLI tarballs for Raspberry Pi (arm64) and VPS servers (x64).
 
 ## Changelog
+
+### v2.6.0, Skill Assignments, On Demand Forging, Installers, and a Full Redesign
+
+* **Per agent skills.** Every agent now carries a least privilege set of the skills its duties require. When a task needs a skill an agent does not have, the agent requests it from the Commander (tier one), the grant is logged, and the assignment is widened. When a task needs a skill that does not exist, the Forger designs a new one with an LLM pass (persona, instructions, schemas, sampling) rather than a template stub. Skills are injected into the prompt before routing, so they work on any model, subscription or API or local.
+* **Servers and small devices.** A Qt free headless build runs the full agent fleet and the 82 command CLI with no display, shipped for Raspberry Pi (arm64) and VPS servers (x64), plus a Dockerfile.
+* **Guided installers.** A real install wizard per platform: Inno Setup on Windows, a drag to Applications DMG on macOS, a self extracting `.run` on Linux, and a one line `curl | bash` for servers.
+* **Apple liquid glass redesign.** The entire interface was rebuilt to Apple's Human Interface Guidelines: genuine acrylic blur behind the window on Windows 11, capsule buttons, macOS style pop up selectors, monochrome SF style icons, and a new orbital A logo across the app, taskbar, and dock.
+* **New landing page** with a cinematic hero, an interactive product mockup, and auto detecting downloads.
 
 ### v2.5.0, Glass UI, Agent Model Fleet, Verified Assignments
 

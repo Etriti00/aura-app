@@ -20,6 +20,7 @@ class ResearchPage(QWidget):
 
     research_requested = Signal(int, str)   # lead_id, depth
     refresh_requested = Signal()
+    view_report_requested = Signal(int)      # lead_id
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -40,7 +41,7 @@ class ResearchPage(QWidget):
         content.setObjectName("centralWidget")
         layout = QVBoxLayout(content)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # ─── Header ───────────────────────────────────────────────
         header = QVBoxLayout()
@@ -179,18 +180,23 @@ class ResearchPage(QWidget):
             self.queue_table.setItem(row, 3, QTableWidgetItem(sources))
             self.queue_table.setItem(row, 4, QTableWidgetItem(report.get("created_at", "")[:16]))
 
-            # View button
+            # View button — compact capsule centered in the cell
             view_btn = QPushButton("View")
-            view_btn.setObjectName("secondaryButton")
+            view_btn.setObjectName("tableActionButton")
             view_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             lead_id = report.get("lead_id", 0)
             view_btn.clicked.connect(lambda checked, lid=lead_id: self._on_view_report(lid))
-            self.queue_table.setCellWidget(row, 5, view_btn)
+            cell = QWidget()
+            cell_lyt = QHBoxLayout(cell)
+            cell_lyt.setContentsMargins(4, 3, 4, 3)
+            cell_lyt.addStretch()
+            cell_lyt.addWidget(view_btn)
+            cell_lyt.addStretch()
+            self.queue_table.setCellWidget(row, 5, cell)
 
     def _on_view_report(self, lead_id: int):
-        """Request to load a report detail."""
-        # Controller will connect this via signal
-        self.property("controller_ref")  # placeholder for controller access
+        """Ask the controller for this lead's full report."""
+        self.view_report_requested.emit(lead_id)
 
     def update_report_detail(self, data: dict):
         """Display a full research report."""
@@ -229,17 +235,17 @@ class ResearchPage(QWidget):
         self.stat_providers.set_value(f"{active_count}/3")
 
         self.tavily_badge.setObjectName("badgeSuccess" if status.get("tavily") else "badgeDanger")
-        self.tavily_badge.setText("Tavily ✓" if status.get("tavily") else "Tavily ✗")
+        self.tavily_badge.setText("Tavily Ready" if status.get("tavily") else "Tavily Off")
         self.tavily_badge.style().unpolish(self.tavily_badge)
         self.tavily_badge.style().polish(self.tavily_badge)
 
         self.firecrawl_badge.setObjectName("badgeSuccess" if status.get("firecrawl") else "badgeDanger")
-        self.firecrawl_badge.setText("Firecrawl ✓" if status.get("firecrawl") else "Firecrawl ✗")
+        self.firecrawl_badge.setText("Firecrawl Ready" if status.get("firecrawl") else "Firecrawl Off")
         self.firecrawl_badge.style().unpolish(self.firecrawl_badge)
         self.firecrawl_badge.style().polish(self.firecrawl_badge)
 
         self.apify_badge.setObjectName("badgeSuccess" if status.get("apify") else "badgeDanger")
-        self.apify_badge.setText("Apify ✓" if status.get("apify") else "Apify ✗")
+        self.apify_badge.setText("Apify Ready" if status.get("apify") else "Apify Off")
         self.apify_badge.style().unpolish(self.apify_badge)
         self.apify_badge.style().polish(self.apify_badge)
 

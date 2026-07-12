@@ -31,7 +31,6 @@ class SettingsPage(QWidget):
     save_smtp_requested = Signal(str, int, str, str)
     save_imap_requested = Signal(str, int, str, str, bool)
     save_toggles_requested = Signal(dict)
-    theme_change_requested = Signal(str)
     save_anthropic_sub_requested = Signal(str)
     auth_mode_changed = Signal(str, str)
     autonomy_level_changed = Signal(str)
@@ -63,6 +62,7 @@ class SettingsPage(QWidget):
         # Tab widget
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
+        self.tabs.tabBar().setDrawBase(False)
         main_layout.addWidget(self.tabs)
 
         # Build tabs
@@ -72,7 +72,6 @@ class SettingsPage(QWidget):
         self.tabs.addTab(self._build_features_tab(), get_icon("tab_features", "dark"), "Features")
         self.tabs.addTab(self._build_business_tab(), get_icon("tab_business", "dark"), "Business && Invoicing")
         self.tabs.addTab(self._build_knowledge_base_tab(), get_icon("tab_knowledge_base", "dark"), "Knowledge Base")
-        self.tabs.addTab(self._build_appearance_tab(), get_icon("tab_appearance", "dark"), "Appearance")
 
     # ─── Tab Builders ─────────────────────────────────────────────────
 
@@ -117,6 +116,7 @@ class SettingsPage(QWidget):
         self.twilio_sid_input = self._add_key_row(key_layout, "Twilio Account SID", "twilio_sid")
         self.twilio_token_input = self._add_key_row(key_layout, "Twilio Auth Token", "twilio_token")
         self.elevenlabs_input = self._add_key_row(key_layout, "ElevenLabs (TTS)", "elevenlabs")
+        self.meta_input = self._add_key_row(key_layout, "Meta (Muse Spark)", "meta")
         self.xai_input = self._add_key_row(key_layout, "xAI (Grok)", "xai")
         self.zai_input = self._add_key_row(key_layout, "Z.ai (GLM)", "zai")
         self.moonshot_input = self._add_key_row(key_layout, "Moonshot (Kimi)", "moonshot")
@@ -332,6 +332,7 @@ class SettingsPage(QWidget):
             "gemini/gemini-3.1-flash-lite",
             "gemini/gemini-3-flash",
             "anthropic/claude-haiku-4-5",
+            "openai/gpt-5.6-luna",
             "openai/gpt-4.1-mini",
             "openai/o4-mini",
             "ollama/llama3.1",
@@ -358,6 +359,9 @@ class SettingsPage(QWidget):
             "anthropic/claude-opus-4-8",
             "anthropic/claude-fable-5",
             "anthropic/claude-sonnet-4-6",
+            "openai/gpt-5.6-sol",
+            "openai/gpt-5.6-terra",
+            "meta/muse-spark-1.1",
             "openai/gpt-5.5",
             "openai/gpt-5.2",
             "openai/gpt-4.1",
@@ -384,7 +388,9 @@ class SettingsPage(QWidget):
             "anthropic/claude-haiku-4-5",
             "anthropic/claude-opus-4-8",
             "anthropic/claude-fable-5",
-            "openai/gpt-5.5",
+            "openai/gpt-5.6-sol",
+            "openai/gpt-5.6-terra",
+            "meta/muse-spark-1.1",
             "openai/gpt-4.1-mini",
             "gemini/gemini-3.5-flash",
             "gemini/gemini-3-flash",
@@ -1070,35 +1076,6 @@ class SettingsPage(QWidget):
         layout.addStretch()
         return self._make_scroll_tab(content)
 
-    # ── Tab 7: Appearance ─────────────────────────────────────────────
-
-    def _build_appearance_tab(self) -> QScrollArea:
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(0, 16, 0, 16)
-        layout.setSpacing(20)
-
-        theme_card = GlassCard()
-        theme_layout = theme_card.get_layout()
-        self._icon_header("section_appearance", "Appearance", theme_layout)
-
-        theme_row = QHBoxLayout()
-        theme_label = QLabel("Theme")
-        theme_label.setObjectName("formLabel")
-        theme_row.addWidget(theme_label)
-
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["light", "dark"])
-        self.theme_combo.currentTextChanged.connect(self._on_theme_changed)
-        theme_row.addWidget(self.theme_combo)
-        theme_row.addStretch()
-
-        theme_layout.addLayout(theme_row)
-        layout.addWidget(theme_card)
-
-        layout.addStretch()
-        return self._make_scroll_tab(content)
-
     # ─── Helpers ──────────────────────────────────────────────────────
 
     @staticmethod
@@ -1122,21 +1099,23 @@ class SettingsPage(QWidget):
         return lbl
 
     def _add_key_row(self, parent_layout, label: str, provider: str) -> MaskedInput:
-        row = QHBoxLayout()
         col = QVBoxLayout()
-        col.setSpacing(4)
+        col.setSpacing(6)
         col.addWidget(self._field_label(label))
+
         masked = MaskedInput(f"Enter {label} API key...")
-        col.addWidget(masked)
-        row.addLayout(col, stretch=1)
+        hrow = QHBoxLayout()
+        hrow.setSpacing(10)
+        hrow.addWidget(masked, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         save_btn = ModernButton("Save", "secondary")
-        save_btn.setFixedHeight(40)
-        save_btn.setMinimumWidth(80)
+        save_btn.setMinimumWidth(84)
         save_btn.clicked.connect(lambda: self._on_save_key(provider, masked))
-        row.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignBottom)
+        hrow.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignVCenter)
+        hrow.addStretch()
+        col.addLayout(hrow)
 
-        parent_layout.addLayout(row)
+        parent_layout.addLayout(col)
         return masked
 
     # ─── Public Methods ───────────────────────────────────────────────
@@ -1194,11 +1173,6 @@ class SettingsPage(QWidget):
         self.smtp_host.setText(settings.get("smtp_host", ""))
         self.smtp_port.setValue(settings.get("smtp_port", 587))
         self.smtp_user.setText(settings.get("smtp_user", ""))
-
-        # Theme
-        theme_idx = self.theme_combo.findText(settings.get("theme", "light"))
-        if theme_idx >= 0:
-            self.theme_combo.setCurrentIndex(theme_idx)
 
         # IMAP
         self.imap_host.setText(settings.get("imap_host", ""))
@@ -1579,9 +1553,6 @@ class SettingsPage(QWidget):
             "voice_stt_provider": self.stt_provider_combo.currentText(),
         })
         show_toast(self.window(), "Research & Voice settings saved.", "success")
-
-    def _on_theme_changed(self, theme: str):
-        self.theme_change_requested.emit(theme)
 
     # ── Business tab handlers ─────────────────────────────────────────
 

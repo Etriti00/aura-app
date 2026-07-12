@@ -63,3 +63,16 @@ secrets.json
 
 # ─── Claude Code / AI Context ───────────────────────────────────────────────
 .claude/
+landing/node_modules/
+landing/dist/
+dist-cli/
+installers/windows/installer-in/
+installers/windows/installer-out/
+*.run
+*.dmg
+AuraSetup.exe
+
+# scratch / local junk
+exports/
+/lead-scraper*.html
+landing/*.mjs

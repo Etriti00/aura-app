@@ -109,7 +109,7 @@ class TestSettingsModel:
             settings = Settings(id=1)
             s.add(settings)
             s.flush()
-            assert settings.theme == "light"
+            assert settings.theme == "dark"
             assert settings.first_run_complete is False
             assert settings.tier2_model == "gemini/gemini-3.5-flash"
             assert settings.tier3_model == "anthropic/claude-sonnet-5"

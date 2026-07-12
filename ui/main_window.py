@@ -10,8 +10,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QStackedWidget, QPushButton, QFileDialog, QSizePolicy
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtCore import Qt, QSize, QEvent, QObject, QRectF
+from PySide6.QtGui import QShortcut, QKeySequence, QPainterPath, QRegion
 
 from config import (
     APP_NAME, Geometry
@@ -89,7 +89,7 @@ from core.research_engine import ResearchEngine
 from core.voice_call_engine import VoiceCallEngine
 from controllers.research_controller import ResearchController
 from controllers.voice_controller import VoiceController
-from ui.components.command_palette import CommandPalette
+from ui.components.ribbon_search import RibbonSearch
 from ui.components.toast_notification import show_toast
 from ui.icons import get_icon
 
@@ -97,11 +97,35 @@ from ui.icons import get_icon
 logger = get_logger("main_window")
 
 
+class _PopupRounder(QObject):
+    """Clips combo popup containers to a rounded rectangle so no square
+    corner or frame ghost can show around the styled menu."""
+
+    RADIUS = 12.0
+
+    def eventFilter(self, obj, event):
+        if event.type() in (QEvent.Type.Show, QEvent.Type.Resize):
+            try:
+                path = QPainterPath()
+                path.addRoundedRect(QRectF(obj.rect()), self.RADIUS, self.RADIUS)
+                obj.setMask(QRegion(path.toFillPolygon().toPolygon()))
+            except Exception:
+                pass
+        return False
+
+
 class MainWindow(QMainWindow):
     """Aura main application window with sidebar navigation and page stack."""
 
     def __init__(self, db_manager, key_vault):
         super().__init__()
+        # Translucent backing store must exist before the native window
+        # does — required for the Windows acrylic blur to show through.
+        # AURA_DISABLE_GLASS renders opaque (offscreen tests, screenshots).
+        import os as _os
+        import sys as _sys
+        if _sys.platform.startswith("win") and not _os.environ.get("AURA_DISABLE_GLASS"):
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.db_manager = db_manager
         self.key_vault = key_vault
 
@@ -111,6 +135,7 @@ class MainWindow(QMainWindow):
         self._current_theme = "dark"
 
         self._setup_ui()
+        self._round_combo_popups()
         self._init_controllers()
         self._wire_signals()
         self._load_initial_data()
@@ -138,7 +163,7 @@ class MainWindow(QMainWindow):
         top_bar.setObjectName("topBar")
         top_bar.setFixedHeight(56)
         top_bar_layout = QHBoxLayout(top_bar)
-        top_bar_layout.setContentsMargins(24, 0, 24, 0)
+        top_bar_layout.setContentsMargins(32, 0, 42, 0)
 
         top_bar_layout.addStretch()
 
@@ -150,9 +175,13 @@ class MainWindow(QMainWindow):
         self.chat_toggle_btn.setFixedSize(40, 40)
         self.chat_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.chat_toggle_btn.setToolTip("Toggle AI Chat (Ctrl+Space)")
+        self.chat_toggle_btn.setCheckable(True)
         top_bar_layout.addWidget(self.chat_toggle_btn)
 
         content_layout.addWidget(top_bar)
+
+        # Inline ribbon search: expands to the centre of the ribbon on click.
+        self.ribbon_search = RibbonSearch(top_bar, content_area, self._current_theme)
 
         # Page-and-chat wrapper (horizontal: pages | chat panel)
         page_chat_wrapper = QWidget()
@@ -201,6 +230,7 @@ class MainWindow(QMainWindow):
         # Chat panel (initially hidden)
         self.chat_panel = ChatPanel()
         self.chat_panel.hide()
+        self.chat_panel.panel_toggled.connect(self.chat_toggle_btn.setChecked)
         page_chat_layout.addWidget(self.chat_panel)
 
         content_layout.addWidget(page_chat_wrapper, stretch=1)
@@ -210,7 +240,7 @@ class MainWindow(QMainWindow):
         status_bar.setObjectName("statusBar")
         status_bar.setFixedHeight(32)
         status_bar_layout = QHBoxLayout(status_bar)
-        status_bar_layout.setContentsMargins(16, 0, 16, 0)
+        status_bar_layout.setContentsMargins(32, 0, 42, 0)
 
         self.status_label = QLabel("Ready")
         self.status_label.setObjectName("statusText")
@@ -241,6 +271,8 @@ class MainWindow(QMainWindow):
             9: ("Integrations", "External chat and platform connections"),
             10: ("Settings", "Configure API keys, models, and delivery"),
             11: ("Suppression", "Manage global email suppression list"),
+            12: ("Research", "Pre-outreach lead intelligence"),
+            13: ("Calls", "Voice calls and cold calling"),
         }
 
         # Chat toggle shortcut (Ctrl+Space)
@@ -254,7 +286,28 @@ class MainWindow(QMainWindow):
 
         # Ctrl+K to open command palette
         palette_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
-        palette_shortcut.activated.connect(self._toggle_command_palette)
+        palette_shortcut.activated.connect(self.ribbon_search.toggle)
+
+    def _round_combo_popups(self):
+        """Frameless translucent popup containers, clipped to a rounded
+        mask, so combo menus have clean rounded corners with no square
+        ghost. Must run before any popup is first shown."""
+        from PySide6.QtWidgets import QComboBox
+        self._popup_rounder = _PopupRounder(self)
+        for combo in self.findChildren(QComboBox):
+            try:
+                container = combo.view().window()
+                container.setWindowFlags(
+                    container.windowFlags()
+                    | Qt.WindowType.FramelessWindowHint
+                    | Qt.WindowType.NoDropShadowWindowHint
+                )
+                container.setAttribute(
+                    Qt.WidgetAttribute.WA_TranslucentBackground, True
+                )
+                container.installEventFilter(self._popup_rounder)
+            except Exception:
+                pass
 
     def _init_controllers(self):
         """Initialize all controllers."""
@@ -335,9 +388,8 @@ class MainWindow(QMainWindow):
         self.skill_registry.seed_builtin_skills()
 
         # ─── Command Palette ─────────────────────────────────
-        self.command_palette = CommandPalette(self)
-        self.command_palette.command_selected.connect(self._on_palette_command)
-        self.command_palette.set_commands(
+        self.ribbon_search.command_selected.connect(self._on_palette_command)
+        self.ribbon_search.set_commands(
             self.navigation_service.get_navigation_commands()
         )
 
@@ -782,7 +834,6 @@ class MainWindow(QMainWindow):
         self.settings_page.save_chat_model_requested.connect(self.settings_ctrl.save_chat_model)
         self.settings_page.save_sender_requested.connect(self.settings_ctrl.save_sender_info)
         self.settings_page.save_smtp_requested.connect(self.settings_ctrl.save_smtp)
-        self.settings_page.theme_change_requested.connect(self._on_theme_change)
 
         # New settings signals
         self.settings_page.save_imap_requested.connect(
@@ -1083,6 +1134,9 @@ class MainWindow(QMainWindow):
         # ─── Research signals ────────────────────────────────
         self.research_page.refresh_requested.connect(
             self.research_ctrl.load_reports
+        )
+        self.research_page.view_report_requested.connect(
+            self.research_ctrl.load_report_detail
         )
         self.research_ctrl.reports_ready.connect(
             self.research_page.update_reports
@@ -1503,6 +1557,23 @@ class MainWindow(QMainWindow):
             print(f"Error loading theme: {e}")
 
         self._refresh_all_icons(theme)
+        self._apply_acrylic_for_theme(theme)
+
+    def _apply_acrylic_for_theme(self, theme: str):
+        """Keep the native acrylic tint and dark title bar chrome the app
+        ships with. Aura is dark-only."""
+        import sys as _sys
+        if not _sys.platform.startswith("win"):
+            return
+        if not self.property("acrylic"):
+            return
+        try:
+            from ui.win_effects import enable_acrylic_accent, set_titlebar_dark
+            hwnd = int(self.winId())
+            enable_acrylic_accent(hwnd, tint_abgr=0xB3120E0E)
+            set_titlebar_dark(hwnd, True)
+        except Exception:
+            pass
 
     def _refresh_all_icons(self, theme: str):
         """Rebuild all qtawesome icons for the new theme."""
@@ -1523,7 +1594,11 @@ class MainWindow(QMainWindow):
             wrapper.layout().activate()
 
     def _close_chat_if_open(self):
-        """Close chat panel if it's open (Escape key)."""
+        """Escape key: collapse the ribbon search first (it steals no focus
+        via the global shortcut), otherwise close the chat panel."""
+        if getattr(self, "ribbon_search", None) and self.ribbon_search.is_expanded:
+            self.ribbon_search.collapse()
+            return
         if self.chat_panel.is_panel_visible:
             self.chat_panel.toggle()
 
@@ -1607,13 +1682,18 @@ class MainWindow(QMainWindow):
         elif cmd_type == "action":
             action_name = cmd.get("action", "")
             self.navigation_service.execute_action(action_name)
+        elif cmd_type == "ask":
+            self._open_chat_with_query(cmd.get("query", ""))
 
-    def _toggle_command_palette(self):
-        """Toggle the command palette visibility (Ctrl+K)."""
-        if self.command_palette.isVisible():
-            self.command_palette.hide()
-        else:
-            self.command_palette.show_palette()
+    def _open_chat_with_query(self, query: str):
+        """Route a natural-language search into the assistant: open the chat
+        panel and send the query to the orchestrator."""
+        query = (query or "").strip()
+        if not query:
+            return
+        if not self.chat_panel.is_panel_visible:
+            self._toggle_chat()
+        self.chat_panel._send_text(query)
 
     # ─── HubSpot / LinkedIn handlers ─────────────────────────
 

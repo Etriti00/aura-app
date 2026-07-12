@@ -16,7 +16,7 @@ class GlassCard(QFrame):
         self.setObjectName("glassCard")
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(22, 22, 22, 22)
-        self._layout.setSpacing(12)
+        self._layout.setSpacing(14)
         
         # Prevent default QFrame 3D borders (ghost lines)
         self.setFrameShape(QFrame.Shape.NoFrame)
@@ -42,13 +42,13 @@ class GlassCard(QFrame):
 
 # ─── Accent color presets for stat cards ───────────────────────────────
 ACCENT_PRESETS = {
-    "blue":   ("#4E5BF2", "#6D79F6"),  # Neon Indigo
-    "green":  ("#10B981", "#34D399"),  # Emerald
-    "purple": ("#8B5CF6", "#A78BFA"),  # Violet
-    "orange": ("#F59E0B", "#FBBF24"),  # Amber
-    "red":    ("#EF4444", "#F87171"),  # Rose
-    "cyan":   ("#06B6D4", "#22D3EE"),  # Cyan
-    "pink":   ("#EC4899", "#F472B6"),  # Fuschia
+    "blue":   ("#0A84FF", "#409CFF"),  # System Blue
+    "green":  ("#30D158", "#66E08B"),  # System Green
+    "purple": ("#BF5AF2", "#DA8FFF"),  # System Purple
+    "orange": ("#FF9F0A", "#FFB340"),  # System Orange
+    "red":    ("#FF453A", "#FF6961"),  # System Red
+    "cyan":   ("#64D2FF", "#8FDFFF"),  # System Cyan
+    "pink":   ("#FF375F", "#FF6482"),  # System Pink
     "yellow": ("#FFD60A", "#FDE047"),  # Neon Yellow
 }
 
@@ -88,41 +88,13 @@ class StatCard(QFrame):
         layout.addWidget(self.value_label)
         layout.addWidget(self.text_label)
 
-        # Apply Variant Styling
-        if variant == "solid":
-            # Solid color background
-            self.setStyleSheet(f"""
-                QFrame#statCard {{
-                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {colors[0]}, stop:1 {colors[1]});
-                    border: none;
-                }}
-                QLabel#statValue {{ color: #FFFFFF; font-size: 38px; }}
-                QLabel#statLabel {{ color: rgba(255, 255, 255, 0.8); }}
-            """)
-            
-            # Disabled glow shadow per user request
-            # shadow = QGraphicsDropShadowEffect(self)
-            # shadow.setBlurRadius(30)
-            # shadow.setOffset(0, 8)
-            # glow_color = QColor(self._accent_start)
-            # glow_color.setAlpha(80) 
-            # shadow.setColor(glow_color)
-            # self.setGraphicsEffect(shadow)
-
-        else:
-            # Default Glass Style
-            # Disabled shadow
-            pass
-            # shadow = QGraphicsDropShadowEffect(self)
-            # shadow.setBlurRadius(24)
-            # shadow.setOffset(0, 4)
-            # shadow.setColor(QColor(0, 0, 0, 40))
-            # self.setGraphicsEffect(shadow)
+        # Both variants keep a white value for a clean, uniform read; each
+        # card's identity comes from its top accent bar, not a tinted number.
 
     def paintEvent(self, event):
-        """Draw a gradient accent bar only for 'default' variant."""
+        """Draw the small accent bar along the top edge."""
         super().paintEvent(event)
-        if self._variant == "default":
+        if True:
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

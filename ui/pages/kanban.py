@@ -206,6 +206,8 @@ class TicketDetailDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        from ui.win_effects import apply_sheet_glass
+        apply_sheet_glass(self)
         self.setWindowTitle("Ticket Detail")
         self.setObjectName("ticketDetailDialog")
         self.setMinimumSize(560, 640)
@@ -452,6 +454,8 @@ class CreateTicketDialog(QDialog):
 
     def __init__(self, agents_list: list, parent=None):
         super().__init__(parent)
+        from ui.win_effects import apply_sheet_glass
+        apply_sheet_glass(self)
         self.setWindowTitle("Create Ticket")
         self.setObjectName("createTicketDialog")
         self.setMinimumSize(480, 480)

@@ -13,7 +13,8 @@ from PySide6.QtCore import Qt, Signal, QSize
 
 from ui.components.glass_card import GlassCard, StatCard
 from ui.components.empty_state import EmptyState
-from ui.icons import get_icon, get_pixmap
+from ui.icons import ICONS, get_icon, get_pixmap
+from ui.win_effects import apply_sheet_glass
 
 
 # ─── Agent Detail Dialog ───────────────────────────────────────────────────
@@ -29,6 +30,7 @@ class AgentDetailDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Agent Detail")
         self.setObjectName("agentDetailDialog")
+        apply_sheet_glass(self)
         self.setMinimumSize(520, 600)
         self.resize(560, 720)
         self._agent_id = None
@@ -95,6 +97,7 @@ class AgentDetailDialog(QDialog):
         self._tabs = QTabWidget()
         self._tabs.setObjectName("agentTabs")
         self._tabs.setDocumentMode(True)
+        self._tabs.tabBar().setDrawBase(False)
         self._tabs.tabBar().setObjectName("agentTabBar")
 
         # --- Tab 1: Persona ---
@@ -220,7 +223,6 @@ class AgentDetailDialog(QDialog):
         tier_col.addWidget(tier_lbl)
         self._tier_combo = QComboBox()
         self._tier_combo.addItems(["local", "ollama", "haiku", "sonnet"])
-        self._tier_combo.setMinimumHeight(34)
         tier_col.addWidget(self._tier_combo)
         config_row.addLayout(tier_col)
 
@@ -234,7 +236,6 @@ class AgentDetailDialog(QDialog):
         from core.model_fleet import all_models
         self._override_combo.addItem("(tier default)")
         self._override_combo.addItems(all_models())
-        self._override_combo.setMinimumHeight(34)
         self._override_combo.setMinimumWidth(230)
         self._override_combo.setToolTip(
             "Pin this agent to one exact model (verified before saving), "
@@ -251,7 +252,6 @@ class AgentDetailDialog(QDialog):
         self._hb_spin = QSpinBox()
         self._hb_spin.setRange(1, 120)
         self._hb_spin.setValue(30)
-        self._hb_spin.setMinimumHeight(34)
         hb_col.addWidget(self._hb_spin)
         config_row.addLayout(hb_col)
 
@@ -447,9 +447,12 @@ class AgentDetailDialog(QDialog):
         self._agent_id = info.get("id")
 
         # Header
-        self._emoji_label.setText(info.get("identity_emoji", ""))
+        role_key = "agent_" + info.get("role", "worker")
+        if role_key not in ICONS:
+            role_key = "agent_default"
+        self._emoji_label.setPixmap(get_pixmap(role_key, "dark", "default", 26))
         self._name_label.setText(info.get("name", "Unknown"))
-        self.setWindowTitle(f"{info.get('identity_emoji', '')} {info.get('name', 'Agent')}")
+        self.setWindowTitle(info.get("name", "Agent"))
 
         status = info.get("status", "idle")
         self._status_badge.setText(status.upper())
@@ -568,9 +571,14 @@ class AgentCard(QFrame):
         top = QHBoxLayout()
         top.setSpacing(10)
 
-        emoji = QLabel(agent_data.get("identity_emoji", ""))
+        role_key = "agent_" + agent_data.get("role", "worker")
+        if role_key not in ICONS:
+            role_key = "agent_default"
+        emoji = QLabel()
+        emoji.setPixmap(get_pixmap(role_key, "dark", "default", 22))
         emoji.setObjectName("agentCardEmoji")
-        emoji.setFixedWidth(36)
+        emoji.setFixedSize(36, 36)
+        emoji.setAlignment(Qt.AlignmentFlag.AlignCenter)
         top.addWidget(emoji)
 
         name_col = QVBoxLayout()
@@ -686,7 +694,7 @@ class FleetPage(QWidget):
         content.setMinimumWidth(0)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # ─── Header ──────────────────────────────────────────────
         header = QHBoxLayout()
@@ -862,8 +870,19 @@ class FleetPage(QWidget):
         agents = info.get("agents", [])
         self._rebuild_agent_grid(agents)
 
+    def _grid_col_count(self) -> int:
+        avail = self._agent_grid_widget.width() or self.width() or 1200
+        return max(2, min(4, avail // 290))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        agents = getattr(self, "_last_agents", None)
+        if agents and self._grid_col_count() != getattr(self, "_grid_cols", 4):
+            self._rebuild_agent_grid(agents)
+
     def _rebuild_agent_grid(self, agents: list):
         """Clear and rebuild the agent card grid."""
+        self._last_agents = agents
         # Clear existing
         self._agent_cards.clear()
         while self.agent_grid.count():
@@ -884,7 +903,8 @@ class FleetPage(QWidget):
         self._agent_grid_widget.show()
         self._agent_count_label.setText(f"({len(agents)})")
 
-        cols = 4
+        cols = self._grid_col_count()
+        self._grid_cols = cols
         for i, agent in enumerate(agents):
             card = AgentCard(agent)
             card.clicked.connect(self._on_agent_card_clicked)
@@ -917,9 +937,9 @@ class FleetPage(QWidget):
         # Show critical/warning details
         issues = []
         for a in info.get("critical", []):
-            issues.append(f"CRITICAL: {a['identity_emoji']} {a['name']} — {', '.join(a['issues'])}")
+            issues.append(f"CRITICAL: {a['name']} — {', '.join(a['issues'])}")
         for a in info.get("warning", []):
-            issues.append(f"WARNING: {a['identity_emoji']} {a['name']} — {', '.join(a['issues'])}")
+            issues.append(f"WARNING: {a['name']} — {', '.join(a['issues'])}")
 
         if issues:
             self.anomaly_label.setText("\n".join(issues))

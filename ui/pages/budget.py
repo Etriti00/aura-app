@@ -42,7 +42,7 @@ class BudgetPage(QWidget):
         content.setObjectName("centralWidget")
         layout = QVBoxLayout(content)
         layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(20)
+        layout.setSpacing(26)
 
         # ─── Header ───────────────────────────────────────────────
         header_text = QVBoxLayout()

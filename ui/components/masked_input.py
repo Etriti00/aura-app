@@ -37,7 +37,7 @@ class MaskedInput(QWidget):
         self.toggle_btn = QPushButton()
         self.toggle_btn.setIcon(get_icon("eye_visible", self._theme))
         self.toggle_btn.setIconSize(QSize(18, 18))
-        self.toggle_btn.setFixedSize(36, 36)
+        self.toggle_btn.setFixedSize(34, 34)
         self.toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.toggle_btn.setObjectName("maskToggle")
         self.toggle_btn.clicked.connect(self._toggle_reveal)

@@ -754,7 +754,7 @@ def _conversationalist_skill() -> dict:
 
 def _fleet_commander_skill() -> dict:
     return {
-        "name": "Fleet Commander",
+        "name": "Fleet Commander",  # orchestration decisions need the premium tier
         "description": (
             "Agent coordination and task management specialist. Handles task delegation "
             "across the agent fleet, escalation management, sprint planning, and "
@@ -792,7 +792,7 @@ def _fleet_commander_skill() -> dict:
         ),
         "tone": "directive",
         "example_output": "",
-        "preferred_tier": "haiku",
+        "preferred_tier": "sonnet",
         "preferred_model": "",
         "temperature": 0.2,
         "max_tokens": 1024,

@@ -2,7 +2,7 @@
 
 > **Version**: 2.5.0
 > **Stack**: Python 3.14 | PySide6 | SQLAlchemy | SQLite | LiteLLM
-> **Platform**: Windows | macOS | Linux (packaged via PyInstaller)
+> **Platform**: Windows | macOS | Linux desktop apps, plus a Qt free headless build for Raspberry Pi (arm64) and VPS servers (x64). Packaged via PyInstaller; guided installers per platform under `installers/`.
 
 ---
 
@@ -459,7 +459,10 @@ User command → OrchestratorEngine.parse_intent()
 ### 7.4 Delegation & Escalation
 
 - **Delegation depth limit**: Max 3 levels to prevent infinite loops
-- **Skill delegation**: If no matching skill, delegate to Forger agent to create one
+- **Per-agent skill assignments**: Each agent carries `allowed_skills`, a least-privilege JSON list of the skills its duties require (seeded in `database/seed_agents.py`). `NULL` means unrestricted (legacy agents).
+- **Commander grant flow**: When a task's best-matching skill falls outside an agent's assignment, the agent files a `skill_request` message to the Commander (rank 1), the Commander grants it, a `skill_granted` message is logged, and the assignment is widened durably. Implemented in `AgentEngine._find_matching_skill` / `_grant_skill`.
+- **On-demand forging**: When a task needs a skill that does not exist, `_delegate_to_forger` runs `_design_skill_with_llm` — a real LLM pass through the router that returns a full skill spec (persona, instructions, category, capabilities, sampling), falling back to a template stub only when no model is reachable. Forger-created skills auto-grant to the requesting agent.
+- **Model-agnostic skills**: Skill context is compiled into the prompt before `router.route`, so skills apply identically across subscription CLIs, API keys, and local Ollama models.
 - **Escalation**: Blocked tickets escalate up the `reports_to` chain to Commander
 - **Auto-approve rules**: Sub-tickets, self-assignments, and low-priority tickets auto-approve; others require Commander approval
 
