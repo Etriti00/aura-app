@@ -226,6 +226,10 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=sys.platform == "darwin",  # macOS needs this for drag-and-drop
+    # Native build for whatever host we run on: Apple Silicon and Intel are built
+    # on separate runners and shipped as separate DMGs. 'universal2' is not an
+    # option — numpy, cryptography and pydantic-core publish no universal2 wheels,
+    # and PyInstaller rejects a fat build if any bundled binary lacks a slice.
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -255,6 +259,7 @@ if sys.platform == "darwin":
             'CFBundleVersion': '2.5.0',
             'CFBundleShortVersionString': '2.5.0',
             'NSHighResolutionCapable': True,
-            'LSMinimumSystemVersion': '11.0',
+            # Qt 6.10 (PySide6 wheels are tagged macosx_13_0) will not load below 13.
+            'LSMinimumSystemVersion': '13.0',
         },
     )

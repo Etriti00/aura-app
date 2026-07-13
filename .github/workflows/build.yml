@@ -12,8 +12,15 @@ jobs:
         include:
           - os: windows-latest
             artifact: Aura-Windows
+          # macOS gets one native build per architecture. The dependency stack
+          # (numpy, cryptography, pydantic-core) ships no universal2 wheels, so
+          # a single fat binary cannot be built.
           - os: macos-latest
-            artifact: Aura-macOS
+            artifact: Aura-macOS-AppleSilicon
+            expect_arch: arm64
+          - os: macos-15-intel
+            artifact: Aura-macOS-Intel
+            expect_arch: x86_64
           - os: ubuntu-latest
             artifact: Aura-Linux
 
@@ -65,6 +72,17 @@ jobs:
           New-Item -ItemType Directory -Force -Path installer-out | Out-Null
           Copy-Item installers/windows/installer-out/AuraSetup.exe installer-out/AuraSetup.exe
 
+      - name: Verify macOS binary architecture
+        if: runner.os == 'macOS'
+        run: |
+          binary="dist/Aura.app/Contents/MacOS/Aura"
+          archs="$(lipo -archs "$binary")"
+          echo "$binary -> $archs (expected ${{ matrix.expect_arch }})"
+          if [ "$archs" != "${{ matrix.expect_arch }}" ]; then
+            echo "::error::built ${archs}, expected ${{ matrix.expect_arch }}" >&2
+            exit 1
+          fi
+
       - name: macOS DMG
         if: runner.os == 'macOS'
         env:
@@ -72,7 +90,7 @@ jobs:
         run: |
           bash installers/macos/make_dmg.sh dist/Aura.app
           mkdir -p installer-out
-          mv Aura-macOS-Installer.dmg installer-out/
+          mv Aura-macOS-*.dmg installer-out/
 
       - name: Linux self-extracting installer
         if: runner.os == 'Linux'
