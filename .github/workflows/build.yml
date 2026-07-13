@@ -29,6 +29,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The app reports config.APP_VERSION in its UI and CLI. If that disagrees
+      # with the tag we are releasing, the build ships a lie — fail instead.
+      - name: Check APP_VERSION matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          cfg="$(sed -n 's/^APP_VERSION *= *"\(.*\)"/\1/p' config.py)"
+          tag="${GITHUB_REF_NAME#v}"
+          echo "config.APP_VERSION=$cfg  tag=$tag"
+          if [ "$cfg" != "$tag" ]; then
+            echo "::error::APP_VERSION ($cfg) does not match release tag ($tag)" >&2
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -57,8 +71,6 @@ jobs:
         run: bash scripts/build_icns.sh
 
       - name: Build with PyInstaller
-        env:
-          AURA_VERSION: ${{ github.ref_name }}
         run: python scripts/build.py
 
       - name: Windows installer (Inno Setup)

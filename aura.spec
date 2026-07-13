@@ -7,13 +7,12 @@ from PyInstaller.utils.hooks import collect_all
 
 _SPEC_DIR = os.path.dirname(os.path.abspath(SPEC))
 
-# Tagged releases pass the tag in (v2.6.1); anything else — a branch build or a
-# local run — is not a version, so fall back to the number below. Keep it in step
-# with pyproject.toml.
-_FALLBACK_VERSION = '2.6.1'
-_VERSION = os.environ.get('AURA_VERSION', '').lstrip('v')
-if not re.fullmatch(r'\d+(\.\d+)*', _VERSION):
-    _VERSION = _FALLBACK_VERSION
+# The version the app itself reports (sidebar, CLI) is config.APP_VERSION, so the
+# bundle takes its version from there too — otherwise Info.plist and the UI drift,
+# which is exactly how 2.5.0 shipped inside a v2.6.0 release. Parsed rather than
+# imported: importing config would run its import-time side effects during a build.
+with open(os.path.join(_SPEC_DIR, 'config.py'), encoding='utf-8') as _cfg:
+    _VERSION = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)["\']', _cfg.read(), re.M).group(1)
 
 # Platform-specific icon
 if sys.platform == "darwin":
