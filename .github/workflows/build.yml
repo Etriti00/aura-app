@@ -57,6 +57,8 @@ jobs:
         run: bash scripts/build_icns.sh
 
       - name: Build with PyInstaller
+        env:
+          AURA_VERSION: ${{ github.ref_name }}
         run: python scripts/build.py
 
       - name: Windows installer (Inno Setup)

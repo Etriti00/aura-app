@@ -1,10 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import re
 import sys
 import os
 from PyInstaller.utils.hooks import collect_all
 
 _SPEC_DIR = os.path.dirname(os.path.abspath(SPEC))
+
+# Tagged releases pass the tag in (v2.6.1); anything else — a branch build or a
+# local run — is not a version, so fall back to the number below. Keep it in step
+# with pyproject.toml.
+_FALLBACK_VERSION = '2.6.1'
+_VERSION = os.environ.get('AURA_VERSION', '').lstrip('v')
+if not re.fullmatch(r'\d+(\.\d+)*', _VERSION):
+    _VERSION = _FALLBACK_VERSION
 
 # Platform-specific icon
 if sys.platform == "darwin":
@@ -256,8 +265,8 @@ if sys.platform == "darwin":
         info_plist={
             'CFBundleName': 'Aura',
             'CFBundleDisplayName': 'Aura — AI Sales Agent',
-            'CFBundleVersion': '2.5.0',
-            'CFBundleShortVersionString': '2.5.0',
+            'CFBundleVersion': _VERSION,
+            'CFBundleShortVersionString': _VERSION,
             'NSHighResolutionCapable': True,
             # Qt 6.10 (PySide6 wheels are tagged macosx_13_0) will not load below 13.
             'LSMinimumSystemVersion': '13.0',
