@@ -91,7 +91,7 @@ aura-gui
 Or install a prebuilt build from the [Releases page](https://github.com/Etriti00/aura-app/releases/latest). Every release ships a guided installer per platform:
 
 * **Windows** — `AuraSetup.exe`, a standard install wizard with Start Menu and desktop shortcuts and an uninstaller.
-* **macOS** — `Aura-macOS-Installer.dmg`, drag Aura into Applications.
+* **macOS** — a native build per chip, drag Aura into Applications. Pick `Aura-macOS-AppleSilicon.dmg` on an M1 or newer, or `Aura-macOS-Intel.dmg` on an Intel Mac (Apple menu → About This Mac tells you which). macOS 13 or later.
 * **Linux desktop** — `Aura-Linux-Installer.run`, a self extracting installer (system wide with `sudo`, otherwise per user).
 * **Raspberry Pi and VPS servers** — headless CLI builds (`Aura-RaspberryPi-arm64.tar.gz`, `Aura-Server-Linux-x64.tar.gz`). Install either in one line:
 
@@ -99,7 +99,13 @@ Or install a prebuilt build from the [Releases page](https://github.com/Etriti00
   curl -fsSL https://raw.githubusercontent.com/Etriti00/aura-app/main/installers/server/install.sh | bash
   ```
 
-The desktop landing page auto detects your operating system and offers the right build.
+The landing page detects your operating system and offers the right build. macOS is the one exception: browsers report Apple Silicon Macs as `MacIntel`, so both Mac builds are offered side by side rather than guessed at.
+
+**First launch on macOS.** Aura is not yet signed with an Apple Developer ID, so macOS quarantines it after download and may refuse to open it — either "Aura is damaged and can't be opened" or "Apple could not verify Aura is free of malware". Clear the quarantine flag once, after installing or updating:
+
+```bash
+xattr -cr /Applications/Aura.app
+```
 
 On first launch, configure at least one AI provider (an API key or a subscription CLI), your sender identity, and email delivery. All keys are encrypted with a per install salt and never leave your device.
 

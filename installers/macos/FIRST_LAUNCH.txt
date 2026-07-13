@@ -1,0 +1,29 @@
+Aura — first launch on macOS
+============================
+
+1. Drag Aura onto the Applications folder in this window.
+
+2. Aura is not yet signed with an Apple Developer ID, so macOS quarantines it
+   after download and may refuse to open it ("Aura is damaged and can't be
+   opened", or "Apple could not verify Aura is free of malware").
+
+   To clear the quarantine flag, open Terminal and run:
+
+       xattr -cr /Applications/Aura.app
+
+3. Open Aura normally from Applications or Launchpad.
+
+You only need to do step 2 once, after installing or updating.
+
+
+Wrong architecture?
+-------------------
+Aura ships a separate build for each Mac chip:
+
+    Aura-macOS-AppleSilicon.dmg   Apple M1, M2, M3, M4 and newer
+    Aura-macOS-Intel.dmg          Intel Macs (roughly 2020 and earlier)
+
+To check which you have: Apple menu > About This Mac. If the app quits right
+away or reports a bad CPU type, you most likely have the other build.
+
+    https://github.com/Etriti00/aura-app/releases/latest
