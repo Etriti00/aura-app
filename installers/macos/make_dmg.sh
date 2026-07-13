@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-VERSION="${AURA_VERSION:-2.6.0}"
+VERSION="${AURA_VERSION:-2.6.1}"
 APP_PATH="${1:-dist/Aura.app}"
 
 if [ ! -d "$APP_PATH" ]; then
