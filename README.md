@@ -129,7 +129,7 @@ On first launch, configure at least one AI provider (an API key or a subscriptio
 
 ## Interface
 
-The desktop app is an Apple style liquid glass interface: a near black base with genuine translucent acrylic on Windows 11 that blurs the desktop behind the window, capsule buttons, macOS style pop up selectors, and monochrome SF style iconography across all fourteen pages, the sidebar, dialogs, tables, and the chat panel. The CLI mirrors full feature parity with 82 commands across 17 groups plus a natural language REPL, and runs headless on servers and Raspberry Pi.
+The desktop app is an Apple style liquid glass interface: a near black base with genuine desktop blur behind the window — acrylic on Windows 11, native NSVisualEffectView glass with seamless titlebar chrome on macOS, and KWin blur-behind on KDE Plasma — plus capsule buttons, macOS style pop up selectors, and monochrome SF style iconography across all fourteen pages, the sidebar, dialogs, tables, and the chat panel. The CLI mirrors full feature parity with 82 commands across 17 groups plus a natural language REPL, and runs headless on servers and Raspberry Pi.
 
 ## Architecture
 
@@ -158,7 +158,7 @@ Current status: 1,384 tests across 56+ files, all passing. Continuous integratio
 * **Per agent skills.** Every agent now carries a least privilege set of the skills its duties require. When a task needs a skill an agent does not have, the agent requests it from the Commander (tier one), the grant is logged, and the assignment is widened. When a task needs a skill that does not exist, the Forger designs a new one with an LLM pass (persona, instructions, schemas, sampling) rather than a template stub. Skills are injected into the prompt before routing, so they work on any model, subscription or API or local.
 * **Servers and small devices.** A Qt free headless build runs the full agent fleet and the 82 command CLI with no display, shipped for Raspberry Pi (arm64) and VPS servers (x64), plus a Dockerfile.
 * **Guided installers.** A real install wizard per platform: Inno Setup on Windows, a drag to Applications DMG on macOS, a self extracting `.run` on Linux, and a one line `curl | bash` for servers.
-* **Apple liquid glass redesign.** The entire interface was rebuilt to Apple's Human Interface Guidelines: genuine acrylic blur behind the window on Windows 11, capsule buttons, macOS style pop up selectors, monochrome SF style icons, and a new orbital A logo across the app, taskbar, and dock.
+* **Apple liquid glass redesign.** The entire interface was rebuilt to Apple's Human Interface Guidelines: genuine blur behind the window on Windows 11 (acrylic), macOS (NSVisualEffectView with seamless titlebar chrome), and KDE Plasma (KWin blur-behind), capsule buttons, macOS style pop up selectors, monochrome SF style icons, and a new orbital A logo across the app, taskbar, and dock.
 * **New landing page** with a cinematic hero, an interactive product mockup, and auto detecting downloads.
 
 ### v2.5.0, Glass UI, Agent Model Fleet, Verified Assignments
