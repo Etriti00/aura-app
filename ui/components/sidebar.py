@@ -56,6 +56,8 @@ class Sidebar(QWidget):
         logo_container.setFixedHeight(55)
         logo_layout = QVBoxLayout(logo_container)
         logo_layout.setContentsMargins(20, 14, 20, 14)
+        self._logo_container = logo_container
+        self._logo_layout = logo_layout
 
         self._logo_icon = QLabel()
         self._logo_icon.setPixmap(get_pixmap("logo_mark", self._theme, "accent", 18))
@@ -69,8 +71,10 @@ class Sidebar(QWidget):
         logo_row_layout = QHBoxLayout(logo_row)
         logo_row_layout.setContentsMargins(0, 0, 0, 0)
         logo_row_layout.setSpacing(8)
-        logo_row_layout.addWidget(logo_icon)
-        logo_row_layout.addWidget(logo_text)
+        # Explicit VCenter: icon and wordmark must share one baseline row —
+        # under seamless macOS chrome any drift reads as a broken header.
+        logo_row_layout.addWidget(logo_icon, 0, Qt.AlignmentFlag.AlignVCenter)
+        logo_row_layout.addWidget(logo_text, 0, Qt.AlignmentFlag.AlignVCenter)
         logo_row_layout.addStretch()
 
         # Keep logo_label reference for glow effect
@@ -138,6 +142,18 @@ class Sidebar(QWidget):
 
         # Set initial active state
         self._update_active_state(0)
+
+    def align_logo_with_toolbar(self, height: int, left_inset: int):
+        """One-line header under seamless macOS chrome: the logo container
+        matches the unified-toolbar height and shifts right so the traffic
+        lights (at the container's left edge) share its row."""
+        self._logo_container.setFixedHeight(height)
+        self._logo_layout.setContentsMargins(left_inset, 0, 20, 0)
+
+    def drag_handle(self):
+        """The widget that doubles as a window drag region under seamless
+        chrome — the logo strip, which sits where a titlebar would."""
+        return self._logo_container
 
     def _on_button_clicked(self, index: int):
         """Handle navigation button click."""

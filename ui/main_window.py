@@ -114,18 +114,42 @@ class _PopupRounder(QObject):
         return False
 
 
+class _DragRegion(QObject):
+    """Makes a background widget move the window, standing in for the
+    titlebar under seamless chrome (macOS full-size content). Child widgets
+    receive their presses first, so buttons keep working."""
+
+    def eventFilter(self, obj, event):
+        if (event.type() == QEvent.Type.MouseButtonPress
+                and event.button() == Qt.MouseButton.LeftButton):
+            handle = obj.window().windowHandle()
+            if handle is not None:
+                handle.startSystemMove()
+        return False
+
+
 class MainWindow(QMainWindow):
     """Aura main application window with sidebar navigation and page stack."""
 
     def __init__(self, db_manager, key_vault):
         super().__init__()
         # Translucent backing store must exist before the native window
-        # does — required for the Windows acrylic blur to show through.
+        # does — required for any compositor blur (Windows acrylic, macOS
+        # NSVisualEffectView, KDE blur-behind) to show through.
         # AURA_DISABLE_GLASS renders opaque (offscreen tests, screenshots).
-        import os as _os
-        import sys as _sys
-        if _sys.platform.startswith("win") and not _os.environ.get("AURA_DISABLE_GLASS"):
+        from ui.native_glass import wants_translucent_backing
+        if wants_translucent_backing():
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            import sys as _sys
+            if _sys.platform == "darwin":
+                # Qt's own seamless-titlebar mechanism (6.9+): the client
+                # area extends under the titlebar, so the header row and the
+                # traffic lights share one line instead of stacking. Manual
+                # NSWindow styleMask edits get reverted by Qt on show().
+                self.setWindowFlag(
+                    Qt.WindowType.ExpandedClientAreaHint, True)
+                self.setWindowFlag(
+                    Qt.WindowType.NoTitleBarBackgroundHint, True)
         self.db_manager = db_manager
         self.key_vault = key_vault
 
@@ -140,9 +164,39 @@ class MainWindow(QMainWindow):
         self._wire_signals()
         self._load_initial_data()
 
+    def adopt_seamless_chrome(self):
+        """Adjust the layout for a hidden native titlebar (macOS glass).
+
+        The unified toolbar gives a 52px titlebar with centered traffic
+        lights; the header row (sidebar logo + top bar) matches that height
+        so lights, logo, search and chat sit on one line. The top bar and
+        the sidebar logo become drag regions since the titlebar strip no
+        longer handles window moves.
+        """
+        import sys as _sys
+        if _sys.platform == "darwin":
+            from ui.mac_effects import HEADER_HEIGHT, TRAFFIC_LIGHT_INSET
+            # Logo and top bar share one compact row; the logo shifts right of
+            # the traffic lights so nothing collides.
+            self.sidebar.align_logo_with_toolbar(
+                HEADER_HEIGHT, left_inset=TRAFFIC_LIGHT_INSET)
+            self._top_bar.setFixedHeight(HEADER_HEIGHT)
+        self._drag_region = _DragRegion(self)
+        self._top_bar.installEventFilter(self._drag_region)
+        self.sidebar.drag_handle().installEventFilter(self._drag_region)
+
     def _setup_ui(self):
         """Build the main UI structure."""
         central = QWidget()
+        import sys as _sys
+        if _sys.platform == "darwin":
+            # Companion to ExpandedClientAreaHint: without this opt-out Qt
+            # pads layouts by the titlebar's safe-area margin and the header
+            # row lands below the titlebar strip instead of on its line.
+            for w in (self, central):
+                w.setAttribute(
+                    Qt.WidgetAttribute.WA_ContentsMarginsRespectsSafeArea,
+                    False)
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -152,14 +206,25 @@ class MainWindow(QMainWindow):
         self.sidebar = Sidebar()
         main_layout.addWidget(self.sidebar)
 
-        # Right content area
+        # Right content area. WA_StyledBackground makes a plain QWidget
+        # actually paint its QSS background-color; without it the fill is
+        # skipped and a bright desktop washes through the native glass.
         content_area = QWidget()
+        content_area.setObjectName("contentArea")
+        content_area.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        if _sys.platform == "darwin":
+            # Same safe-area opt-out as the central widget: otherwise this
+            # column pads itself below the titlebar and the search/chat row
+            # drops off the header line the sidebar logo sits on.
+            content_area.setAttribute(
+                Qt.WidgetAttribute.WA_ContentsMarginsRespectsSafeArea, False)
         content_layout = QVBoxLayout(content_area)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
         # Top bar
         top_bar = QWidget()
+        self._top_bar = top_bar  # drag region under seamless chrome
         top_bar.setObjectName("topBar")
         top_bar.setFixedHeight(56)
         top_bar_layout = QHBoxLayout(top_bar)
@@ -191,6 +256,7 @@ class MainWindow(QMainWindow):
 
         # Page stack — Ignored policy + minWidth(0) so it yields space to chat panel
         self.page_stack = QStackedWidget()
+        self.page_stack.setObjectName("pageStack")
         self.page_stack.setMinimumWidth(0)
         self.page_stack.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored

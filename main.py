@@ -75,13 +75,23 @@ def main():
     app.setApplicationName(APP_NAME)
     app.setDesktopFileName("aura")
     app.setStyle("Fusion")  # Consistent cross-platform base style
+    # Aura ships one dark theme. Without this, a light-mode OS hands Qt a
+    # light palette and every palette-driven fill (field bases, placeholder
+    # text, popups) renders washed-out against the dark stylesheet.
+    app.styleHints().setColorScheme(Qt.ColorScheme.Dark)
 
     # Load custom fonts
     load_fonts()
 
-    # Set default font
-    default_font = QFont("Inter", 10)
-    default_font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
+    # Default to the platform's own UI font — SF Pro on macOS, Segoe UI on
+    # Windows. The stylesheet sets sizes but no sans family, so every widget
+    # inherits this. Hinting is a Windows idiom: macOS renders unhinted, and
+    # forcing full hinting there distorts glyph shapes.
+    default_font = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+    if sys.platform == "darwin":
+        default_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+    else:
+        default_font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
     app.setFont(default_font)
 
     # Initialize database
@@ -150,22 +160,33 @@ def main():
     from ui.main_window import MainWindow
     window = MainWindow(db_manager=db_manager, key_vault=key_vault)
 
-    # Real Liquid Glass on Windows 11: blur the desktop behind the window and
-    # tint it. Qt's backing store must be transparent for the blur to show.
-    # The "acrylic" property lets the stylesheet swap the opaque gradient for
-    # a see-through tint.
+    # Real Liquid Glass: blur the desktop behind the window and tint it —
+    # Windows 11 acrylic, macOS NSVisualEffectView, or the KDE blur hint,
+    # whichever this platform offers. Qt's backing store must be transparent
+    # for the blur to show. The "acrylic" property lets the stylesheet swap
+    # the opaque gradient for a see-through tint.
     try:
-        from ui.win_effects import enable_acrylic_accent, enable_dark_chrome
+        from ui.native_glass import apply_main_window_glass
 
-        hwnd = int(window.winId())
-        enable_dark_chrome(hwnd)  # dark title bar + rounded corners
-        if enable_acrylic_accent(hwnd):
-            window.setProperty("acrylic", "true")
+        if apply_main_window_glass(window):
+            # macOS gets its own tint: its material carries no baked-in
+            # darkness, unlike the Windows acrylic accent.
+            window.setProperty(
+                "acrylic", "mac" if sys.platform == "darwin" else "true")
+            window.adopt_seamless_chrome()
     except Exception:
         pass
 
     window._apply_theme(theme)
     window.show()
+    # Qt rebuilds the native styleMask on show and drops the seamless-chrome
+    # bits; re-assert them so the header underlaps the titlebar as one line.
+    if sys.platform == "darwin":
+        try:
+            from ui.mac_effects import reassert_chrome
+            reassert_chrome(window)
+        except Exception:
+            pass
     logger.info("Main window launched.")
 
     # Dev aid: live theme reload when AURA_THEME_WATCH=1 saves a QSS file and

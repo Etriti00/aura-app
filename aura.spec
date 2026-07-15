@@ -35,6 +35,9 @@ binaries = []
 hiddenimports = [
     'qtawesome',
     'qtawesome.iconic_font',
+    # macOS Liquid Glass (ui/mac_effects.py) — pyobjc, darwin builds only
+    *(['objc', 'AppKit', 'Foundation', 'CoreFoundation']
+      if sys.platform == 'darwin' else []),
     'litellm',
     'playwright',
     'playwright_stealth',

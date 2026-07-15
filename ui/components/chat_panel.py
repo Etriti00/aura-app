@@ -75,7 +75,9 @@ class MessageBubble(QFrame):
         label = QLabel(text)
         label.setWordWrap(True)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        label.setFont(QFont("Inter", 11))
+        bubble_font = QFont(label.font())  # inherit the platform system font
+        bubble_font.setPointSize(11)
+        label.setFont(bubble_font)
         layout.addWidget(label)
 
 

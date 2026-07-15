@@ -1,5 +1,6 @@
 # Aura AI Sales Agent — Dependencies (pinned for reproducible builds)
 PySide6==6.10.2
+pyobjc-framework-Cocoa==12.2.1; sys_platform == "darwin"
 SQLAlchemy==2.0.46
 litellm==1.81.13
 playwright==1.58.0

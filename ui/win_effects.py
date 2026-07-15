@@ -31,6 +31,11 @@ def apply_sheet_glass(widget) -> bool:
     "acrylic" stylesheet property so QSS can swap to a translucent fill.
     """
     import os
+    if sys.platform == "darwin":
+        # Dialog pages import from here on every platform; the macOS glass
+        # lives in its own module.
+        from ui import mac_effects
+        return mac_effects.apply_sheet_glass(widget)
     if not sys.platform.startswith("win") or os.environ.get("AURA_DISABLE_GLASS"):
         return False
     try:

@@ -7,13 +7,31 @@
 QWidget {
     background-color: #09090F;
     color: #FFFFFF;
-    font-family: "Inter", "Segoe UI Variable", "Segoe UI", sans-serif;
+    /* No sans font-family here: widgets inherit the platform system font
+       set in main.py — SF Pro on macOS, Segoe UI on Windows. */
     font-size: 13px;
 }
 
 /* Prevent label backgrounds from painting over card surfaces */
 QLabel {
     background: transparent;
+}
+
+/* ─── Buttons: base capsule for every otherwise-unstyled QPushButton ────── */
+QPushButton {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 17px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 400;
+}
+QPushButton:hover { background-color: rgba(255, 255, 255, 0.13); }
+QPushButton:pressed { background-color: rgba(255, 255, 255, 0.05); }
+QPushButton:disabled {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.25);
 }
 
 QWidget#centralWidget,
@@ -49,7 +67,7 @@ QWidget#sidebar {
 /* Logo */
 QLabel#logoText {
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 700;
     color: #FFFFFF;
     letter-spacing: -0.5px;
 }
@@ -57,7 +75,7 @@ QLabel#logoText {
 /* Nav section label */
 QLabel#navSectionLabel {
     font-size: 9px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 2.5px;
     color: rgba(255, 255, 255, 0.25);
     padding: 16px 20px 6px 20px;
@@ -72,7 +90,7 @@ QPushButton#sidebarButton {
     border-radius: 10px;
     margin: 2px 10px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 400;
     color: rgba(255, 255, 255, 0.45);
     background-color: transparent;
 }
@@ -83,20 +101,16 @@ QPushButton#sidebarButton:hover {
 }
 
 QPushButton#sidebarButton[active="true"] {
-    background-color: rgba(10, 132, 255, 0.12);
+    background-color: rgba(10, 132, 255, 0.16);
     color: #FFFFFF;
-    font-weight: 600;
-    border-left: 3px solid #0A84FF;
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-    padding-left: 17px;
+    font-weight: 400;
 }
 
 /* Version label at bottom */
 QLabel#versionLabel {
     color: rgba(255, 255, 255, 0.2);
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 400;
     letter-spacing: 0.5px;
     padding: 6px 14px 10px 14px;
     background: transparent;
@@ -126,7 +140,7 @@ QWidget#topBar {
 
 QLabel#pageTitle {
     font-size: 17px;
-    font-weight: 700;
+    font-weight: 600;
     color: #FFFFFF;
     letter-spacing: -0.3px;
 }
@@ -162,14 +176,14 @@ QWidget#statusBar {
 QLabel#statusText {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.3);
-    font-weight: 500;
+    font-weight: 400;
     background: transparent;
 }
 
 QLabel#statusTextSuccess {
     font-size: 11px;
     color: #22C55E;
-    font-weight: 500;
+    font-weight: 400;
     background: transparent;
 }
 
@@ -194,7 +208,7 @@ QFrame#statCard {
 
 QLabel#statValue {
     font-size: 34px;
-    font-weight: 800;
+    font-weight: 700;
     color: #FFFFFF;
     letter-spacing: -1.5px;
     background: transparent;
@@ -202,7 +216,7 @@ QLabel#statValue {
 
 QLabel#statLabel {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     color: rgba(255, 255, 255, 0.35);
     letter-spacing: 1.5px;
     background: transparent;
@@ -211,7 +225,7 @@ QLabel#statLabel {
 /* ─── Typography Hierarchy ─────────────────────────────────────────────── */
 QLabel#sectionHeader {
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 600;
     color: #FFFFFF;
     letter-spacing: -0.5px;
     background: transparent;
@@ -227,7 +241,7 @@ QLabel#sectionSubheader {
 /* Card section title (e.g., "Pipeline Funnel", "Recent Campaigns") */
 QLabel#cardHeader {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     color: #FFFFFF;
     letter-spacing: -0.2px;
     background: transparent;
@@ -236,7 +250,7 @@ QLabel#cardHeader {
 /* Form field labels */
 QLabel#formLabel {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     color: rgba(255, 255, 255, 0.45);
     background: transparent;
 }
@@ -244,7 +258,7 @@ QLabel#formLabel {
 /* Warning/info inline text */
 QLabel#warningText {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     color: #F59E0B;
     background: transparent;
 }
@@ -263,7 +277,7 @@ QPushButton#primaryButton {
     border-radius: 10px;
     padding: 10px 20px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0.1px;
 }
 
@@ -287,7 +301,7 @@ QPushButton#secondaryButton {
     border-radius: 10px;
     padding: 10px 20px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 QPushButton#secondaryButton:hover {
@@ -309,7 +323,7 @@ QPushButton#dangerButton {
     border-radius: 10px;
     padding: 10px 20px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 QPushButton#dangerButton:hover {
@@ -325,7 +339,7 @@ QPushButton#exportButton {
     border: 1px solid rgba(10, 132, 255, 0.18);
     border-radius: 8px;
     padding: 7px 16px;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 11px;
 }
 
@@ -340,7 +354,7 @@ QPushButton#exportButtonSuccess {
     border: 1px solid rgba(34, 197, 94, 0.18);
     border-radius: 8px;
     padding: 7px 16px;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 11px;
 }
 
@@ -357,7 +371,7 @@ QPushButton#chipButton {
     border-radius: 14px;
     padding: 5px 14px;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 QPushButton#chipButton:hover {
@@ -371,7 +385,7 @@ QLineEdit {
     background-color: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
-    height: 48px;
+    height: 38px;
     padding: 0 16px;
     font-size: 13px;
     color: #FFFFFF;
@@ -399,7 +413,7 @@ QSpinBox {
     background-color: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
-    height: 48px;
+    height: 38px;
     padding: 0 12px;
     font-size: 13px;
     color: #FFFFFF;
@@ -456,8 +470,8 @@ QTextEdit:focus {
 QComboBox {
     background-color: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 10px 14px;
+    border-radius: 19px;
+    padding: 10px 16px;
     font-size: 13px;
     color: #FFFFFF;
     min-height: 20px;
@@ -514,7 +528,7 @@ QCheckBox {
     spacing: 10px;
     color: rgba(255, 255, 255, 0.8);
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 400;
     background: transparent;
 }
 
@@ -573,7 +587,7 @@ QHeaderView::section {
     background-color: rgba(255, 255, 255, 0.02);
     color: rgba(255, 255, 255, 0.3);
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1.5px;
     padding: 12px 16px;
     border: none;
@@ -603,7 +617,7 @@ QListWidget::item {
 QListWidget::item:selected {
     background-color: rgba(10, 132, 255, 0.18);
     color: #FFFFFF;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 QListWidget::item:hover:!selected {
@@ -628,7 +642,7 @@ QTabBar::tab {
     border: none;
     border-bottom: 2px solid transparent;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0.1px;
 }
 
@@ -721,7 +735,7 @@ QGroupBox {
     margin-top: 24px;
     padding: 28px 24px 24px 24px;
     padding-top: 36px;
-    font-weight: 600;
+    font-weight: 400;
     color: #FFFFFF;
 }
 
@@ -731,7 +745,7 @@ QGroupBox::title {
     padding: 0 12px;
     color: rgba(255, 255, 255, 0.4);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1px;
 }
 
@@ -741,7 +755,7 @@ QLabel#badgeSuccess {
     color: #4ADE80;
     border-radius: 8px;
     padding: 4px 12px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 11px;
     letter-spacing: 0.5px;
 }
@@ -751,7 +765,7 @@ QLabel#badgeWarning {
     color: #FCD34D;
     border-radius: 8px;
     padding: 4px 12px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 11px;
     letter-spacing: 0.5px;
 }
@@ -761,7 +775,7 @@ QLabel#badgeDanger {
     color: #F87171;
     border-radius: 8px;
     padding: 4px 12px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 11px;
     letter-spacing: 0.5px;
 }
@@ -771,7 +785,7 @@ QLabel#badgeInfo {
     color: #818CF8;
     border-radius: 8px;
     padding: 4px 14px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 11px;
     letter-spacing: 0.5px;
 }
@@ -835,14 +849,14 @@ QFrame#abCardB {
 }
 
 QLabel#abVariantA {
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px;
     color: #FFFFFF;
     background: transparent;
 }
 
 QLabel#abVariantB {
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px;
     color: #FFFFFF;
     background: transparent;
@@ -851,7 +865,7 @@ QLabel#abVariantB {
 QLabel#abStats {
     color: rgba(255, 255, 255, 0.45);
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 400;
     background: transparent;
 }
 
@@ -882,7 +896,7 @@ QFrame#chatHeader {
 
 QLabel#chatTitle {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     color: rgba(255, 255, 255, 0.95);
     background: transparent;
     letter-spacing: 0.3px;
@@ -1006,7 +1020,7 @@ QFrame#confirmCard {
 QLabel#confirmCardTitle {
     color: #FFFFFF;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     background: transparent;
 }
 
@@ -1107,7 +1121,7 @@ QLabel#fileCardName {
     color: #FFFFFF;
     background: transparent;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 /* ─── Empty State ──────────────────────────────────────────────────────── */
@@ -1122,7 +1136,7 @@ QLabel#emptyStateIcon {
 
 QLabel#emptyStateTitle {
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 600;
     color: rgba(255, 255, 255, 0.5);
     background: transparent;
 }
@@ -1140,7 +1154,7 @@ QWidget#wizardPage {
 
 QLabel#wizardTitle {
     font-size: 26px;
-    font-weight: 800;
+    font-weight: 700;
     color: #FFFFFF;
     letter-spacing: -0.5px;
 }
@@ -1349,7 +1363,7 @@ QTabBar#agentTabBar::tab {
     background: transparent;
     color: rgba(255, 255, 255, 0.45);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     padding: 8px 16px;
     margin-right: 4px;
     border: none;
@@ -1373,7 +1387,7 @@ QTabWidget#forgeEditorTabs > QTabBar::tab {
     background: transparent;
     color: rgba(255, 255, 255, 0.45);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     padding: 8px 16px;
     margin-right: 4px;
     border: none;
@@ -1445,7 +1459,7 @@ QLabel#priorityDotLow {
 /* Card elements */
 QLabel#ticketTitle {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: #FFFFFF;
     background: transparent;
 }
@@ -1461,7 +1475,7 @@ QLabel#ticketDueDate {
 }
 QLabel#ticketLabel {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
     color: #818CF8;
     background: rgba(10, 132, 255, 0.12);
     border-radius: 6px;
@@ -1498,7 +1512,7 @@ QTabWidget#hunterTabs > QTabBar::tab {
     border: none;
     border-bottom: 2px solid transparent;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 QTabWidget#hunterTabs > QTabBar::tab:selected {
@@ -1534,7 +1548,7 @@ QTableWidget#campaignDetailTable QHeaderView::section {
     border: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     padding: 8px 8px;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1548,14 +1562,14 @@ QFrame#kanbanColumn {
 }
 QLabel#kanbanColumnHeader {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 1.2px;
     color: rgba(255, 255, 255, 0.45);
     background: transparent;
 }
 QLabel#kanbanColumnCount {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     color: rgba(255, 255, 255, 0.3);
     background: rgba(255, 255, 255, 0.06);
     border-radius: 10px;
@@ -1581,7 +1595,7 @@ QFrame#ticketCommentBubble {
 }
 QLabel#ticketCommentAuthor {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     color: #818CF8;
     background: transparent;
 }
@@ -1637,7 +1651,7 @@ QLabel#historySourceBadgeTelegram {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historySourceBadgeDiscord {
     background-color: rgba(88, 101, 242, 0.15);
@@ -1645,7 +1659,7 @@ QLabel#historySourceBadgeDiscord {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historySourceBadgeChat {
     background-color: rgba(10, 132, 255, 0.15);
@@ -1653,7 +1667,7 @@ QLabel#historySourceBadgeChat {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historySourceBadgeSystem {
     background-color: rgba(255, 255, 255, 0.06);
@@ -1661,7 +1675,7 @@ QLabel#historySourceBadgeSystem {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historySourceBadgeScheduled {
     background-color: rgba(245, 158, 11, 0.12);
@@ -1669,7 +1683,7 @@ QLabel#historySourceBadgeScheduled {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 /* Status Badges */
@@ -1679,7 +1693,7 @@ QLabel#historyStatusCompleted {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historyStatusFailed {
     background-color: rgba(239, 68, 68, 0.12);
@@ -1687,7 +1701,7 @@ QLabel#historyStatusFailed {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historyStatusRunning {
     background-color: rgba(10, 132, 255, 0.12);
@@ -1695,7 +1709,7 @@ QLabel#historyStatusRunning {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QLabel#historyStatusPending {
     background-color: rgba(245, 158, 11, 0.12);
@@ -1703,7 +1717,7 @@ QLabel#historyStatusPending {
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 /* Timestamp */
@@ -1804,7 +1818,7 @@ QPushButton#crossNavButton {
     border-radius: 8px;
     color: #0A84FF;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 400;
     padding: 6px 14px;
 }
 QPushButton#crossNavButton:hover {
@@ -1894,6 +1908,15 @@ QMainWindow[acrylic="true"] {
     background: rgba(10, 10, 14, 0.22);
 }
 
+/* macOS: the NSVisualEffectView has no baked-in dark tint, while Windows'
+   accent policy bakes ~70% black into the blur before QSS ever paints. The
+   widget tree is transparent (LIQUID GLASS v6 below), so this single rule
+   sets the entire glass depth — it must supply the darkness Windows gets
+   for free or bright desktops glare through every surface. */
+QMainWindow[acrylic="mac"] {
+    background: transparent;
+}
+
 /* Popups: regular glass, solid enough to read (separate native windows) */
 QMenu, QComboBox QAbstractItemView, QToolTip, QCalendarWidget {
     background-color: #202024;
@@ -1914,6 +1937,20 @@ QMenu::item:selected, QComboBox QAbstractItemView::item:selected {
 
 QWidget#centralWidget, QWidget#scrollContent,
 QScrollArea#dashboardScroll, QScrollArea#dashboardScroll > QWidget {
+    background: transparent;
+}
+
+/* ═══ CONTENT LAYER — charcoal glass, same family as the sidebar ═══
+   Without an explicit fill these containers paint Fusion's default grey
+   (~#3F3F45). Scroll viewports and page roots stay transparent so this one
+   glass base shows through them. */
+QWidget#contentArea, QStackedWidget#pageStack {
+    /* Same luminous charcoal glass as the sidebar: the content layer must
+       match the navigation tone, not read as a black slab next to it. */
+    background-color: rgba(26, 26, 30, 0.46);
+}
+QStackedWidget#pageStack > QWidget,
+QScrollArea, QScrollArea > QWidget, QAbstractScrollArea::viewport {
     background: transparent;
 }
 
@@ -1943,7 +1980,7 @@ QPushButton#sidebarButton {
     border-radius: 17px;
     padding: 9px 16px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#sidebarButton:hover {
     background: rgba(255, 255, 255, 0.07);
@@ -1959,7 +1996,7 @@ QPushButton#sidebarButton:checked {
 QLabel#navSectionLabel {
     color: rgba(235, 235, 245, 0.40);
     letter-spacing: 1.4px;
-    font-weight: 700;
+    font-weight: 600;
 }
 QLabel#versionLabel { color: rgba(235, 235, 245, 0.30); }
 QLabel#logoText { color: #FFFFFF; letter-spacing: -0.3px; }
@@ -1972,12 +2009,12 @@ QFrame#glassCard, QFrame#statCard {
     border-radius: 20px;
 }
 QFrame#glassCard:hover { border: 1px solid rgba(255, 255, 255, 0.10); }
-QLabel#cardHeader { color: #FFFFFF; font-weight: 700; letter-spacing: -0.2px; }
+QLabel#cardHeader { color: #FFFFFF; font-weight: 600; letter-spacing: -0.2px; }
 QLabel#mutedText { color: rgba(235, 235, 245, 0.60); }
 QLabel#statValue { color: #FFFFFF; letter-spacing: -0.5px; }
 QLabel#statLabel {
     color: rgba(235, 235, 245, 0.60);
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 1.1px;
 }
 QFrame#kanbanColumn {
@@ -2019,7 +2056,7 @@ QHeaderView::section {
     border: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding: 10px 10px;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 11px;
     letter-spacing: 0.6px;
 }
@@ -2049,8 +2086,8 @@ QComboBox {
     background-color: rgba(255, 255, 255, 0.06);
     color: #FFFFFF;
     border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 12px;
-    padding: 7px 13px;
+    border-radius: 16px;
+    padding: 7px 15px;
 }
 QComboBox:hover { border: 1px solid rgba(255, 255, 255, 0.18); }
 QComboBox:focus { border: 1px solid rgba(10, 132, 255, 0.85); }
@@ -2063,7 +2100,7 @@ QPushButton#primaryButton {
     border: none;
     border-radius: 18px;
     padding: 9px 22px;
-    font-weight: 700;
+    font-weight: 600;
 }
 QPushButton#primaryButton:hover { background: #2694FF; }
 QPushButton#primaryButton:pressed { background: #0870D8; }
@@ -2074,7 +2111,7 @@ QPushButton#secondaryButton {
     border-top: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 18px;
     padding: 9px 20px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#secondaryButton:hover { background: rgba(255, 255, 255, 0.12); }
 QPushButton#secondaryButton:pressed { background: rgba(255, 255, 255, 0.06); }
@@ -2097,7 +2134,7 @@ QTabBar::tab {
     margin: 4px 3px;
     border: 1px solid transparent;
     border-radius: 15px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QTabBar::tab:selected {
     background: rgba(255, 255, 255, 0.11);
@@ -2135,7 +2172,7 @@ QFrame#chatHeader {
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
     border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
-QLabel#chatTitle { color: #FFFFFF; font-weight: 700; background: transparent; }
+QLabel#chatTitle { color: #FFFFFF; font-weight: 600; background: transparent; }
 QComboBox#chatModelCombo {
     background-color: rgba(255, 255, 255, 0.07);
     border: 1px solid rgba(255, 255, 255, 0.13);
@@ -2214,7 +2251,7 @@ QPushButton#chipButton {
     border-radius: 14px;
     padding: 5px 15px;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#chipButton:hover {
     background: rgba(255, 255, 255, 0.12);
@@ -2246,28 +2283,28 @@ QLabel#badgeInfo {
     color: #6DB9FF;
     border: 1px solid rgba(10, 132, 255, 0.36);
     border-radius: 11px; padding: 3px 11px;
-    font-weight: 600; font-size: 11px; letter-spacing: 0.2px;
+    font-weight: 400; font-size: 11px; letter-spacing: 0.2px;
 }
 QLabel#badgeSuccess {
     background: rgba(48, 209, 88, 0.13);
     color: #7BE8A2;
     border: 1px solid rgba(48, 209, 88, 0.34);
     border-radius: 11px; padding: 3px 11px;
-    font-weight: 600; font-size: 11px; letter-spacing: 0.2px;
+    font-weight: 400; font-size: 11px; letter-spacing: 0.2px;
 }
 QLabel#badgeWarning {
     background: rgba(255, 214, 10, 0.12);
     color: #FFE04D;
     border: 1px solid rgba(255, 214, 10, 0.34);
     border-radius: 11px; padding: 3px 11px;
-    font-weight: 600; font-size: 11px; letter-spacing: 0.2px;
+    font-weight: 400; font-size: 11px; letter-spacing: 0.2px;
 }
 QLabel#badgeDanger {
     background: rgba(255, 69, 58, 0.13);
     color: #FF8A80;
     border: 1px solid rgba(255, 69, 58, 0.34);
     border-radius: 11px; padding: 3px 11px;
-    font-weight: 600; font-size: 11px; letter-spacing: 0.2px;
+    font-weight: 400; font-size: 11px; letter-spacing: 0.2px;
 }
 
 QProgressBar {
@@ -2291,7 +2328,7 @@ QFrame#topBar, QWidget#topBar {
 }
 QLabel#pageTitle {
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 600;
     color: #FFFFFF;
     letter-spacing: -0.2px;
     background: transparent;
@@ -2323,13 +2360,13 @@ QWidget#statusBar, QFrame#statusBar {
 }
 QLabel#statusText {
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 400;
     color: rgba(235, 235, 245, 0.60);
     background: transparent;
 }
 QLabel#statusTextSuccess {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     color: #30D158;
     background: transparent;
 }
@@ -2337,6 +2374,7 @@ QLabel#statusTextSuccess {
 /* ── Dialogs: elevated sheets; real glass when the acrylic property is set ── */
 QDialog { background-color: #1C1C21; }
 QDialog[acrylic="true"] { background-color: rgba(18, 18, 22, 0.52); }
+QDialog[acrylic="mac"] { background-color: transparent; }
 QMessageBox { background-color: #1C1C21; }
 QMessageBox QLabel { color: rgba(255, 255, 255, 0.95); background: transparent; }
 
@@ -2363,7 +2401,7 @@ QTabBar#agentTabBar::tab {
     margin: 6px 3px;
     border: 1px solid transparent;
     border-radius: 14px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QTabBar#agentTabBar::tab:selected {
     background: rgba(255, 255, 255, 0.11);
@@ -2385,7 +2423,7 @@ QTabWidget#forgeEditorTabs > QTabBar::tab {
     margin: 6px 3px;
     border: 1px solid transparent;
     border-radius: 14px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QTabWidget#forgeEditorTabs > QTabBar::tab:selected {
     background: rgba(255, 255, 255, 0.11);
@@ -2407,7 +2445,7 @@ QPushButton#dangerButton {
     border-top: 1px solid rgba(255, 120, 110, 0.50);
     border-radius: 18px;
     padding: 9px 20px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#dangerButton:hover { background: rgba(255, 69, 58, 0.26); color: #FFFFFF; }
 QPushButton#dangerButton:pressed { background: rgba(255, 69, 58, 0.10); }
@@ -2457,8 +2495,8 @@ QFrame#abCardA, QFrame#abCardB {
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 14px;
 }
-QLabel#abVariantA { color: #FFFFFF; font-weight: 700; background: transparent; }
-QLabel#abVariantB { color: #FFFFFF; font-weight: 700; background: transparent; }
+QLabel#abVariantA { color: #FFFFFF; font-weight: 600; background: transparent; }
+QLabel#abVariantB { color: #FFFFFF; font-weight: 600; background: transparent; }
 QLabel#abStats { color: rgba(235, 235, 245, 0.60); background: transparent; }
 QPushButton#exportButton, QPushButton#exportButtonSuccess {
     background: rgba(255, 255, 255, 0.08);
@@ -2467,7 +2505,7 @@ QPushButton#exportButton, QPushButton#exportButtonSuccess {
     border-top: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 17px;
     padding: 8px 18px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#exportButton:hover, QPushButton#exportButtonSuccess:hover {
     background: rgba(255, 255, 255, 0.12);
@@ -2493,7 +2531,7 @@ QTabWidget#hunterTabs > QTabBar::tab {
     border: 1px solid transparent;
     border-radius: 15px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QTabWidget#hunterTabs > QTabBar::tab:selected {
     background: rgba(255, 255, 255, 0.11);
@@ -2556,7 +2594,7 @@ QPushButton#toolbarSearchButton {
     border-radius: 17px;
     padding: 7px 16px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#toolbarSearchButton:hover {
     background: rgba(255, 255, 255, 0.11);
@@ -2606,7 +2644,6 @@ QLineEdit, QTextEdit, QPlainTextEdit {
     border-radius: 12px;
 }
 QLineEdit[masked="true"] {
-    font-family: "Segoe UI", "Inter", sans-serif;
     font-size: 13px;
     letter-spacing: 0.3px;
     padding: 9px 14px;
@@ -2673,7 +2710,7 @@ QPushButton#primaryButton {
     padding: 10px 24px;
     border-radius: 20px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     text-align: center;
 }
 QPushButton#secondaryButton, QPushButton#dangerButton,
@@ -2681,7 +2718,7 @@ QPushButton#exportButton, QPushButton#exportButtonSuccess {
     padding: 9px 22px;
     border-radius: 20px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     text-align: center;
 }
 QPushButton#maskToggle {
@@ -2723,7 +2760,6 @@ QLineEdit:focus {
     height: 18px;
 }
 QLineEdit[masked="true"] {
-    font-family: "Segoe UI", "Inter", sans-serif;
     font-size: 13px;
     letter-spacing: 0.3px;
     padding: 7px 12px;
@@ -2737,7 +2773,7 @@ QComboBox {
     padding: 6px 34px 6px 12px;
     border-radius: 10px;
     height: 20px; min-height: 20px; max-height: 20px;
-    font-weight: 500;
+    font-weight: 400;
 }
 QComboBox:focus { border: 1px solid rgba(10, 132, 255, 0.90); }
 QComboBox QLineEdit {
@@ -2833,7 +2869,7 @@ QComboBox {
     padding: 6px 32px 6px 12px;
     border-radius: 10px;
     height: 20px; min-height: 20px; max-height: 20px;
-    font-weight: 500;
+    font-weight: 400;
 }
 QComboBox:hover { background-color: rgba(255, 255, 255, 0.10); }
 QComboBox::drop-down {
@@ -2885,7 +2921,7 @@ QPushButton#tableActionButton {
     padding: 5px 16px;
     min-height: 16px; max-height: 16px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#tableActionButton:hover { background: rgba(255, 255, 255, 0.13); }
 QPushButton#tableActionDanger {
@@ -2896,7 +2932,7 @@ QPushButton#tableActionDanger {
     padding: 5px 14px;
     min-height: 16px; max-height: 16px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
 }
 QPushButton#tableActionDanger:hover { background: rgba(255, 69, 58, 0.26); color: #FFFFFF; }
 
@@ -2980,7 +3016,7 @@ QLineEdit#ribbonSearchInput {
     border-radius: 20px;
     color: #FFFFFF;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 400;
     padding: 8px 16px;
     height: 22px;
     min-height: 22px;
