@@ -53,6 +53,20 @@ def main():
         except Exception:
             pass
 
+    # macOS: CoreText font smoothing dilates glyphs against an assumed
+    # background color. Our window is a translucent glass sheet, so there is
+    # no background color to assume — the dilation lands as semi-opaque halos
+    # and white text "bleeds" into the dark glass. Text drawn on translucent
+    # layers must skip smoothing (native vibrancy text does the same); the
+    # full-hinting SF Pro below keeps stems crisp at 1x without it.
+    if sys.platform == "darwin":
+        try:
+            from Foundation import NSUserDefaults
+            NSUserDefaults.standardUserDefaults().registerDefaults_(
+                {"AppleFontSmoothing": 0})
+        except Exception:
+            pass
+
     app = QApplication(sys.argv)
 
     # Application icon (taskbar, dock, window chrome, alt-tab). Prefer the
@@ -83,15 +97,23 @@ def main():
     # Load custom fonts
     load_fonts()
 
-    # Default to the platform's own UI font — SF Pro on macOS, Segoe UI on
-    # Windows. The stylesheet sets sizes but no sans family, so every widget
-    # inherits this. Hinting is a Windows idiom: macOS renders unhinted, and
-    # forcing full hinting there distorts glyph shapes.
-    default_font = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+    # Platform UI font. The stylesheet sets sizes but no sans family, so
+    # every widget inherits this. On macOS use SF Pro (.AppleSystemUIFont) —
+    # Apple's actual system font, 13pt Regular per the macOS HIG — with the
+    # OS's native font smoothing left intact, so Aura's text renders exactly
+    # like every native Mac app (critical on non-retina 1x displays, where
+    # any divergence reads as fuzzy/wrong). Full hinting snaps stems to the
+    # pixel grid for extra crispness at 1x.
     if sys.platform == "darwin":
-        default_font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        default_font = QFont(".AppleSystemUIFont")
+        default_font.setPointSize(13)
+        default_font.setHintingPreference(
+            QFont.HintingPreference.PreferFullHinting)
     else:
-        default_font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
+        default_font = QFontDatabase.systemFont(
+            QFontDatabase.SystemFont.GeneralFont)
+        default_font.setHintingPreference(
+            QFont.HintingPreference.PreferFullHinting)
     app.setFont(default_font)
 
     # Initialize database
