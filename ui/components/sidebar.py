@@ -126,18 +126,16 @@ class Sidebar(QWidget):
             20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
         ))
 
-        # Bottom accent line
-        bottom_accent = QWidget()
-        bottom_accent.setObjectName("sidebarAccent")
-        bottom_accent.setFixedHeight(1)
-        layout.addWidget(bottom_accent)
-
-        # Version info at bottom
+        # Version info at bottom. No accent line above it: the version row's
+        # own top border continues the status bar's line across the sidebar,
+        # and a second line here reads as a broken double ribbon.
         from config import APP_VERSION
         version_label = QLabel(f"v{APP_VERSION}")
         version_label.setObjectName("versionLabel")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version_label.setFixedHeight(31)
+        # Same height as the status bar so their top borders form one
+        # continuous line across the window's bottom ribbon.
+        version_label.setFixedHeight(32)
         layout.addWidget(version_label)
 
         # Set initial active state
@@ -146,8 +144,13 @@ class Sidebar(QWidget):
     def align_logo_with_toolbar(self, height: int, left_inset: int):
         """One-line header under seamless macOS chrome: the logo container
         matches the unified-toolbar height and shifts right so the traffic
-        lights (at the container's left edge) share its row."""
-        self._logo_container.setFixedHeight(height)
+        lights (at the container's left edge) share its row.
+
+        Height is one pixel short: the separator widget below then occupies
+        the same pixel row as the top bar's bottom border, so the header
+        underline reads as one continuous line across the whole window.
+        """
+        self._logo_container.setFixedHeight(height - 1)
         self._logo_layout.setContentsMargins(left_inset, 0, 20, 0)
 
     def drag_handle(self):

@@ -189,19 +189,19 @@ QLabel#statusTextSuccess {
 
 /* ─── Glass Card (Standard Container) ──────────────────────────────────── */
 QFrame#glassCard {
-    background-color: rgba(255, 255, 255, 0.025);
+    background-color: rgba(15, 15, 20, 0.78);
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 QFrame#glassCard:hover {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: rgba(20, 20, 26, 0.82);
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* ─── Stat Card ─────────────────────────────────────────────────────────── */
 QFrame#statCard {
-    background-color: rgba(255, 255, 255, 0.025);
+    background-color: rgba(15, 15, 20, 0.78);
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.07);
 }
@@ -224,10 +224,14 @@ QLabel#statLabel {
 
 /* ─── Typography Hierarchy ─────────────────────────────────────────────── */
 QLabel#sectionHeader {
+    /* macOS HIG Title 1: 22pt REGULAR. Semibold at this size renders
+       clumpy-fat on 1x displays; Apple's titles carry size, not weight.
+       94% white, not pure: full-contrast large glyphs over glass read as
+       edge bleed on non-retina — softening the peak tightens the edge. */
     font-size: 22px;
-    font-weight: 600;
-    color: #FFFFFF;
-    letter-spacing: -0.5px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.94);
+    letter-spacing: -0.3px;
     background: transparent;
 }
 
@@ -1944,12 +1948,13 @@ QScrollArea#dashboardScroll, QScrollArea#dashboardScroll > QWidget {
    Without an explicit fill these containers paint Fusion's default grey
    (~#3F3F45). Scroll viewports and page roots stay transparent so this one
    glass base shows through them. */
-QWidget#contentArea, QStackedWidget#pageStack {
-    /* Same luminous charcoal glass as the sidebar: the content layer must
-       match the navigation tone, not read as a black slab next to it. */
-    background-color: rgba(26, 26, 30, 0.46);
+QWidget#contentArea {
+    /* Bare glass — no fill. The sidebar's fill never paints (QWidget
+       subclass), so the navigation is raw blur+tint; the content column
+       must be the identical bare sheet or the materials mismatch. */
+    background: transparent;
 }
-QStackedWidget#pageStack > QWidget,
+QStackedWidget#pageStack, QStackedWidget#pageStack > QWidget,
 QScrollArea, QScrollArea > QWidget, QAbstractScrollArea::viewport {
     background: transparent;
 }
@@ -1957,17 +1962,21 @@ QScrollArea, QScrollArea > QWidget, QAbstractScrollArea::viewport {
 /* ═══ FUNCTIONAL LAYER — Liquid Glass ═══ */
 
 QFrame#topBar, QWidget#topBar {
-    background-color: rgba(28, 28, 32, 0.48);
+    /* Hairline only: the header sits on the same continuous glass sheet
+       as everything else, so any fill here reads as a tonal break. */
+    background: transparent;
     border: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 QWidget#statusBar, QFrame#statusBar {
-    background-color: rgba(28, 28, 32, 0.48);
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
     color: rgba(235, 235, 245, 0.55);
 }
 QWidget#sidebar {
-    background-color: rgba(26, 26, 30, 0.46);
+    /* Raw glass. (A fill here would not paint anyway: Sidebar is a
+       QWidget subclass without WA_StyledBackground.) */
+    background: transparent;
     border-right: 1px solid rgba(255, 255, 255, 0.10);
 }
 
@@ -1998,13 +2007,21 @@ QLabel#navSectionLabel {
     letter-spacing: 1.4px;
     font-weight: 600;
 }
-QLabel#versionLabel { color: rgba(235, 235, 245, 0.30); }
+QLabel#versionLabel {
+    color: rgba(235, 235, 245, 0.30);
+    /* Continues the status bar's hairline across the sidebar column. */
+    background: transparent;
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
 QLabel#logoText { color: #FFFFFF; letter-spacing: -0.3px; }
 
 /* ═══ CONTENT LAYER — standard material, quiet ═══ */
 
 QFrame#glassCard, QFrame#statCard {
-    background-color: rgba(255, 255, 255, 0.04);
+    /* Dark card surface floating ON the glass (the sheet behind stays
+       untouched). White-alpha fills read washed grey over live blur and
+       cost the text its contrast. */
+    background-color: rgba(15, 15, 20, 0.78);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 20px;
 }
@@ -2629,7 +2646,9 @@ QWidget#statusBar, QFrame#statusBar {
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
-QWidget#separator { background: rgba(255, 255, 255, 0.08); }
+/* Must match QWidget#topBar's border-bottom exactly: together they form
+   the single continuous header underline across sidebar and content. */
+QWidget#separator { background: rgba(255, 255, 255, 0.10); }
 QWidget#sidebarAccent { background: rgba(255, 255, 255, 0.08); }
 
 /* Chat: clearly divided floating column */
@@ -3064,3 +3083,151 @@ QLabel#ribbonSearchHint {
     letter-spacing: 0.5px;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIQUID GLASS v8 — secondary controls (final override, wins the cascade)
+   Per Apple: one prominent tinted action per surface (#0A84FF, the primary
+   buttons). Everything else is a regular glass capsule — but "regular glass"
+   on a dark UI is a DARK slate capsule with a bright lensing rim, not a
+   low-opacity white fill (which reads muddy grey over live desktop blur).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Secondary / export / mask-toggle / otherwise-unstyled buttons */
+QPushButton#secondaryButton, QPushButton#exportButton,
+QPushButton#exportButtonSuccess, QPushButton#maskToggle {
+    background-color: rgba(34, 36, 44, 0.90);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid rgba(255, 255, 255, 0.30);   /* lensing highlight */
+    font-weight: 500;
+}
+QPushButton#secondaryButton:hover, QPushButton#exportButton:hover,
+QPushButton#exportButtonSuccess:hover, QPushButton#maskToggle:hover {
+    background-color: rgba(52, 54, 64, 0.92);
+    border-top: 1px solid rgba(255, 255, 255, 0.36);
+}
+QPushButton#secondaryButton:pressed, QPushButton#exportButton:pressed,
+QPushButton#exportButtonSuccess:pressed, QPushButton#maskToggle:pressed {
+    background-color: rgba(26, 28, 36, 0.90);
+}
+QPushButton#secondaryButton:disabled, QPushButton#exportButton:disabled {
+    background-color: rgba(40, 42, 50, 0.35);
+    color: rgba(255, 255, 255, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Segmented tab pills — the SELECTED tab is a dark glass capsule, not grey;
+   unselected stay quiet and transparent. Covers plain and named tab bars. */
+QTabBar::tab:selected,
+QTabWidget#hunterTabs > QTabBar::tab:selected,
+QTabWidget#forgeEditorTabs > QTabBar::tab:selected {
+    background-color: rgba(34, 36, 44, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid rgba(255, 255, 255, 0.30);
+    color: #FFFFFF;
+}
+QTabBar::tab:!selected,
+QTabWidget#hunterTabs > QTabBar::tab:!selected,
+QTabWidget#forgeEditorTabs > QTabBar::tab:!selected {
+    background: transparent;
+    color: rgba(235, 235, 245, 0.55);
+    border: 1px solid transparent;
+}
+
+/* SpinBox stepper buttons and combo drop arrows: same dark slate glass */
+QSpinBox::up-button, QSpinBox::down-button {
+    background-color: rgba(34, 36, 44, 0.85);
+    border-radius: 6px;
+}
+
+/* "N leads" style status chips that were washing grey */
+QLabel#leadCountBadge, QLabel#countBadge, QLabel#statusChip {
+    background-color: rgba(10, 132, 255, 0.16);
+    color: #4DA6FF;
+    border: 1px solid rgba(10, 132, 255, 0.28);
+    border-radius: 12px;
+    padding: 4px 12px;
+}
+
+/* ═══ LIQUID GLASS v8 — selectors, table & kanban headers (authoritative) ═══ */
+
+/* Pop-up selectors: dark glass capsule, single clean chevron, and NO box
+   around the arrow. Earlier rules layered a border-triangle AND a chevron
+   image, producing a white bar above the chevron — this replaces them all. */
+QComboBox {
+    background-color: rgba(34, 36, 44, 0.90);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 15px;
+    padding: 7px 14px;
+    min-height: 20px;
+    font-weight: 500;
+}
+QComboBox:hover {
+    background-color: rgba(46, 48, 58, 0.92);
+    border-top: 1px solid rgba(255, 255, 255, 0.32);
+}
+QComboBox:on { background-color: rgba(30, 32, 40, 0.94); }
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    background: transparent;          /* no rectangle around the arrow */
+    margin: 0;
+}
+QComboBox::down-arrow {
+    image: url(assets/icons/qss/chevron-down.svg);
+    width: 12px;
+    height: 8px;
+    /* clear any inherited border-triangle that drew the stray bar */
+    border: none;
+    margin-right: 8px;
+}
+QComboBox::down-arrow:on { image: url(assets/icons/qss/chevron-up.svg); }
+
+/* Table headers (Suppression, campaign tables): dark, not white-alpha grey */
+QHeaderView::section {
+    background-color: rgba(26, 28, 36, 0.85);
+    color: rgba(235, 235, 245, 0.55);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+/* Kanban columns: dark glass panels; headers read as labels, not grey bars */
+QWidget#kanbanColumn {
+    background-color: rgba(20, 21, 27, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 16px;
+}
+QLabel#kanbanColumnHeader {
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+QLabel#kanbanColumnCount {
+    color: rgba(235, 235, 245, 0.5);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 9px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Search / chat fields that were washing grey — dark field like all inputs */
+QLineEdit#chatInput, QLineEdit#historySearch, QLineEdit#searchInput {
+    background-color: rgba(20, 21, 27, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: #FFFFFF;
+    border-radius: 15px;
+    padding: 8px 14px;
+}
+QLineEdit#chatInput:focus, QLineEdit#historySearch:focus {
+    border: 1px solid rgba(10, 132, 255, 0.80);
+}

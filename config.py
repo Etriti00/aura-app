@@ -13,7 +13,7 @@ from pathlib import Path
 APP_NAME = "Aura"
 # Single source of truth for the version. aura.spec reads it for the macOS
 # Info.plist, and CI checks it against the release tag. Bump it here only.
-APP_VERSION = "2.6.3"
+APP_VERSION = "2.6.4"
 APP_TAGLINE = "Your Local AI Sales Agent"
 GITHUB_REPO = "Etriti00/aura-app"
 

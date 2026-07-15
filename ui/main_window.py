@@ -206,12 +206,13 @@ class MainWindow(QMainWindow):
         self.sidebar = Sidebar()
         main_layout.addWidget(self.sidebar)
 
-        # Right content area. WA_StyledBackground makes a plain QWidget
-        # actually paint its QSS background-color; without it the fill is
-        # skipped and a bright desktop washes through the native glass.
+        # Right content area. Deliberately no WA_StyledBackground and no
+        # fill: the sidebar's QSS fill never paints (QWidget subclass skips
+        # it), which is exactly what makes the navigation read as raw liquid
+        # glass — the content column must be the same bare sheet or the two
+        # sides visibly mismatch in material.
         content_area = QWidget()
         content_area.setObjectName("contentArea")
-        content_area.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         if _sys.platform == "darwin":
             # Same safe-area opt-out as the central widget: otherwise this
             # column pads itself below the titlebar and the search/chat row
@@ -1616,6 +1617,13 @@ class MainWindow(QMainWindow):
             if theme_file.exists():
                 with open(theme_file, "r", encoding="utf-8") as f:
                     new_style = f.read()
+                    # QSS url() resolves against the process cwd, not the qss
+                    # file — fragile in the frozen app. Rewrite the icon paths
+                    # to absolute so combo chevrons etc. always load.
+                    from utils.paths import get_resource_path
+                    assets_root = get_resource_path("assets").as_posix()
+                    new_style = new_style.replace(
+                        "url(assets/", f"url({assets_root}/")
                     self.setStyleSheet(new_style)
             else:
                 print(f"Theme file not found: {theme_file}")
